@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>mujoco_ros2_control</name>
+  <version>0.0.0</version>
+  <description>mujoco_ros2_control</description>
+  <maintainer email="adrian.danzglock@dfki.de">Adrian Danzglock</maintainer>
+  <license>BSD</license>
+  <license>Apache License 2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <depend>angles</depend>
+  <depend>controller_manager</depend>
+  <depend>hardware_interface</depend>
+  <depend>geometry_msgs</depend>
+  <depend>pluginlib</depend>
+  <depend>rclcpp</depend>
+  <depend>std_msgs</depend>
+  <depend>yaml_cpp_vendor</depend>
+  <depend>urdf</depend>
+
+  <test_depend>ament_lint_common</test_depend>
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_cmake_gtest</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+    <gazebo_ros2_control plugin="${prefix}/gazebo_hardware_plugins.xml"/>
+  </export>
+</package>
