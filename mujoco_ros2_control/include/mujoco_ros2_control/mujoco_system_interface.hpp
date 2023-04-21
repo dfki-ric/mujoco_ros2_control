@@ -75,7 +75,7 @@ namespace mujoco_ros2_control
                 mjModel* mujoco_model, mjData *mujoco_data,
                 const hardware_interface::HardwareInfo & hardware_info,
                 const urdf::Model *urdf_model,
-                int objects_in_scene) = 0;
+                uint objects_in_scene) = 0;
 
         // Methods used to control a joint.
         enum ControlMethod_

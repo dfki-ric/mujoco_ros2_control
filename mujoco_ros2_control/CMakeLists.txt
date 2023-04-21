@@ -34,6 +34,7 @@ find_package(urdf REQUIRED)
 find_package(ament_lint_auto REQUIRED)
 find_package(angles REQUIRED)
 find_package(yaml_cpp_vendor REQUIRED)
+find_package(glfw3 REQUIRED)
 
 ## Specify additional locations of header files
 add_definitions(
@@ -85,6 +86,7 @@ ament_target_dependencies(${PROJECT_NAME}
         pluginlib
         rclcpp
         yaml_cpp_vendor
+        glfw3
 
         mujoco_ros2_msgs
         )

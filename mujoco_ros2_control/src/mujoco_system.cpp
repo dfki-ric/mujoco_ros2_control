@@ -43,11 +43,12 @@ public:
     size_t n_dof_;
 
     /// \brief Number of sensors.
-    size_t n_sensors_;
+    //size_t n_sensors_;
 
     /// \brief Mujoco Model Ptr.
     mjModel *mujoco_model_;
     mjData *mujoco_data_;
+    const urdf::Model *urdf_model_;
 
     /// \brief last time the write method was called.
     rclcpp::Time last_update_sim_time_ros_;
@@ -113,7 +114,7 @@ public:
     std::vector<MimicJoint> mimic_joints_;
 
     /// \brief Gain which converts position error to a velocity command
-    double position_proportional_gain_;
+    //double position_proportional_gain_;
 };
 
 
@@ -124,11 +125,14 @@ namespace mujoco_ros2_control {
             mjModel *mujoco_model, mjData *mujoco_data,
             const hardware_interface::HardwareInfo &hardware_info,
             const urdf::Model *const urdf_model,
-            int objects_in_scene) {
+            uint objects_in_scene) {
 
         this->nh_ = model_nh;
         this->dataPtr = std::make_unique<MujocoSystemPrivate>();
         this->dataPtr->n_dof_ = mujoco_model_->njnt - objects_in_scene;
+        this->dataPtr->urdf_model_ = urdf_model;
+        this->dataPtr->mujoco_model_ = mujoco_model;
+        this->dataPtr->mujoco_data_ = mujoco_data;
         RCLCPP_INFO(this->nh_->get_logger(), "%i robot degrees of freedom found.", n_dof_);
         RCLCPP_DEBUG(this->nh_->get_logger(), "%i generalized coordinates (qpos) found.", mujoco_model_->nq);
         RCLCPP_DEBUG(this->nh_->get_logger(), "%i degrees of freedom (qvel) found.", mujoco_model_->nv);
@@ -136,15 +140,13 @@ namespace mujoco_ros2_control {
         RCLCPP_DEBUG(this->nh_->get_logger(), "%i actuation states (act) found.", mujoco_model_->na);
         RCLCPP_DEBUG(this->nh_->get_logger(), "%i joints (njnt) found.", mujoco_model_->njnt);
 
-        registerJoints(hardware_info, mujoco_model, mujoco_data);
+        registerJoints(hardware_info);
         //registerSensors(hardware_info, mujoco_model, mujoco_data);
 
         return true;
     }
 
-    void MujocoSystem::registerJoints(
-            const hardware_interface::HardwareInfo &hardware_info,
-            mjModel *mujoco_model, mjData *mujoco_data) {
+    void MujocoSystem::registerJoints(const hardware_interface::HardwareInfo &hardware_info) {
         this->dataPtr->n_dof_ = hardware_info.joints.size();
 
         this->dataPtr->joint_names_.resize(this->dataPtr->n_dof_);
@@ -162,8 +164,8 @@ namespace mujoco_ros2_control {
             auto &joint_info = hardware_info.joints[j];
             std::string joint_name = this->dataPtr->joint_names_[j] = joint_info.name;
 
-            MujocoJointData mj_joint_data;
-            mj_joint_data.id = mj_name2id(mujoco_model, mjOBJ_JOINT, joint_info.name.c_str());
+            MujocoJointData mj_joint_data{};
+            mj_joint_data.id = mj_name2id(this->dataPtr->mujoco_model_, mjOBJ_JOINT, joint_info.name.c_str());
             mj_joint_data.qpos_addr = mujoco_model_->jnt_qposadr[mj_joint_data.id];
             mj_joint_data.qvel_addr = mujoco_model_->jnt_dofadr[mj_joint_data.id];
             mj_joint_data.type = mujoco_model_->jnt_type[mj_joint_data.id];
@@ -267,9 +269,9 @@ namespace mujoco_ros2_control {
             }
         }
 
-        for (int mujoco_actuator_id = 0; mujoco_actuator_id < mujoco_model->nu; mujoco_actuator_id++) {
-            std::string actuator_name = mj_id2name(mujoco_model, mjOBJ_ACTUATOR, mujoco_actuator_id);
-            MujocoActuatorData mj_actuator_data;
+        for (int mujoco_actuator_id = 0; mujoco_actuator_id < this->dataPtr->mujoco_model_->nu; mujoco_actuator_id++) {
+            std::string actuator_name = mj_id2name(this->dataPtr->mujoco_model_, mjOBJ_ACTUATOR, mujoco_actuator_id);
+            MujocoActuatorData mj_actuator_data{};
             mj_actuator_data.id = mujoco_actuator_id;
             mujoco_actuators_.insert(std::pair<std::string, MujocoActuatorData>(actuator_name, mj_actuator_data));
         }
@@ -438,7 +440,6 @@ namespace mujoco_ros2_control {
         if (ending.size() > value.size()) return false;
         return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
     }
-
 }  // namespace mujoco_ros2_control
 
 #include "pluginlib/class_list_macros.hpp"  // NOLINT

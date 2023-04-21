@@ -77,7 +77,7 @@ namespace mujoco_ros2_control
                 mjModel* mujoco_model, mjData *mujoco_data,
                 const hardware_interface::HardwareInfo & hardware_info,
                 const urdf::Model *urdf_model,
-                int objects_in_scene) override;
+                uint objects_in_scene) override;
 
 
 
@@ -145,11 +145,9 @@ namespace mujoco_ros2_control
         };
 
     private:
-        void registerJoints(
-                const hardware_interface::HardwareInfo & hardware_info,
-                mjModel* mujoco_model, mjData *mujoco_data);
+        void registerJoints(const hardware_interface::HardwareInfo & hardware_info);
 
-        bool string_ends_with(std::string const & value, std::string const & ending);
+        static bool string_ends_with(std::string const & value, std::string const & ending);
 
         //void registerSensors(
         //        const hardware_interface::HardwareInfo & hardware_info,
