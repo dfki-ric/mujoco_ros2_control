@@ -98,7 +98,7 @@ protected:
     static std::string geom_type_to_string(int geom_id);
 
     // node handles
-    std::shared_ptr<rclcpp::Node> parameter_node_;
+    std::shared_ptr<rclcpp::Node> parameter_node_ = rclcpp::Node::make_shared("mujoco_param_node");
     std::shared_ptr<rclcpp::Node> model_node_;
 
     // Executor to spin the controller

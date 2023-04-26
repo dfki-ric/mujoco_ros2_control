@@ -106,6 +106,10 @@ target_link_libraries(
 ## Install
 install(TARGETS
         ${PROJECT_NAME}
+        DESTINATION lib/${PROJECT_NAME}
+        )
+
+install(TARGETS
         mujoco_hardware_plugins
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib

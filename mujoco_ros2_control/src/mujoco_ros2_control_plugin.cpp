@@ -34,9 +34,9 @@ namespace mujoco_ros2_control
     MujocoRos2Control::MujocoRos2Control(rclcpp::Node::SharedPtr &node) : model_node_(node)
     {
         n_free_joints_ = 0;
-        model_node_->declare_parameter<std::string>("robot_description_param", "");
+        model_node_->declare_parameter<std::string>("robot_description_param", "robot_description");
         model_node_->declare_parameter<std::string>("robot_description_node", "robot_state_publisher");
-        model_node_->declare_parameter<std::string>("robot_model_path", "");
+        model_node_->declare_parameter<std::string>("robot_model_path", "/home/ubuntu22/ros2_ws/src/kuka_lbr_ros/kuka_lbr_description/urdf/kuka_lbr.urdf");
         model_node_->declare_parameter("robot_joints", "[]");
 
         // Check that ROS has been initialized
@@ -57,6 +57,7 @@ namespace mujoco_ros2_control
         // read urdf from ros parameter server then setup actuators and mechanism control node.
         robot_description_param_ = model_node_->get_parameter("robot_description_param").as_string();
         robot_description_node_ = model_node_->get_parameter("robot_description_node").as_string();
+        robot_model_path_ = model_node_->get_parameter("robot_model_path").as_string();
 
 
         std::string urdf_string;
@@ -67,7 +68,8 @@ namespace mujoco_ros2_control
         } catch (const std::runtime_error & ex) {
             RCLCPP_ERROR_STREAM(
                     model_node_->get_logger(),
-                    "Error parsing URDF in gazebo_ros2_control plugin, plugin not active : " << ex.what());
+                    "Error parsing URDF in mujoco_ros2_control plugin, plugin not active : " << ex.what());
+            rclcpp::shutdown();
         }
 
         char error[1000];
@@ -76,8 +78,10 @@ namespace mujoco_ros2_control
         mujoco_model_ = mj_loadXML(robot_model_path_.c_str(), NULL, error, 1000);
         if (!mujoco_model_)
         {
-            printf("Could not load mujoco model with error: %s.\n", error);
+            RCLCPP_ERROR(model_node_->get_logger(), "Could not load mujoco model with error: %s.\n", error);
             return;
+        } else {
+            RCLCPP_INFO(model_node_->get_logger(), "loaded mujoco model");
         }
 
         // create mjData corresponding to mjModel
@@ -86,6 +90,8 @@ namespace mujoco_ros2_control
         {
             printf("Could not create mujoco data from model.\n");
             return;
+        }else {
+            RCLCPP_INFO(model_node_->get_logger(), "Created mujoco data");
         }
 
         // check number of dofs
@@ -129,6 +135,7 @@ namespace mujoco_ros2_control
                 auto mujocoSystem = std::unique_ptr<mujoco_ros2_control::MujocoSystemInterface>(
                         robot_hw_sim_loader_->createUnmanagedInstance(robot_hw_sim_type_str_));
 
+                // TODO: Fix segmentation fault
                 rclcpp::Node::SharedPtr node_ros2 = std::dynamic_pointer_cast<rclcpp::Node>(this->model_node_);
                 if (!mujocoSystem->initSim(
                         node_ros2,
@@ -176,7 +183,7 @@ namespace mujoco_ros2_control
             return;
         }
 
-        auto cm_update_rate = controller_manager_->get_parameter("update_rate").as_int();
+        int cm_update_rate = controller_manager_->get_parameter("update_rate").as_int();
         control_period_ = rclcpp::Duration(
                 std::chrono::duration_cast<std::chrono::nanoseconds>(
                         std::chrono::duration<double>(1.0 / static_cast<double>(cm_update_rate))));
@@ -269,47 +276,54 @@ namespace mujoco_ros2_control
         std::string urdf_string;
 
         using namespace std::chrono_literals;
-        auto parameters_client = std::make_shared<rclcpp::AsyncParametersClient>(
+        std::shared_ptr<rclcpp::SyncParametersClient> parameters_client = std::make_shared<rclcpp::SyncParametersClient>(
                 this->parameter_node_, robot_description_node_);
         while (!parameters_client->wait_for_service(0.5s)) {
             if (!rclcpp::ok()) {
                 RCLCPP_ERROR(
-                        model_node_->get_logger(), "Interrupted while waiting for %s service. Exiting.",
+                        parameter_node_->get_logger(), "Interrupted while waiting for %s service. Exiting.",
                         robot_description_node_.c_str());
                 return "";
             }
             RCLCPP_ERROR(
-                    model_node_->get_logger(), "%s service not available, waiting again...",
+                    parameter_node_->get_logger(), "%s service not available, waiting again...",
                     robot_description_node_.c_str());
         }
 
         RCLCPP_INFO(
-                model_node_->get_logger(), "connected to service!! %s", robot_description_node_.c_str());
+                parameter_node_->get_logger(), "connected to service %s.", robot_description_node_.c_str());
 
         // search and wait for robot_description on param server
         while (urdf_string.empty()) {
-            RCLCPP_DEBUG(model_node_->get_logger(), "param_name %s", param_name.c_str());
+            RCLCPP_INFO(parameter_node_->get_logger(), "param_name %s", param_name.c_str());
 
             try {
-                auto f = parameters_client->get_parameters({param_name});
-                f.wait();
-                std::vector<rclcpp::Parameter> values = f.get();
-                urdf_string = values.at(0).as_string();
+                auto parameters = parameters_client->get_parameters({param_name});
+                urdf_string = parameters.at(0).value_to_string();
+                //std::stringstream ss;
+                // Get a few of the parameters just set.
+                //for (auto & parameter : parameters)
+                //{
+                //    ss << "\nParameter name: " << parameter.get_name();
+                //    ss << "\nParameter value (" << parameter.get_type_name() << "): " <<
+                //       parameter.value_to_string();
+                //    std::cout << ss.str() << std::endl;
+                //}
             } catch (const std::exception & e) {
-                RCLCPP_ERROR(model_node_->get_logger(), "%s", e.what());
+                RCLCPP_ERROR(parameter_node_->get_logger(), "%s", e.what());
             }
 
             if (!urdf_string.empty()) {
                 break;
             } else {
                 RCLCPP_ERROR(
-                        model_node_->get_logger(), "mujoco_ros2_control plugin is waiting for model"
+                        parameter_node_->get_logger(), "mujoco_ros2_control plugin is waiting for model"
                                                  " URDF in parameter [%s] on the ROS param server.", param_name.c_str());
             }
             usleep(100000);
         }
         RCLCPP_INFO(
-                model_node_->get_logger(), "Recieved urdf from param server, parsing...");
+                parameter_node_->get_logger(), "Recieved urdf from param server, parsing...");
 
         return urdf_string;
     }
@@ -447,13 +461,13 @@ namespace mujoco_ros2_control
 int main(int argc, char** argv)
 {
     rclcpp::init(argc, argv);
+    std::cout << " " << std::endl;
 
     //ros::NodeHandle nh_;
     rclcpp::Node::SharedPtr node = rclcpp::Node::make_shared("model_node");
 
     mujoco_ros2_control::MujocoRos2Control mujoco_ros2_control_plugin(node);
 
-    //TODO: Visualization
     mujoco_ros2_control::MujocoVisualizationUtils &mujoco_visualization_utils =
             mujoco_ros2_control::MujocoVisualizationUtils::getInstance();
 

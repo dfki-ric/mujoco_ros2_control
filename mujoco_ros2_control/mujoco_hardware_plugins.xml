@@ -1,7 +1,7 @@
 <library path="mujoco_hardware_plugins">
     <class
-            name="mujoco_ros2_control/GazeboSystem"
-            type="mujoco_ros2_control::GazeboSystem"
+            name="mujoco_ros2_control/MujocoSystem"
+            type="mujoco_ros2_control::MujocoSystem"
             base_class_type="mujoco_ros2_control::MujocoSystemInterface">
         <description>
             MujocoPositionJoint
