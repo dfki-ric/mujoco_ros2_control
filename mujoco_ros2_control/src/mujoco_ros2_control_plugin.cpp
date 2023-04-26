@@ -454,8 +454,8 @@ int main(int argc, char** argv)
     mujoco_ros2_control::MujocoRos2Control mujoco_ros2_control_plugin(node);
 
     //TODO: Visualization
-    //mujoco_ros2_control::MujocoVisualizationUtils &mujoco_visualization_utils =
-    //        mujoco_ros2_control::MujocoVisualizationUtils::getInstance();
+    mujoco_ros2_control::MujocoVisualizationUtils &mujoco_visualization_utils =
+            mujoco_ros2_control::MujocoVisualizationUtils::getInstance();
 
     // initialize mujoco stuff
     //if (!mujoco_ros_control.init(nh_))
@@ -477,7 +477,7 @@ int main(int argc, char** argv)
     glfwMakeContextCurrent(window);
 
     // initialize mujoco visualization functions
-    mujoco_visualization_utils.init(mujoco_ros_control.mujoco_model_, mujoco_ros_control.mujoco_data_, window);
+    mujoco_visualization_utils.init(mujoco_ros2_control_plugin.mujoco_model_, mujoco_ros2_control_plugin.mujoco_data_, window);
 
     // spin
     //ros::AsyncSpinner spinner(1);

@@ -30,7 +30,7 @@ find_package(transmission_interface REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(joint_limits_interface REQUIRED)
 find_package(urdf REQUIRED)
-#find_package(mujoco REQUIRED)
+find_package(mujoco REQUIRED)
 find_package(ament_lint_auto REQUIRED)
 find_package(angles REQUIRED)
 find_package(yaml_cpp_vendor REQUIRED)
@@ -60,36 +60,8 @@ ament_lint_auto_find_test_dependencies()
 #target_link_libraries(visualization_utils )
 
 ## Declare a C++ library
-#add_executable(mujoco_ros2_control src/old/mujoco_ros2_control.cpp)
-#ament_target_dependencies(mujoco_ros2_control
-#        urdf
-#        transmission_interface
-#        geometry_msgs
-#        mujoco_ros2_msgs
-#        controller_manager
-#        rosgraph_msgs
-#)
-#target_link_libraries(mujoco_ros2_control
-#        glfw
-#        ${mujoco_LIBRARIES}
-#        robot_hw_sim
-#        visualization_utils GLEW glut X11 GL GLU)
-
 # Libraries
-add_library(${PROJECT_NAME} SHARED
-        src/mujoco_ros2_control_plugin.cpp
-        )
-ament_target_dependencies(${PROJECT_NAME}
-        angles
-        controller_manager
-        hardware_interface
-        pluginlib
-        rclcpp
-        yaml_cpp_vendor
-        glfw3
 
-        mujoco_ros2_msgs
-        )
 
 
 add_library(mujoco_hardware_plugins SHARED
@@ -100,7 +72,36 @@ ament_target_dependencies(mujoco_hardware_plugins
         hardware_interface
         rclcpp
         control_toolbox
+        urdf
         )
+
+add_library(mujoco_visualization_utils src/mujoco_visualization_utils.cpp)
+ament_target_dependencies(mujoco_visualization_utils
+        rclcpp
+        glfw3
+)
+
+add_executable(${PROJECT_NAME} src/mujoco_ros2_control_plugin.cpp
+        )
+ament_target_dependencies(${PROJECT_NAME}
+        angles
+        controller_manager
+        hardware_interface
+        pluginlib
+        rclcpp
+        yaml_cpp_vendor
+        glfw3
+        urdf
+        mujoco
+
+        mujoco_ros2_msgs
+        )
+target_link_libraries(
+        mujoco_ros2_control
+        mujoco
+        glfw
+        mujoco_visualization_utils
+)
 
 ## Install
 install(TARGETS

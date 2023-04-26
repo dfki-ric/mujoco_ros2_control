@@ -37,11 +37,11 @@
 
 #include <controller_manager/controller_manager.hpp>
 //#include <transmission_interface/transmission_parser.h>
-#include "hardware_interface/hardware_info.hpp"
+#include <hardware_interface/hardware_info.hpp>
 
 // openGL stuff
-#include "GLFW/glfw3.h"
-//#include <mujoco_ros_control/visualization_utils.h>
+#include <GLFW/glfw3.h>
+#include <mujoco_ros2_control/mujoco_visualization_utils.hpp>
 
 #include <rosgraph_msgs/msg/clock.hpp>
 
