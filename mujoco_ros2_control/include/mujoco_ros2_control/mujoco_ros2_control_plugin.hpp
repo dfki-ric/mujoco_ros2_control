@@ -26,6 +26,8 @@
 #include <vector>
 #include <map>
 
+#include "yaml-cpp/yaml.h"
+
 // ros_control
 #include <mujoco_ros2_control/mujoco_system.hpp>
 #include <mujoco_ros2_control/mujoco_system_interface.hpp>
@@ -38,6 +40,9 @@
 #include <controller_manager/controller_manager.hpp>
 //#include <transmission_interface/transmission_parser.h>
 #include <hardware_interface/hardware_info.hpp>
+#include "hardware_interface/resource_manager.hpp"
+#include "hardware_interface/component_parser.hpp"
+#include "hardware_interface/types/hardware_interface_type_values.hpp"
 
 // openGL stuff
 #include <GLFW/glfw3.h>
@@ -77,7 +82,7 @@ protected:
     std::string get_urdf(const std::string& param_name) const;
 
     // setup initial sim environment
-    void setup_sim_environment();
+    void setup_sim_environment(const std::vector<hardware_interface::HardwareInfo>& hwinfo);
 
     // parse transmissions from URDF
     bool parse_transmissions(const std::string& urdf_string);

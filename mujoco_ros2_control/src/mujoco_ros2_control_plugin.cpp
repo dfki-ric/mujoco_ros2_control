@@ -20,7 +20,6 @@
 
 
 //#include <boost/bind.hpp>
-#include "mujoco_ros2_control/mujoco_ros2_control_plugin_.hpp"
 #include "mujoco_ros2_control/mujoco_ros2_control_plugin.hpp"
 #include "mujoco_ros2_control/mujoco_system.hpp"
 #include <urdf/urdf/model.h>
@@ -36,8 +35,9 @@ namespace mujoco_ros2_control
         n_free_joints_ = 0;
         model_node_->declare_parameter<std::string>("robot_description_param", "robot_description");
         model_node_->declare_parameter<std::string>("robot_description_node", "robot_state_publisher");
-        model_node_->declare_parameter<std::string>("robot_model_path", "/home/ubuntu22/ros2_ws/src/kuka_lbr_ros/kuka_lbr_description/urdf/kuka_lbr.urdf");
-        model_node_->declare_parameter("robot_joints", "[]");
+        model_node_->declare_parameter<std::string>("robot_model_path", "/home/ubuntu22/ros2_ws/src/kuka_lbr_ros/kuka_lbr_mujoco/config/kuka_lbr.urdf");
+        model_node_->declare_parameter("robot_joints", std::vector<std::string>{""});
+        model_node_->declare_parameter<std::string>("params_file_path", "/home/ubuntu22/ros2_ws/src/kuka_lbr_ros/kuka_lbr_mujoco/config/ros2_controllers.yaml");
 
         // Check that ROS has been initialized
         if (!rclcpp::ok())
@@ -58,7 +58,33 @@ namespace mujoco_ros2_control
         robot_description_param_ = model_node_->get_parameter("robot_description_param").as_string();
         robot_description_node_ = model_node_->get_parameter("robot_description_node").as_string();
         robot_model_path_ = model_node_->get_parameter("robot_model_path").as_string();
+        std::string params_file_path = model_node_->get_parameter("params_file_path").as_string();
 
+        auto rcl_context = model_node_->get_node_base_interface()->get_context()->get_rcl_context();
+        std::vector<std::string> arguments = {"--ros-args"};
+
+        arguments.push_back(RCL_PARAM_FILE_FLAG);
+        arguments.push_back(params_file_path);
+
+        std::vector<const char *> argv;
+        for (const auto & arg : arguments) {
+            argv.push_back(reinterpret_cast<const char *>(arg.data()));
+        }
+        rcl_arguments_t rcl_args = rcl_get_zero_initialized_arguments();
+        rcl_ret_t rcl_ret = rcl_parse_arguments(
+                static_cast<int>(argv.size()),
+                argv.data(), rcl_get_default_allocator(), &rcl_args);
+        rcl_context->global_arguments = rcl_args;
+        if (rcl_ret != RCL_RET_OK) {
+            RCLCPP_ERROR(model_node_->get_logger(), "parser error %s\n", rcl_get_error_string().str);
+            rcl_reset_error();
+            return;
+        }
+        if (rcl_arguments_get_param_files_count(&rcl_args) < 1) {
+            RCLCPP_ERROR(
+                    model_node_->get_logger(), "failed to parse input yaml file(s)");
+            return;
+        }
 
         std::string urdf_string;
         std::vector<hardware_interface::HardwareInfo> control_hardware_info;
@@ -71,7 +97,6 @@ namespace mujoco_ros2_control
                     "Error parsing URDF in mujoco_ros2_control plugin, plugin not active : " << ex.what());
             rclcpp::shutdown();
         }
-
         char error[1000];
 
         // create mjModel
@@ -130,12 +155,12 @@ namespace mujoco_ros2_control
             // check for objects
             check_objects_in_scene();
 
+
             for (auto & i : control_hardware_info) {
                 std::string robot_hw_sim_type_str_ = i.hardware_class_type;
                 auto mujocoSystem = std::unique_ptr<mujoco_ros2_control::MujocoSystemInterface>(
                         robot_hw_sim_loader_->createUnmanagedInstance(robot_hw_sim_type_str_));
 
-                // TODO: Fix segmentation fault
                 rclcpp::Node::SharedPtr node_ros2 = std::dynamic_pointer_cast<rclcpp::Node>(this->model_node_);
                 if (!mujocoSystem->initSim(
                         node_ros2,
@@ -206,8 +231,10 @@ namespace mujoco_ros2_control
         controller_manager_->set_parameter(
                 rclcpp::Parameter("use_sim_time", rclcpp::ParameterValue(true)));
 
+
         // set up the initial simulation environment
-        setup_sim_environment();
+        // TODO: Check if required, when commented in there is a problem with number of constraints
+        //setup_sim_environment(control_hardware_info);
     }
 
     MujocoRos2Control::~MujocoRos2Control() 
@@ -220,21 +247,34 @@ namespace mujoco_ros2_control
         mj_deactivate();
     }
 
-    void MujocoRos2Control::setup_sim_environment()
+    void MujocoRos2Control::setup_sim_environment(const std::vector<hardware_interface::HardwareInfo>& hwinfo)
     {
-        std::vector<std::string> robot_joints = model_node_->get_parameter("robot_joints").as_string_array();
-        std::map<std::string, double> robot_initial_states;
-        for (size_t i = 0; i < robot_joints.size(); i++) {
-            std::string param_name = "robot_initial_state." + robot_joints.at(i);
-            model_node_->declare_parameter<double>(param_name, 0.0);
-            mujoco_data_->qpos[i] = model_node_->get_parameter(param_name).as_double();
+        size_t i = 0;
+        for(const auto& hw : hwinfo) {
+            for (const auto& joint : hw.joints) {
+                for (const auto& interface : joint.state_interfaces) {
+                    if (interface.name == "position") {
+                        mujoco_data_->qpos[i] = std::stod(interface.initial_value);
+                        i++;
+                    }
+                }
+            }
         }
+
+        //std::vector<std::string> robot_joints = model_node_->get_parameter("robot_joints").as_string_array();
+        //for (size_t i = 0; i < robot_joints.size(); i++) {
+        //    std::string param_name = "robot_initial_state." + robot_joints.at(i);
+        //    model_node_->declare_parameter<double>(param_name, 0.0);
+        //    mujoco_data_->qpos[i] = model_node_->get_parameter(param_name).as_double();
+        //}
 
         // compute forward kinematics for new pos
         mj_forward(mujoco_model_, mujoco_data_);
 
         // run simulation to setup the new pos
         mj_step(mujoco_model_, mujoco_data_);
+
+        RCLCPP_INFO(model_node_->get_logger(), "Sim environment setup complete");
     }
 
     void MujocoRos2Control::update()

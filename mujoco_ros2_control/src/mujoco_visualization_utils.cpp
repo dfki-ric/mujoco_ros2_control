@@ -55,6 +55,8 @@ namespace mujoco_ros2_control
         lastx = 0;
         lasty = 0;
 
+        RCLCPP_INFO(rclcpp::get_logger("mujoco_visualization"), "Initialize Mujoco visualization");
+
         // initialize MuJoCo visualization
         mjv_makeScene(mujoco_model_, &scn, 1000);
         mjv_defaultCamera(&cam);
@@ -74,6 +76,7 @@ namespace mujoco_ros2_control
         glfwSetScrollCallback(window, &MujocoVisualizationUtils::scroll_callback);
         profiler_init();
         sensor_init();
+        RCLCPP_INFO(rclcpp::get_logger("mujoco_visualization"), "Initialize Mujoco visualization finished");
     }
 
     void MujocoVisualizationUtils::update(GLFWwindow* window)
