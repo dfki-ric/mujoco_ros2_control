@@ -98,10 +98,10 @@ namespace mujoco_ros2_control
             double effort;
             double effort_command;
             double position_command;
-            double last_position_command;
             double velocity_command;
-            hardware_interface::CommandInterface* command_interfaces;
-            hardware_interface::StateInterface* state_interfaces;
+            double last_position_command;
+            std::vector<hardware_interface::CommandInterface*> command_interfaces;
+            std::vector<hardware_interface::StateInterface*> state_interfaces;
             int mujoco_joint_id;
             int mujoco_qpos_addr;
             int mujoco_qvel_addr;
@@ -135,6 +135,7 @@ namespace mujoco_ros2_control
         struct MujocoActuatorData
         {
             int id;
+            int joint_id;
 
             std::string to_string()
             {
@@ -175,33 +176,33 @@ namespace mujoco_ros2_control
         rclcpp::Time last_update_sim_time_ros_;
 
         /// \brief vector with the joint's names.
-        std::vector<std::string> joint_names_;
+        //std::vector<std::string> joint_names_;
 
         /// \brief vector with the control method defined in the URDF for each joint.
-        std::vector<MujocoSystemInterface::ControlMethod> joint_control_methods_;
+        //std::vector<MujocoSystemInterface::ControlMethod> joint_control_methods_;
 
         std::vector<control_toolbox::Pid> pid_controllers_;
 
         /// \brief handles to the joints from within Mujoco
-        std::vector<MujocoSystem::MujocoJointData> sim_joints_;
+        //std::vector<MujocoSystem::MujocoJointData> sim_joints_;
 
         /// \brief vector with the current joint position
-        std::vector<double> joint_position_;
+        //std::vector<double> joint_position_;
 
         /// \brief vector with the current joint velocity
-        std::vector<double> joint_velocity_;
+        //std::vector<double> joint_velocity_;
 
         /// \brief vector with the current joint effort
-        std::vector<double> joint_effort_;
+        //std::vector<double> joint_effort_;
 
         /// \brief vector with the current cmd joint position
-        std::vector<double> joint_position_cmd_;
+        //std::vector<double> joint_position_cmd_;
 
         /// \brief vector with the current cmd joint velocity
-        std::vector<double> joint_velocity_cmd_;
+        //std::vector<double> joint_velocity_cmd_;
 
         /// \brief vector with the current cmd joint effort
-        std::vector<double> joint_effort_cmd_;
+        //std::vector<double> joint_effort_cmd_;
 
         /// \brief vector with the lower joint limits
         std::vector<double> joint_lower_limit_;
@@ -238,8 +239,8 @@ namespace mujoco_ros2_control
         //double position_proportional_gain_;
 
     protected:
-        //std::map<std::string, JointData> joints_;
-        //std::map<std::string, MujocoJointData> mujoco_joints_;
+        std::map<std::string, JointData> joints_;
+        std::map<std::string, MujocoJointData> mujoco_joints_;
         std::map<std::string, MujocoActuatorData> mujoco_actuators_;
 
     };

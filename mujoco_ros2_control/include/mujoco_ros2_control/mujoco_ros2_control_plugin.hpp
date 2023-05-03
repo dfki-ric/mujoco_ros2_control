@@ -14,6 +14,7 @@
 //#include <pluginlib/class_loader.h>
 #include <std_msgs/msg/bool.hpp>
 //#include <ros/package.h>
+#include "rclcpp/executors/multi_threaded_executor.hpp"
 
 // Mujoco dependencies
 #include <mujoco/mujoco.h>
@@ -58,9 +59,6 @@ public:
     MujocoRos2Control(rclcpp::Node::SharedPtr &node);
     virtual ~MujocoRos2Control();
 
-    // initialize params and controller manager
-    bool init();
-
     // step update function
     void update();
 
@@ -79,13 +77,10 @@ protected:
     enum Object_State { STATIC = true, FREE = false };
 
     // get the URDF XML from the parameter server
-    std::string get_urdf(const std::string& param_name) const;
+    [[nodiscard]] std::string get_urdf(const std::string& param_name) const;
 
     // setup initial sim environment
     void setup_sim_environment(const std::vector<hardware_interface::HardwareInfo>& hwinfo);
-
-    // parse transmissions from URDF
-    bool parse_transmissions(const std::string& urdf_string);
 
     // get number of degrees of freedom
     void get_number_of_dofs();
@@ -101,6 +96,8 @@ protected:
 
     // transform type id to type name
     static std::string geom_type_to_string(int geom_id);
+
+    void add_actuators(const std::vector<hardware_interface::HardwareInfo>& vector);
 
     // node handles
     std::shared_ptr<rclcpp::Node> parameter_node_ = rclcpp::Node::make_shared("mujoco_param_node");
@@ -143,13 +140,13 @@ protected:
     // simulated clock
     std::shared_ptr<rclcpp::Publisher<rosgraph_msgs::msg::Clock>> pub_clock_;
     int pub_clock_frequency_{};
-    rclcpp::Time last_pub_clock_time_;
+    rclcpp::Time last_pub_clock_time_ = rclcpp::Time((int64_t)0, RCL_ROS_TIME);
 
     // timing
     rclcpp::Duration control_period_ = rclcpp::Duration(1, 0);
     rclcpp::Duration mujoco_period_ = rclcpp::Duration(1, 0);
-    rclcpp::Time last_update_sim_time_ros_;
-    rclcpp::Time last_write_sim_time_ros_;
+    rclcpp::Time last_update_sim_time_ros_ = rclcpp::Time((int64_t)0, RCL_ROS_TIME);
+    rclcpp::Time last_write_sim_time_ros_ = rclcpp::Time((int64_t)0, RCL_ROS_TIME);
 
     // publishing
     std::shared_ptr<rclcpp::Publisher<mujoco_ros2_msgs::msg::ModelStates>> objects_in_scene_publisher;

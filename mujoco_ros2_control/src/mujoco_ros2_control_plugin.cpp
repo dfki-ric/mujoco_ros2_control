@@ -35,7 +35,7 @@ namespace mujoco_ros2_control
         n_free_joints_ = 0;
         model_node_->declare_parameter<std::string>("robot_description_param", "robot_description");
         model_node_->declare_parameter<std::string>("robot_description_node", "robot_state_publisher");
-        model_node_->declare_parameter<std::string>("robot_model_path", "/home/ubuntu22/ros2_ws/src/kuka_lbr_ros/kuka_lbr_mujoco/config/kuka_lbr.urdf");
+        model_node_->declare_parameter<std::string>("robot_model_path", "/home/ubuntu22/ros2_ws/src/kuka_lbr_ros/kuka_lbr_mujoco/config/kuka_lbr.xml");
         model_node_->declare_parameter("robot_joints", std::vector<std::string>{""});
         model_node_->declare_parameter<std::string>("params_file_path", "/home/ubuntu22/ros2_ws/src/kuka_lbr_ros/kuka_lbr_mujoco/config/ros2_controllers.yaml");
 
@@ -63,7 +63,7 @@ namespace mujoco_ros2_control
         auto rcl_context = model_node_->get_node_base_interface()->get_context()->get_rcl_context();
         std::vector<std::string> arguments = {"--ros-args"};
 
-        arguments.push_back(RCL_PARAM_FILE_FLAG);
+        arguments.emplace_back(RCL_PARAM_FILE_FLAG);
         arguments.push_back(params_file_path);
 
         std::vector<const char *> argv;
@@ -108,6 +108,10 @@ namespace mujoco_ros2_control
         } else {
             RCLCPP_INFO(model_node_->get_logger(), "loaded mujoco model");
         }
+
+        //mj_saveLastXML("/home/ubuntu22/ros2_ws/src/kuka_lbr_ros/kuka_lbr_mujoco/config/kuka_lbr.xml", mujoco_model_, error, 1000);
+
+        //add_actuators(control_hardware_info);
 
         // create mjData corresponding to mjModel
         mujoco_data_ = mj_makeData(mujoco_model_);
@@ -234,7 +238,7 @@ namespace mujoco_ros2_control
 
         // set up the initial simulation environment
         // TODO: Check if required, when commented in there is a problem with number of constraints
-        //setup_sim_environment(control_hardware_info);
+        setup_sim_environment(control_hardware_info);
     }
 
     MujocoRos2Control::~MujocoRos2Control() 
@@ -255,6 +259,7 @@ namespace mujoco_ros2_control
                 for (const auto& interface : joint.state_interfaces) {
                     if (interface.name == "position") {
                         mujoco_data_->qpos[i] = std::stod(interface.initial_value);
+                        RCLCPP_DEBUG(model_node_->get_logger(), "joint: %s", joint.name.c_str());
                         i++;
                     }
                 }
@@ -280,9 +285,8 @@ namespace mujoco_ros2_control
     void MujocoRos2Control::update()
     {
         publish_sim_time();
-
-        rclcpp::Time sim_time = (rclcpp::Time)(mujoco_data_->time * 1e+9);
-        rclcpp::Time sim_time_ros = (rclcpp::Time)(sim_time.nanoseconds());
+        rclcpp::Time sim_time_ros = rclcpp::Time((int64_t) (mujoco_data_->time * 1e+9), RCL_ROS_TIME);
+        //rclcpp::Time sim_time_ros = (rclcpp::Time)(sim_time.nanoseconds(), RCL_ROS_TIME);
 
         rclcpp::Duration sim_period = sim_time_ros - last_update_sim_time_ros_;
 
@@ -295,19 +299,20 @@ namespace mujoco_ros2_control
             last_update_sim_time_ros_ = sim_time_ros;
 
             // update the robot simulation with the state of the mujoco model
-            robot_hw_sim_->read(sim_time_ros, sim_period);
+            controller_manager_->read(sim_time_ros, sim_period);
 
             // compute the controller commands
             controller_manager_->update(sim_time_ros, sim_period);
         }
 
         // update the mujoco model with the result of the controller
-        robot_hw_sim_->write(sim_time_ros, sim_time_ros - last_write_sim_time_ros_);
+        controller_manager_->write(sim_time_ros, sim_period);
 
         last_write_sim_time_ros_ = sim_time_ros;
         mj_step2(mujoco_model_, mujoco_data_);
 
-        publish_objects_in_scene();
+        //TODO: correct publisher to work with multithread spinner
+        //publish_objects_in_scene();
     }
 
 // get the URDF XML from the parameter server
@@ -536,8 +541,10 @@ int main(int argc, char** argv)
     // spin
     //ros::AsyncSpinner spinner(1);
     //spinner.start();
-    rclcpp::spin(node);
-
+    //rclcpp::spin(node);
+    rclcpp::executors::MultiThreadedExecutor executor;
+    executor.add_node(node);
+    std::thread executor_thread([ObjectPtr = &executor] { ObjectPtr->spin(); });
     // run main loop, target real-time simulation and 60 fps rendering
     while ( rclcpp::ok() && !glfwWindowShouldClose(window) )
     {
@@ -553,6 +560,7 @@ int main(int argc, char** argv)
     }
 
     mujoco_visualization_utils.terminate();
+    executor_thread.join();
 
     return 0;
 }
