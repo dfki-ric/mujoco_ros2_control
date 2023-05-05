@@ -453,7 +453,7 @@ namespace mujoco_ros2_control
                 objects_in_scene_.insert({object_id, FREE});
                 //objects_in_scene_[object_id] = FREE;
                 //n_free_joints_++;
-                RCLCPP_INFO(model_node_->get_logger(), "Free object found: %s", object_name.c_str());
+                RCLCPP_DEBUG(model_node_->get_logger(), "Free object found: %s", object_name.c_str());
                 if (0 == joint_type)
                 {
                 //    objects_in_scene_.insert({object_id, FREE});

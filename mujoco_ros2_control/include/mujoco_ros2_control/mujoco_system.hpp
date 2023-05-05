@@ -23,7 +23,9 @@
 #include "angles/angles.h"
 
 #include "mujoco_ros2_control/mujoco_system_interface.hpp"
-
+#include "control_toolbox/pid.hpp"
+#include "joint_limits/joint_limits.hpp"
+#include "joint_limits/joint_limits_rosparam.hpp"
 #include "std_msgs/msg/bool.hpp"
 #include "control_toolbox/pid.hpp"
 
@@ -93,6 +95,7 @@ namespace mujoco_ros2_control
             double effort_limit;
             ControlMethod control_method;
             control_toolbox::Pid pid_controller;
+            bool use_pid_controller;
             double position;
             double velocity;
             double effort;
