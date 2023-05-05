@@ -97,8 +97,6 @@ protected:
     // transform type id to type name
     static std::string geom_type_to_string(int geom_id);
 
-    void add_actuators(const std::vector<hardware_interface::HardwareInfo>& vector);
-
     // node handles
     std::shared_ptr<rclcpp::Node> parameter_node_ = rclcpp::Node::make_shared("mujoco_param_node");
     std::shared_ptr<rclcpp::Node> model_node_;
@@ -110,7 +108,7 @@ protected:
 
     bool stop_{};
 
-    // Thread where the executor will sping
+    // Thread where the executor will spin
     std::thread thread_executor_spin_;
 
     // interface loader
@@ -149,7 +147,7 @@ protected:
     rclcpp::Time last_write_sim_time_ros_ = rclcpp::Time((int64_t)0, RCL_ROS_TIME);
 
     // publishing
-    std::shared_ptr<rclcpp::Publisher<mujoco_ros2_msgs::msg::ModelStates>> objects_in_scene_publisher;
+    std::shared_ptr<rclcpp::Publisher<mujoco_ros2_msgs::msg::ModelStates>> objects_in_scene_publisher_;
 };
 }  // namespace mujoco_ros2_control
 

@@ -49,10 +49,8 @@ namespace mujoco_ros2_control
         // publish clock for simulated time
         pub_clock_ = model_node_->create_publisher<rosgraph_msgs::msg::Clock>("/clock", 10);
 
-        // create robot node handle
-        //robot_node_handle = ros::NodeHandle("/");
-
-        //ROS_INFO_NAMED("mujoco_ros_control", "Starting mujoco_ros_control node in namespace: %s", robot_namespace_.c_str());
+        // publish objects in scene
+        objects_in_scene_publisher_ = model_node_->create_publisher<mujoco_ros2_msgs::msg::ModelStates>("/mujoco/objects_in_scene", 10);
 
         // read urdf from ros parameter server then setup actuators and mechanism control node.
         robot_description_param_ = model_node_->get_parameter("robot_description_param").as_string();
@@ -140,25 +138,20 @@ namespace mujoco_ros2_control
                     new pluginlib::ClassLoader<mujoco_ros2_control::MujocoSystemInterface>
                             ("mujoco_ros2_control", "mujoco_ros2_control::MujocoSystemInterface"));
             robot_hw_sim_loader_->createUnmanagedInstance("mujoco_ros2_control/MujocoSystem");
-            /**robot_hw_sim_ = robot_hw_sim_loader_->createInstance("mujoco_ros_control/RobotHWSim");
             urdf::Model urdf_model;
             const urdf::Model *const urdf_model_ptr = urdf_model.initString(urdf_string) ? &urdf_model : NULL;
 
             // get robot links from urdf
-            std::map<std::string, boost::shared_ptr<urdf::Link> > robot_links;
+            std::map<std::string, std::shared_ptr<urdf::Link> > robot_links;
             robot_links = urdf_model_ptr->links_;
-            urdf_model.get
-            std::map<std::string, boost::shared_ptr<urdf::Link> >::iterator it;
+            std::map<std::string, std::shared_ptr<urdf::Link> >::iterator it;
             for (it = robot_links.begin(); it != robot_links.end(); ++it)
             {
                 robot_link_names_.push_back(it->first);
-            }*/
-            urdf::Model urdf_model;
-            const urdf::Model *const urdf_model_ptr = urdf_model.initString(urdf_string) ? &urdf_model : NULL;
+            }
 
             // check for objects
             check_objects_in_scene();
-
 
             for (auto & i : control_hardware_info) {
                 std::string robot_hw_sim_type_str_ = i.hardware_class_type;
@@ -235,14 +228,25 @@ namespace mujoco_ros2_control
         controller_manager_->set_parameter(
                 rclcpp::Parameter("use_sim_time", rclcpp::ParameterValue(true)));
 
+        stop_ = false;
+        auto spin = [this]()
+        {
+            while (rclcpp::ok() && !stop_) {
+                executor_->spin_once();
+            }
+        };
+        thread_executor_spin_ = std::thread(spin);
 
         // set up the initial simulation environment
-        // TODO: Check if required, when commented in there is a problem with number of constraints
         setup_sim_environment(control_hardware_info);
     }
 
     MujocoRos2Control::~MujocoRos2Control() 
     {
+        stop_ = true;
+        executor_->remove_node(controller_manager_);
+        executor_->cancel();
+        thread_executor_spin_.join();
         // deallocate existing mjModel
         mj_deleteModel(mujoco_model_);
 
@@ -265,13 +269,6 @@ namespace mujoco_ros2_control
                 }
             }
         }
-
-        //std::vector<std::string> robot_joints = model_node_->get_parameter("robot_joints").as_string_array();
-        //for (size_t i = 0; i < robot_joints.size(); i++) {
-        //    std::string param_name = "robot_initial_state." + robot_joints.at(i);
-        //    model_node_->declare_parameter<double>(param_name, 0.0);
-        //    mujoco_data_->qpos[i] = model_node_->get_parameter(param_name).as_double();
-        //}
 
         // compute forward kinematics for new pos
         mj_forward(mujoco_model_, mujoco_data_);
@@ -311,8 +308,7 @@ namespace mujoco_ros2_control
         last_write_sim_time_ros_ = sim_time_ros;
         mj_step2(mujoco_model_, mujoco_data_);
 
-        //TODO: correct publisher to work with multithread spinner
-        //publish_objects_in_scene();
+        publish_objects_in_scene();
     }
 
 // get the URDF XML from the parameter server
@@ -445,21 +441,29 @@ namespace mujoco_ros2_control
             if (0 == num_of_joints_for_body &&
                 !(std::find(robot_link_names_.begin(), robot_link_names_.end(), object_name) != robot_link_names_.end()))
             {
-                objects_in_scene_[object_id] = STATIC;
+                objects_in_scene_.insert({object_id, STATIC});
+                //objects_in_scene_[object_id] = STATIC;
                 RCLCPP_INFO(model_node_->get_logger(), "Static object found: %s", object_name.c_str());
             }
             else if (1 == num_of_joints_for_body)
             {
                 joint_addr = mujoco_model_->body_jntadr[object_id];
                 joint_type = mujoco_model_->jnt_type[joint_addr];
+
+                objects_in_scene_.insert({object_id, FREE});
+                //objects_in_scene_[object_id] = FREE;
+                //n_free_joints_++;
+                RCLCPP_INFO(model_node_->get_logger(), "Free object found: %s", object_name.c_str());
                 if (0 == joint_type)
                 {
-                    objects_in_scene_[object_id] = FREE;
+                //    objects_in_scene_.insert({object_id, FREE});
+                    //objects_in_scene_[object_id] = FREE;
                     n_free_joints_++;
-                    RCLCPP_INFO(model_node_->get_logger(), "Free object found: %s", object_name.c_str());
+                //    RCLCPP_INFO(model_node_->get_logger(), "Free object found: %s", object_name.c_str());
                 }
             }
         }
+        RCLCPP_INFO(this->model_node_->get_logger(), "objects_in_scene_size: %zu", objects_in_scene_.size());
     }
 
     void MujocoRos2Control::publish_objects_in_scene()
@@ -499,7 +503,7 @@ namespace mujoco_ros2_control
             objects.pose.push_back(pose);
         }
 
-        objects_in_scene_publisher->publish(objects);
+        objects_in_scene_publisher_->publish(objects);
     }
 }  // namespace mujoco_ros_control
 
@@ -509,7 +513,7 @@ int main(int argc, char** argv)
     std::cout << " " << std::endl;
 
     //ros::NodeHandle nh_;
-    rclcpp::Node::SharedPtr node = rclcpp::Node::make_shared("model_node");
+    rclcpp::Node::SharedPtr node = rclcpp::Node::make_shared("mujoco_node");
 
     mujoco_ros2_control::MujocoRos2Control mujoco_ros2_control_plugin(node);
 

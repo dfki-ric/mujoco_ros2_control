@@ -42,7 +42,7 @@ namespace mujoco_ros2_control {
         this->urdf_model_ = urdf_model;
         this->mujoco_model_ = mujoco_model;
         this->mujoco_data_ = mujoco_data;
-        this->n_dof_ = mujoco_model_->njnt - objects_in_scene;
+        this->n_dof_ = mujoco_model_->njnt;
         RCLCPP_INFO(this->nh_->get_logger(), "%zu robot degrees of freedom found.", n_dof_);
         RCLCPP_DEBUG(this->nh_->get_logger(), "%i generalized coordinates (qpos) found.", mujoco_model_->nq);
         RCLCPP_DEBUG(this->nh_->get_logger(), "%i degrees of freedom (qvel) found.", mujoco_model_->nv);
@@ -77,7 +77,7 @@ namespace mujoco_ros2_control {
         }
 
         for (auto& mujoco_actuator : mujoco_actuators_) {
-            RCLCPP_INFO(this->nh_->get_logger(), "%s: %s", mujoco_actuator.first.c_str(), mujoco_actuator.second.to_string().c_str());
+            RCLCPP_DEBUG(this->nh_->get_logger(), "%s: %s", mujoco_actuator.first.c_str(), mujoco_actuator.second.to_string().c_str());
         }
 
         auto get_initial_value = [this](const hardware_interface::InterfaceInfo &interface_info) {
@@ -116,7 +116,7 @@ namespace mujoco_ros2_control {
                             hardware_interface::HW_IF_VELOCITY,
                             &joint.velocity));
                 } else if (state_interface.name == "effort") {
-                    joint.effort = get_initial_value(state_interface);
+                    joint.effort = std::max(1.0, get_initial_value(state_interface));
                     joint.state_interfaces.emplace_back(&state_interfaces_.emplace_back(
                             joint.name,
                             hardware_interface::HW_IF_EFFORT,
@@ -232,10 +232,13 @@ namespace mujoco_ros2_control {
         for (auto& actuator : mujoco_actuators_) {
             if (joints_[actuator.first].control_method & POSITION) {
                 mujoco_data_->ctrl[actuator.second.id] = joints_[actuator.first].position_command;
+                RCLCPP_INFO(this->nh_->get_logger(), "mujococ_data_position: %f", mujoco_data_->ctrl[actuator.second.id]);
             } else if (joints_[actuator.first].control_method & VELOCITY) {
                 mujoco_data_->ctrl[actuator.second.id] = joints_[actuator.first].velocity_command;
+                RCLCPP_INFO(this->nh_->get_logger(), "mujococ_data_velocity: %f", mujoco_data_->ctrl[actuator.second.id]);
             } else if (joints_[actuator.first].control_method & EFFORT) {
                 mujoco_data_->ctrl[actuator.second.id] = joints_[actuator.first].effort_command;
+                RCLCPP_INFO(this->nh_->get_logger(), "mujococ_data_effort: %f", mujoco_data_->ctrl[actuator.second.id]);
             }
 
             /**if (string_ends_with(actuator.first, "FJ0")) {
