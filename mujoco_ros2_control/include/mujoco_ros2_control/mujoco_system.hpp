@@ -77,21 +77,22 @@ namespace mujoco_ros2_control
                 rclcpp::Node::SharedPtr & model_nh,
                 mjModel* mujoco_model, mjData *mujoco_data,
                 const hardware_interface::HardwareInfo & hardware_info,
-                const urdf::Model *urdf_model,
+                const urdf::Model *urdf_model_ptr,
                 uint objects_in_scene) override;
 
 
 
         // Methods used to control a joint.
-        //enum ControlMethod {EFFORT, POSITION, POSITION_PID, VELOCITY, VELOCITY_PID};
+        enum ControlMethod {NONE, EFFORT, POSITION, POSITION_PID, VELOCITY, VELOCITY_PID};
 
         struct JointData
         {
             std::string name;
             int type;
-            double lower_limit;
-            double upper_limit;
-            double effort_limit;
+            double lower_limit = 0.0;
+            double upper_limit = 0.0;
+            double velocity_limit = 2.0;
+            double effort_limit = 0.0;
             ControlMethod control_method;
             control_toolbox::Pid pid_controller;
             bool use_pid_controller;
@@ -102,6 +103,7 @@ namespace mujoco_ros2_control
             double position_command;
             double velocity_command;
             double last_position_command;
+
             std::vector<hardware_interface::CommandInterface*> command_interfaces;
             std::vector<hardware_interface::StateInterface*> state_interfaces;
             int mujoco_joint_id;
@@ -137,7 +139,8 @@ namespace mujoco_ros2_control
         struct MujocoActuatorData
         {
             int id;
-            int joint_id;
+            std::string joint_name;
+            ControlMethod control_method;
 
             std::string to_string()
             {
@@ -154,10 +157,11 @@ namespace mujoco_ros2_control
         };
 
     private:
-        void registerJoints(const hardware_interface::HardwareInfo & hardware_info);
+        void registerJoints(const hardware_interface::HardwareInfo & hardware_info,
+                            const std::map<std::string, std::shared_ptr<urdf::Joint>> &joints);
 
         static bool string_ends_with(std::string const & value, std::string const & ending);
-
+        static bool extractSubstr(std::string const & str, std::string const & ending, std::string& joint_name);
         //void registerSensors(
         //        const hardware_interface::HardwareInfo & hardware_info,
         //        mjModel* mujoco_model, mjData *mujoco_data);

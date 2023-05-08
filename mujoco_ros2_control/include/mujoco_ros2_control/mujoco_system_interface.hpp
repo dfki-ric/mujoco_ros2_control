@@ -74,19 +74,19 @@ namespace mujoco_ros2_control
                 //gazebo::physics::ModelPtr parent_model,
                 mjModel* mujoco_model, mjData *mujoco_data,
                 const hardware_interface::HardwareInfo & hardware_info,
-                const urdf::Model *urdf_model,
+                const urdf::Model *urdf_model_ptr,
                 uint objects_in_scene) = 0;
 
         // Methods used to control a joint.
-        enum ControlMethod_
-        {
-            NONE      = 0,
-            POSITION  = (1 << 0),
-            VELOCITY  = (1 << 1),
-            EFFORT    = (1 << 2),
-        };
+        //enum ControlMethod_
+        //{
+        //    NONE      = 0,
+        //    POSITION  = (1 << 0),
+        //    VELOCITY  = (1 << 1),
+        //    EFFORT    = (1 << 2),
+        //};
 
-        typedef SafeEnum<enum ControlMethod_> ControlMethod;
+        //typedef SafeEnum<enum ControlMethod_> ControlMethod;
 
     protected:
         rclcpp::Node::SharedPtr nh_;

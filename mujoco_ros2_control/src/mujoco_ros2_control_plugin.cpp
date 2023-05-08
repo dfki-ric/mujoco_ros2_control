@@ -270,6 +270,8 @@ namespace mujoco_ros2_control
             }
         }
 
+        mj_resetData(mujoco_model_, mujoco_data_);
+
         // compute forward kinematics for new pos
         mj_forward(mujoco_model_, mujoco_data_);
 
@@ -552,13 +554,17 @@ int main(int argc, char** argv)
     // run main loop, target real-time simulation and 60 fps rendering
     while ( rclcpp::ok() && !glfwWindowShouldClose(window) )
     {
+        //std::cout << "test" <<std::endl;
         // advance interactive simulation for 1/60 sec
         // Assuming MuJoCo can simulate faster than real-time, which it usually can,
         // this loop will finish on time for the next frame to be rendered at 60 fps.
         mjtNum sim_start = mujoco_ros2_control_plugin.mujoco_data_->time;
         while ( mujoco_ros2_control_plugin.mujoco_data_->time - sim_start < 1.0/60.0 && rclcpp::ok() )
         {
+            //RCLCPP_INFO(rclcpp::get_logger("test"), "%f; %f", mujoco_ros2_control_plugin.mujoco_data_->time, sim_start);
+            //RCLCPP_INFO(rclcpp::get_logger("test"), "%f < %f", mujoco_ros2_control_plugin.mujoco_data_->time - sim_start, 1.0/60.0);
             mujoco_ros2_control_plugin.update();
+            //mj_step(mujoco_ros2_control_plugin.mujoco_model_, mujoco_ros2_control_plugin.mujoco_data_);
         }
         mujoco_visualization_utils.update(window);
     }
