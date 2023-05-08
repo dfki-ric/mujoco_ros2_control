@@ -26,9 +26,9 @@ find_package(rosgraph_msgs REQUIRED)
 find_package(controller_manager REQUIRED)
 find_package(control_toolbox REQUIRED)
 find_package(hardware_interface REQUIRED)
-find_package(transmission_interface REQUIRED)
+#find_package(transmission_interface REQUIRED)
 find_package(pluginlib REQUIRED)
-find_package(joint_limits_interface REQUIRED)
+#find_package(joint_limits_interface REQUIRED)
 find_package(urdf REQUIRED)
 find_package(mujoco REQUIRED)
 find_package(ament_lint_auto REQUIRED)
@@ -50,6 +50,7 @@ include_directories(
         include
         ${rclcpp_INCLUDE_DIRS}
         /opt/mujoco/include
+        /opt/ros/humble/include/control_toolbox
 )
 ament_lint_auto_find_test_dependencies()
 
