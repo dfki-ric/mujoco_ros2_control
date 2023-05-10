@@ -23,7 +23,6 @@
 #include "angles/angles.h"
 
 #include "mujoco_ros2_control/mujoco_system_interface.hpp"
-#include "control_toolbox/pid.hpp"
 //#include "joint_limits/joint_limits.hpp"
 //#include "joint_limits/joint_limits_rosparam.hpp"
 #include "std_msgs/msg/bool.hpp"
@@ -94,8 +93,7 @@ namespace mujoco_ros2_control
             double velocity_limit = 2.0;
             double effort_limit = 0.0;
             ControlMethod control_method;
-            control_toolbox::Pid pid_controller;
-            bool use_pid_controller;
+            bool use_actuator;
             double position;
             double velocity;
             double effort;
@@ -103,18 +101,18 @@ namespace mujoco_ros2_control
             double position_command;
             double velocity_command;
             double last_position_command;
-
+            std::map<ControlMethod, int> actuators;
             std::vector<hardware_interface::CommandInterface*> command_interfaces;
             std::vector<hardware_interface::StateInterface*> state_interfaces;
             int mujoco_joint_id;
             int mujoco_qpos_addr;
-            int mujoco_qvel_addr;
+            int mujoco_dofadr;
 
             std::string to_string()
             {
                 std::stringstream ss;
                 ss << "Joint " << name << " has type " << type << ", mujoco addresses " << mujoco_joint_id << ", " <<
-                   mujoco_qpos_addr << ", " << mujoco_qvel_addr << ".\nJoint status: p:" << position << " v:" << velocity <<
+                   mujoco_qpos_addr << ", " << mujoco_dofadr << ".\nJoint status: p:" << position << " v:" << velocity <<
                    " e:" << effort << "\nJoint position address: " << &position;
                 return ss.str();
             }
@@ -187,8 +185,6 @@ namespace mujoco_ros2_control
         /// \brief vector with the control method defined in the URDF for each joint.
         //std::vector<MujocoSystemInterface::ControlMethod> joint_control_methods_;
 
-        std::vector<control_toolbox::Pid> pid_controllers_;
-
         /// \brief handles to the joints from within Mujoco
         //std::vector<MujocoSystem::MujocoJointData> sim_joints_;
 
@@ -247,7 +243,7 @@ namespace mujoco_ros2_control
     protected:
         std::map<std::string, JointData> joints_;
         std::map<std::string, MujocoJointData> mujoco_joints_;
-        std::map<std::string, MujocoActuatorData> mujoco_actuators_;
+        //std::map<std::string, MujocoActuatorData> mujoco_actuators_;
 
     };
 
