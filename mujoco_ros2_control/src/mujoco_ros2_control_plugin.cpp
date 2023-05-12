@@ -36,6 +36,8 @@ namespace mujoco_ros2_control
         model_node_->declare_parameter<std::string>("robot_description_param", "robot_description");
         model_node_->declare_parameter<std::string>("robot_description_node", "robot_state_publisher");
         model_node_->declare_parameter<std::string>("robot_model_path", "/home/ubuntu22/ros2_ws/src/kuka_lbr_ros/kuka_lbr_mujoco/config/kuka_lbr.xml");
+        //model_node_->declare_parameter<std::string>("robot_model_path", "/home/ubuntu22/ros2_ws/src/mujoco_menagerie/franka_emika_panda/panda_nohand.xml");
+
         model_node_->declare_parameter("robot_joints", std::vector<std::string>{""});
         model_node_->declare_parameter<std::string>("params_file_path", "/home/ubuntu22/ros2_ws/src/kuka_lbr_ros/kuka_lbr_mujoco/config/ros2_controllers.yaml");
 
@@ -50,7 +52,7 @@ namespace mujoco_ros2_control
         pub_clock_ = model_node_->create_publisher<rosgraph_msgs::msg::Clock>("/clock", 10);
 
         // publish objects in scene
-        objects_in_scene_publisher_ = model_node_->create_publisher<mujoco_ros2_msgs::msg::ModelStates>("/mujoco/objects_in_scene", 10);
+        //objects_in_scene_publisher_ = model_node_->create_publisher<mujoco_ros2_msgs::msg::ModelStates>("/mujoco/objects_in_scene", 10);
 
         // read urdf from ros parameter server then setup actuators and mechanism control node.
         robot_description_param_ = model_node_->get_parameter("robot_description_param").as_string();
@@ -151,7 +153,7 @@ namespace mujoco_ros2_control
             }
 
             // check for objects
-            check_objects_in_scene();
+            //check_objects_in_scene();
 
             for (auto & i : control_hardware_info) {
                 std::string robot_hw_sim_type_str_ = i.hardware_class_type;
@@ -289,7 +291,7 @@ namespace mujoco_ros2_control
 
         rclcpp::Duration sim_period = sim_time_ros - last_update_sim_time_ros_;
 
-        mj_step1(mujoco_model_, mujoco_data_);
+        //mj_step1(mujoco_model_, mujoco_data_);
 
         // check if we should update the controllers
         if (sim_period >= control_period_)
@@ -308,9 +310,9 @@ namespace mujoco_ros2_control
         controller_manager_->write(sim_time_ros, sim_period);
 
         last_write_sim_time_ros_ = sim_time_ros;
-        mj_step2(mujoco_model_, mujoco_data_);
+        mj_step(mujoco_model_, mujoco_data_);
 
-        publish_objects_in_scene();
+        //publish_objects_in_scene();
     }
 
 // get the URDF XML from the parameter server

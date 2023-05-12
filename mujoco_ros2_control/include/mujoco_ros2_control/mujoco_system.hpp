@@ -79,8 +79,6 @@ namespace mujoco_ros2_control
                 const urdf::Model *urdf_model_ptr,
                 uint objects_in_scene) override;
 
-
-
         // Methods used to control a joint.
         enum ControlMethod {NONE, EFFORT, POSITION, POSITION_PID, VELOCITY, VELOCITY_PID};
 

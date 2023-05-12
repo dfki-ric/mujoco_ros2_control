@@ -44,11 +44,11 @@ namespace mujoco_ros2_control {
         this->mujoco_data_ = mujoco_data;
         this->n_dof_ = mujoco_model_->njnt;
         RCLCPP_INFO(this->nh_->get_logger(), "%zu robot degrees of freedom found.", n_dof_);
-        RCLCPP_DEBUG(this->nh_->get_logger(), "%i generalized coordinates (qpos) found.", mujoco_model_->nq);
-        RCLCPP_DEBUG(this->nh_->get_logger(), "%i degrees of freedom (qvel) found.", mujoco_model_->nv);
+        RCLCPP_INFO(this->nh_->get_logger(), "%i generalized coordinates (qpos) found.", mujoco_model_->nq);
+        RCLCPP_INFO(this->nh_->get_logger(), "%i degrees of freedom (qvel) found.", mujoco_model_->nv);
         RCLCPP_INFO(this->nh_->get_logger(), "%i actuators/controls (ctrl) found.", mujoco_model_->nu);
-        RCLCPP_DEBUG(this->nh_->get_logger(), "%i actuation states (act) found.", mujoco_model_->na);
-        RCLCPP_DEBUG(this->nh_->get_logger(), "%i joints (njnt) found.", mujoco_model_->njnt);
+        RCLCPP_INFO(this->nh_->get_logger(), "%i actuation states (act) found.", mujoco_model_->na);
+        RCLCPP_INFO(this->nh_->get_logger(), "%i joints (njnt) found.", mujoco_model_->njnt);
         registerJoints(hardware_info, urdf_model_ptr->joints_);
         //registerSensors(hardware_info, mujoco_model, mujoco_data);
 
@@ -68,6 +68,9 @@ namespace mujoco_ros2_control {
         for (auto& mujoco_joint : mujoco_joints_) {
             RCLCPP_DEBUG(this->nh_->get_logger(), "%s: %s", mujoco_joint.first.c_str(), mujoco_joint.second.to_string().c_str());
         }
+        //for (int mujoco_vel_id = 0; mujoco_vel_id < mujoco_model_->nv; mujoco_vel_id++) {
+        //    mujoco_model_->dof_damping[mujoco_vel_id] = 10.0;
+        //}
         for (int mujoco_actuator_id = 0; mujoco_actuator_id < mujoco_model_->nu; mujoco_actuator_id++) {
             std::string actuator_name = mj_id2name(mujoco_model_, mjOBJ_ACTUATOR, mujoco_actuator_id);
             //MujocoActuatorData mj_actuator_data{};
@@ -131,45 +134,54 @@ namespace mujoco_ros2_control {
             // Setup State Interfaces
             for(auto& state_interface : joint_info.state_interfaces) {
                 if (state_interface.name == "position") {
-                    joint.position = string_to_double(state_interface.initial_value);
                     joint.state_interfaces.emplace_back(&state_interfaces_.emplace_back(
                             joint.name,
                             hardware_interface::HW_IF_POSITION,
                             &joint.position));
+                    joint.position = string_to_double(state_interface.initial_value);
+
+
+                    mujoco_data_->qpos[joint.mujoco_qpos_addr] = std::clamp(joint.position,
+                                                                            joint.lower_limit,
+                                                                            joint.upper_limit);
+                    mujoco_data_->qvel[joint.mujoco_dofadr] = joint.velocity_limit;
                 } else if (state_interface.name == "velocity") {
-                    joint.velocity = string_to_double(state_interface.initial_value);
                     joint.state_interfaces.emplace_back(&state_interfaces_.emplace_back(
                             joint.name,
                             hardware_interface::HW_IF_VELOCITY,
                             &joint.velocity));
+                    joint.velocity = string_to_double(state_interface.initial_value);
+                    if (joint.velocity != 0.0) {
+                        mujoco_data_->qvel[joint.mujoco_dofadr] = std::clamp(joint.velocity,
+                                                                             -joint.velocity_limit,
+                                                                             joint.velocity_limit);
+                    }
                 } else if (state_interface.name == "effort") {
-                    joint.effort = string_to_double(state_interface.initial_value);
                     joint.state_interfaces.emplace_back(&state_interfaces_.emplace_back(
                             joint.name,
                             hardware_interface::HW_IF_EFFORT,
                             &joint.effort));
+                    joint.effort = string_to_double(state_interface.initial_value);
+                    if (joint.effort != 0.0) {
+                        mujoco_data_->qfrc_applied[joint.mujoco_dofadr] = std::clamp(joint.effort,
+                                                                                     -joint.effort_limit,
+                                                                                     joint.effort_limit);
+                    }
                 }
             }
             // Setup Command Interfaces
             for(auto& command_interface : joint_info.command_interfaces) {
                 if (command_interface.name == "position") {
-                    if (joint.position == 0.0) {
-                        joint.position = string_to_double(command_interface.initial_value);
-                    }
-                    // initial position was not shown in rviz (mujoco had other joint_states than the robot model)
-                    //mujoco_model_->qpos0[joint.mujoco_joint_id] = joint.position;
-                    //mujoco_data_->qpos[joint.mujoco_qpos_addr] = joint.position;
-                    //mj_forward(mujoco_model_, mujoco_data_);
-                    joint.position_command = joint.position;
                     joint.command_interfaces.emplace_back(&command_interfaces_.emplace_back(
                             joint.name,
                             hardware_interface::HW_IF_POSITION,
                             &joint.position_command));
+                    joint.position_command = string_to_double(command_interface.initial_value);
+                    if (joint.position_command == 0.0) {
+                        joint.position_command = joint.position;
+                    }
                     joint.control_method = POSITION;
                 } else if (command_interface.name == "velocity") {
-                    if (joint.velocity == 0.0) {
-                        joint.velocity = string_to_double(command_interface.initial_value);
-                    }
                     if (joint.velocity_limit == 0.0)  {
                         joint.velocity_limit = string_to_double(command_interface.max, 2.0);
                     }
@@ -177,16 +189,23 @@ namespace mujoco_ros2_control {
                             joint.name,
                             hardware_interface::HW_IF_VELOCITY,
                             &joint.velocity_command));
-                    joint.control_method = VELOCITY;
+                    joint.velocity_command = string_to_double(command_interface.initial_value);
+                    if (joint.velocity_command != 0.0) {
+                        joint.control_method = VELOCITY;
+                    }
                 } else if (command_interface.name == "effort") {
                     joint.effort = string_to_double(command_interface.initial_value);
                     joint.command_interfaces.emplace_back(&command_interfaces_.emplace_back(
                             joint.name,
                             hardware_interface::HW_IF_EFFORT,
                             &joint.effort_command));
-                    joint.control_method = EFFORT;
+                    joint.effort_command = string_to_double(command_interface.initial_value);
+                    if (joint.effort_command != 0.0) {
+                        joint.control_method = EFFORT;
+                    }
                 }
             }
+            mj_forward(mujoco_model_, mujoco_data_);
         }
     }
 
@@ -258,25 +277,21 @@ namespace mujoco_ros2_control {
             JointData& joint = joint_item.second;
             joint.effort = mujoco_data_->qfrc_applied[joint.mujoco_dofadr];
             joint.velocity = mujoco_data_->qvel[joint.mujoco_dofadr];
-            if (joint.type == urdf::Joint::PRISMATIC) {
-                joint.position = mujoco_data_->qpos[joint.mujoco_qpos_addr];
-            } else {
-                joint.position = mujoco_data_->qpos[joint.mujoco_qpos_addr];
-                //joint.position += angles::shortest_angular_distance(joint.position, mujoco_data_->qpos[joint.mujoco_qpos_addr]);
-            }
+            joint.position = mujoco_data_->qpos[joint.mujoco_qpos_addr];
         }
         return hardware_interface::return_type::OK;
     }
 
-    //TODO: Add PID control and fix control with actuators
+    //TODO: fix control with actuators
     hardware_interface::return_type MujocoSystem::write(
             const rclcpp::Time &time,
             const rclcpp::Duration &period) {
         for (auto &joint_data: joints_) {
             auto &joint = joint_data.second;
+            auto & actuators = joint.actuators;
             if (joint.control_method == POSITION) {
-                if (joint.actuators.find(POSITION) != joint.actuators.end()) {
-                    mujoco_data_->ctrl[joint.actuators[POSITION]] = std::clamp(joint.position_command,
+                if (actuators.find(POSITION) != actuators.end()) {
+                    mujoco_data_->ctrl[actuators[POSITION]] = std::clamp(joint.position_command,
                                                                                joint.lower_limit,
                                                                                joint.upper_limit);
                 } else {
@@ -287,28 +302,29 @@ namespace mujoco_ros2_control {
                                                                          -joint.velocity_limit,
                                                                          joint.velocity_limit);
                 }
-            } else if (joint.control_method == VELOCITY) {
-                if (joint.actuators.find(VELOCITY) != joint.actuators.end()) {
-                    mujoco_data_->ctrl[joint.actuators[VELOCITY]] = std::clamp(joint.velocity,
+            }
+            if (joint.control_method == VELOCITY) {
+                if (actuators.find(VELOCITY) != actuators.end()) {
+                    mujoco_data_->ctrl[actuators[VELOCITY]] = std::clamp(joint.velocity_command,
                                                                                -joint.velocity_limit,
                                                                                joint.velocity_limit);
                 } else {
-                    mujoco_data_->qvel[joint.mujoco_dofadr] = std::clamp(joint.velocity,
+                    mujoco_data_->qvel[joint.mujoco_dofadr] = std::clamp(joint.velocity_command,
                                                                          -joint.velocity_limit,
                                                                          joint.velocity_limit);
                 }
-            } else if (joint.control_method == EFFORT) {
-                if (joint.actuators.find(EFFORT) != joint.actuators.end()) {
-                    mujoco_data_->ctrl[joint.actuators[EFFORT]] = std::clamp(joint.effort,
+            }
+            if (joint.control_method == EFFORT) {
+                if (actuators.find(EFFORT) != actuators.end()) {
+                    mujoco_data_->ctrl[actuators[EFFORT]] = std::clamp(joint.effort_command,
                                                                              -joint.effort_limit,
                                                                              joint.effort_limit);
                 } else {
-                    mujoco_data_->qfrc_applied[joint.mujoco_dofadr] = std::clamp(joint.effort,
+                    mujoco_data_->qfrc_applied[joint.mujoco_dofadr] = std::clamp(joint.effort_command,
                                                                                  -joint.effort_limit,
                                                                                  joint.effort_limit);
                 }
             }
-
             mj_forward(mujoco_model_, mujoco_data_);
         }
 
