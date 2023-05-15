@@ -291,7 +291,7 @@ namespace mujoco_ros2_control
 
         rclcpp::Duration sim_period = sim_time_ros - last_update_sim_time_ros_;
 
-        //mj_step1(mujoco_model_, mujoco_data_);
+        mj_step1(mujoco_model_, mujoco_data_);
 
         // check if we should update the controllers
         if (sim_period >= control_period_)
@@ -310,7 +310,7 @@ namespace mujoco_ros2_control
         controller_manager_->write(sim_time_ros, sim_period);
 
         last_write_sim_time_ros_ = sim_time_ros;
-        mj_step(mujoco_model_, mujoco_data_);
+        mj_step2(mujoco_model_, mujoco_data_);
 
         //publish_objects_in_scene();
     }

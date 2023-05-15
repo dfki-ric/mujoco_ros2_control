@@ -21,9 +21,6 @@
 #include <vector>
 #include "urdf/urdf/model.h"
 
-//#include "gazebo/physics/Joint.hh"
-//#include "gazebo/physics/Model.hh"
-//#include "gazebo/physics/physics.hh"
 #include "mujoco/mujoco.h"
 #include "mujoco/mjdata.h"
 #include "mujoco/mjmodel.h"
