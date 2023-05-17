@@ -56,7 +56,7 @@ namespace mujoco_ros2_control
 class MujocoRos2Control {
 
 public:
-    MujocoRos2Control(rclcpp::Node::SharedPtr &node);
+    explicit MujocoRos2Control(rclcpp::Node::SharedPtr &node);
     virtual ~MujocoRos2Control();
 
     // step update function
@@ -66,36 +66,16 @@ public:
     mjModel* mujoco_model_{};
     mjData* mujoco_data_{};
 
-    // number of degrees of freedom
-    unsigned int n_dof_{};
-
-    // number of free joints in simulation
-    unsigned int n_free_joints_;
-
 protected:
-    // free or static object
-    enum Object_State { STATIC = true, FREE = false };
 
     // get the URDF XML from the parameter server
     [[nodiscard]] std::string get_urdf(const std::string& param_name) const;
-
-    // setup initial sim environment
-    void setup_sim_environment(const std::vector<hardware_interface::HardwareInfo>& hwinfo);
 
     // get number of degrees of freedom
     void get_number_of_dofs();
 
     // publish simulation time to ros clock
     void publish_sim_time();
-
-    // check for free joints in the mujoco model
-    void check_objects_in_scene();
-
-    // publish free objects
-    void publish_objects_in_scene();
-
-    // transform type id to type name
-    static std::string geom_type_to_string(int geom_id);
 
     // node handles
     std::shared_ptr<rclcpp::Node> parameter_node_ = rclcpp::Node::make_shared("mujoco_param_node");
@@ -120,12 +100,6 @@ protected:
     std::string robot_description_node_;
     std::string robot_model_path_;
 
-    // vectors
-    std::vector<int> mujoco_ids;
-    //std::vector<int>::iterator it;
-    std::vector<std::string> robot_link_names_;
-    std::map<int, Object_State> objects_in_scene_;
-
     // transmissions in this plugin's scope
     //std::vector<transmission_interface::TransmissionInfo> transmissions_;
 
@@ -145,9 +119,6 @@ protected:
     rclcpp::Duration mujoco_period_ = rclcpp::Duration(1, 0);
     rclcpp::Time last_update_sim_time_ros_ = rclcpp::Time((int64_t)0, RCL_ROS_TIME);
     rclcpp::Time last_write_sim_time_ros_ = rclcpp::Time((int64_t)0, RCL_ROS_TIME);
-
-    // publishing
-    std::shared_ptr<rclcpp::Publisher<mujoco_ros2_msgs::msg::ModelStates>> objects_in_scene_publisher_;
 };
 }  // namespace mujoco_ros2_control
 

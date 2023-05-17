@@ -275,12 +275,6 @@ namespace mujoco_ros2_control {
                 double effort = std::clamp(joint.effort_command,
                                            -joint.effort_limit,
                                            joint.effort_limit);
-                // Hold the joint when effort is zero, otherwise apply gravity compensation to command
-                //if (effort == 0.0) {
-                //    mujoco_data_->qvel[joint.mujoco_dofadr] = 0.0;
-                //} else {
-                //    effort = effort + mujoco_data_->qfrc_bias[joint.mujoco_dofadr];
-                //}
                 // check if an actuator is available
                 if (actuators.find(EFFORT) != actuators.end()) {
                     mujoco_data_->ctrl[actuators[EFFORT]] = effort;

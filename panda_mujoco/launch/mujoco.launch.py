@@ -45,7 +45,7 @@ def generate_launch_description():
     ros2_control_params_file = os.path.join(
     	get_package_share_directory('panda_moveit_config'),
     	'config',
-    	'controllers_position.yaml')
+    	'controllers_effort.yaml')
     	
     mujoco = Node(
         package="mujoco_ros2_control",
@@ -80,6 +80,6 @@ def generate_launch_description():
             robot_state_publisher,
             joint_trajectory_controller,
             gripper_trajectory_controller,
-            mujoco
+            #mujoco
         ]
     )

@@ -11,15 +11,14 @@
 
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
-  <exec_depend>gazebo_ros2_control</exec_depend>
-  <exec_depend>gazebo_ros</exec_depend>
-  <exec_depend>hardware_interface</exec_depend>
+  <exec_depend>mujoco_ros2_control</exec_depend>
   <exec_depend>joint_trajectory_controller</exec_depend>
   <exec_depend>joint_state_broadcaster</exec_depend>
   <exec_depend>rviz2</exec_depend>
   <exec_depend>urdf</exec_depend>
   <exec_depend>xacro</exec_depend>
-  
+  <exec_depend>panda_description</exec_depend>
+  <exec_depend>panda_moveit_config</exec_depend>
   
   <export>
     <build_type>ament_cmake</build_type>
