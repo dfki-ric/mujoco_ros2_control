@@ -35,11 +35,12 @@ namespace mujoco_ros2_control
         n_free_joints_ = 0;
         model_node_->declare_parameter<std::string>("robot_description_param", "robot_description");
         model_node_->declare_parameter<std::string>("robot_description_node", "robot_state_publisher");
-        model_node_->declare_parameter<std::string>("robot_model_path", "/home/ubuntu22/ros2_ws/src/kuka_lbr_ros/kuka_lbr_mujoco/config/kuka_lbr.xml");
-        //model_node_->declare_parameter<std::string>("robot_model_path", "/home/ubuntu22/ros2_ws/src/mujoco_menagerie/franka_emika_panda/panda_nohand.xml");
+        //model_node_->declare_parameter<std::string>("robot_model_path", "/home/ubuntu22/ros2_ws/src/kuka_lbr_ros/kuka_lbr_mujoco/config/kuka_lbr.xml");
+        model_node_->declare_parameter<std::string>("robot_model_path", "/home/ubuntu22/ros2_ws/src/panda_ign_moveit2/panda_description/urdf/panda.urdf");
 
         model_node_->declare_parameter("robot_joints", std::vector<std::string>{""});
-        model_node_->declare_parameter<std::string>("params_file_path", "/home/ubuntu22/ros2_ws/src/kuka_lbr_ros/kuka_lbr_mujoco/config/ros2_controllers.yaml");
+        //model_node_->declare_parameter<std::string>("params_file_path", "/home/ubuntu22/ros2_ws/src/kuka_lbr_ros/kuka_lbr_mujoco/config/ros2_controllers.yaml");
+        model_node_->declare_parameter<std::string>("params_file_path", "/home/ubuntu22/ros2_ws/src/panda_ign_moveit2/panda_moveit_config/config/controllers_position.yaml");
 
         // Check that ROS has been initialized
         if (!rclcpp::ok())
@@ -50,9 +51,6 @@ namespace mujoco_ros2_control
 
         // publish clock for simulated time
         pub_clock_ = model_node_->create_publisher<rosgraph_msgs::msg::Clock>("/clock", 10);
-
-        // publish objects in scene
-        //objects_in_scene_publisher_ = model_node_->create_publisher<mujoco_ros2_msgs::msg::ModelStates>("/mujoco/objects_in_scene", 10);
 
         // read urdf from ros parameter server then setup actuators and mechanism control node.
         robot_description_param_ = model_node_->get_parameter("robot_description_param").as_string();
@@ -166,8 +164,7 @@ namespace mujoco_ros2_control
                         mujoco_model_,
                         mujoco_data_,
                         i,
-                        urdf_model_ptr,
-                        n_free_joints_))
+                        urdf_model_ptr))
                 {
                     RCLCPP_FATAL(
                             model_node_->get_logger(), "Could not initialize robot simulation interface");
@@ -263,7 +260,7 @@ namespace mujoco_ros2_control
         for(const auto& hw : hwinfo) {
             for (const auto& joint : hw.joints) {
                 for (const auto& interface : joint.state_interfaces) {
-                    if (interface.name == "position") {
+                    if (interface.name == "position" && !interface.initial_value.empty()) {
                         mujoco_data_->qpos[i] = std::stod(interface.initial_value);
                         RCLCPP_DEBUG(model_node_->get_logger(), "joint: %s", joint.name.c_str());
                         i++;
@@ -315,7 +312,7 @@ namespace mujoco_ros2_control
         //publish_objects_in_scene();
     }
 
-// get the URDF XML from the parameter server
+    // get the URDF XML from the parameter server
     std::string MujocoRos2Control::get_urdf(const std::string& param_name) const
     {
         std::string urdf_string;
@@ -345,15 +342,6 @@ namespace mujoco_ros2_control
             try {
                 auto parameters = parameters_client->get_parameters({param_name});
                 urdf_string = parameters.at(0).value_to_string();
-                //std::stringstream ss;
-                // Get a few of the parameters just set.
-                //for (auto & parameter : parameters)
-                //{
-                //    ss << "\nParameter name: " << parameter.get_name();
-                //    ss << "\nParameter value (" << parameter.get_type_name() << "): " <<
-                //       parameter.value_to_string();
-                //    std::cout << ss.str() << std::endl;
-                //}
             } catch (const std::exception & e) {
                 RCLCPP_ERROR(parameter_node_->get_logger(), "%s", e.what());
             }
@@ -373,42 +361,6 @@ namespace mujoco_ros2_control
         return urdf_string;
     }
 
-    std::string MujocoRos2Control::geom_type_to_string(int geom_type)
-    {
-        std::string result;
-        switch (geom_type)
-        {
-            case 0 :
-                result = mujoco_ros2_msgs::msg::ModelStates::PLANE;
-                break;
-            case 1 :
-                result = mujoco_ros2_msgs::msg::ModelStates::HFIELD;
-                break;
-            case 2 :
-                result = mujoco_ros2_msgs::msg::ModelStates::SPHERE;
-                break;
-            case 3 :
-                result = mujoco_ros2_msgs::msg::ModelStates::CAPSULE;
-                break;
-            case 4 :
-                result = mujoco_ros2_msgs::msg::ModelStates::ELLIPSOID;
-                break;
-            case 5 :
-                result = mujoco_ros2_msgs::msg::ModelStates::CYLINDER;
-                break;
-            case 6 :
-                result = mujoco_ros2_msgs::msg::ModelStates::BOX;
-                break;
-            case 7 :
-                result = mujoco_ros2_msgs::msg::ModelStates::MESH;
-                break;
-            default:
-                result = "unknown_type";
-                break;
-        }
-        return result;
-    }
-
     void MujocoRos2Control::get_number_of_dofs()
     {
         n_dof_ = mujoco_model_->njnt;
@@ -421,93 +373,11 @@ namespace mujoco_ros2_control
             return;
         rclcpp::Time current_time = (rclcpp::Time) (mujoco_data_->time * 1e+9);
         rosgraph_msgs::msg::Clock ros_time_;
-        //ros_time_.clock.fromSec(current_time.toSec());
         ros_time_.clock.set__nanosec(current_time.nanoseconds());
         ros_time_.clock.set__sec(current_time.seconds());
         // publish time to ros
         last_pub_clock_time_ = sim_time;
         pub_clock_->publish(ros_time_);
-    }
-
-    void MujocoRos2Control::check_objects_in_scene()
-    {
-        int num_of_bodies = mujoco_model_->nbody;
-        int object_id;
-        int joint_addr;
-        int joint_type;
-        int num_of_joints_for_body;
-        std::string object_name;
-
-        for (object_id=0; object_id < num_of_bodies; object_id++)
-        {
-            object_name = mj_id2name(mujoco_model_, 1, object_id);
-            num_of_joints_for_body = mujoco_model_->body_jntnum[object_id];
-            if (0 == num_of_joints_for_body &&
-                !(std::find(robot_link_names_.begin(), robot_link_names_.end(), object_name) != robot_link_names_.end()))
-            {
-                objects_in_scene_.insert({object_id, STATIC});
-                //objects_in_scene_[object_id] = STATIC;
-                RCLCPP_INFO(model_node_->get_logger(), "Static object found: %s", object_name.c_str());
-            }
-            else if (1 == num_of_joints_for_body)
-            {
-                joint_addr = mujoco_model_->body_jntadr[object_id];
-                joint_type = mujoco_model_->jnt_type[joint_addr];
-
-                objects_in_scene_.insert({object_id, FREE});
-                //objects_in_scene_[object_id] = FREE;
-                //n_free_joints_++;
-                RCLCPP_DEBUG(model_node_->get_logger(), "Free object found: %s", object_name.c_str());
-                if (0 == joint_type)
-                {
-                //    objects_in_scene_.insert({object_id, FREE});
-                    //objects_in_scene_[object_id] = FREE;
-                    n_free_joints_++;
-                //    RCLCPP_INFO(model_node_->get_logger(), "Free object found: %s", object_name.c_str());
-                }
-            }
-        }
-        RCLCPP_INFO(this->model_node_->get_logger(), "objects_in_scene_size: %zu", objects_in_scene_.size());
-    }
-
-    void MujocoRos2Control::publish_objects_in_scene()
-    {
-        const int geom_size_dim = 3;
-        const int xpos_dim = 3;
-        const int xquat_dim = 4;
-        int geom_type;
-        int geom_addr;
-        geometry_msgs::msg::Pose pose;
-        std_msgs::msg::Float64MultiArray size;
-        mujoco_ros2_msgs::msg::ModelStates objects;
-
-        for (auto & it : objects_in_scene_)
-        {
-            size.data.clear();
-            geom_addr = mujoco_model_->body_geomadr[it.first];
-            geom_type = mujoco_model_->geom_type[geom_addr];
-
-            for (int i=0; i < geom_size_dim; i++)
-            {
-                size.data.push_back(mujoco_model_->geom_size[3 * geom_addr + i]);
-            }
-
-            pose.position.x = mujoco_data_->xpos[xpos_dim * it.first];
-            pose.position.y = mujoco_data_->xpos[xpos_dim * it.first + 1];
-            pose.position.z = mujoco_data_->xpos[xpos_dim * it.first + 2];
-            pose.orientation.x = mujoco_data_->xquat[xquat_dim * it.first + 1];
-            pose.orientation.y = mujoco_data_->xquat[xquat_dim * it.first + 2];
-            pose.orientation.z = mujoco_data_->xquat[xquat_dim * it.first + 3];
-            pose.orientation.w = mujoco_data_->xquat[xquat_dim * it.first];
-
-            objects.name.emplace_back(mj_id2name(mujoco_model_, 1, it.first));
-            objects.type.push_back(geom_type_to_string(geom_type));
-            objects.is_static.push_back(it.second);
-            objects.size.push_back(size);
-            objects.pose.push_back(pose);
-        }
-
-        objects_in_scene_publisher_->publish(objects);
     }
 }  // namespace mujoco_ros_control
 
@@ -523,13 +393,6 @@ int main(int argc, char** argv)
 
     mujoco_ros2_control::MujocoVisualizationUtils &mujoco_visualization_utils =
             mujoco_ros2_control::MujocoVisualizationUtils::getInstance();
-
-    // initialize mujoco stuff
-    //if (!mujoco_ros_control.init(nh_))
-    //{
-    //    RCLCPP_ERROR(this->get_logger(), "Could not initialise mujoco.");
-    //    return 1;
-    //}
 
     // init GLFW
     if ( !glfwInit() )

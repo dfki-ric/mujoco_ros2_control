@@ -19,6 +19,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <algorithm>
 
 #include "angles/angles.h"
 
@@ -63,16 +64,24 @@ namespace mujoco_ros2_control
                 const rclcpp::Time & time,
                 const rclcpp::Duration & period) override;
 
-        // Documentation Inherited
+        /**
+         * Load and stores the required Datas and Pointers from MuJoCo and ROS2 to this class
+         * @param model_nh          ROS2 Node Handle
+         * @param mujoco_model      Pointer to the MuJoCo model
+         * @param mujoco_data       Pointer to the MuJoCo data
+         * @param hardware_info     Description of the ROS2 Control definitions
+         * @param urdf_model_ptr    Pointer to parsed URDF model
+         * @param objects_in_scene
+         * @return
+         */
         bool initSim(
                 rclcpp::Node::SharedPtr & model_nh,
                 mjModel* mujoco_model, mjData *mujoco_data,
                 const hardware_interface::HardwareInfo & hardware_info,
-                const urdf::Model *urdf_model_ptr,
-                uint objects_in_scene) override;
+                const urdf::Model *urdf_model_ptr) override;
 
         // Methods used to control a joint.
-        enum ControlMethod {NONE, EFFORT, POSITION, VELOCITY};
+        enum ControlMethod {EFFORT, POSITION, VELOCITY};
 
         struct JointData
         {
@@ -82,7 +91,7 @@ namespace mujoco_ros2_control
             double upper_limit = 0.0;
             double velocity_limit = 2.0;
             double effort_limit = 0.0;
-            ControlMethod control_method;
+            std::vector<ControlMethod> control_methods;
             double position;
             double velocity;
             double effort;
@@ -97,28 +106,6 @@ namespace mujoco_ros2_control
             int mujoco_dofadr;
         };
 
-        struct MujocoJointData
-        {
-            int id;
-            int qpos_addr;
-            int qvel_addr;
-            int type;
-        };
-
-        struct MujocoActuatorData
-        {
-            int id;
-            std::string joint_name;
-            ControlMethod control_method;
-
-            std::string to_string()
-            {
-                std::stringstream ss;
-                ss << "Mujoco Actuator has mujoco address " << id << ".";
-                return ss.str();
-            }
-        };
-
         struct MimicJoint {
             std::size_t joint_index;
             std::size_t mimicked_joint_index;
@@ -129,16 +116,10 @@ namespace mujoco_ros2_control
         void registerJoints(const hardware_interface::HardwareInfo & hardware_info,
                             const std::map<std::string, std::shared_ptr<urdf::Joint>> &joints);
         static bool extractSubstr(std::string const & str, std::string const & ending, std::string& joint_name);
-        //void registerSensors(
-        //        const hardware_interface::HardwareInfo & hardware_info,
-        //        mjModel* mujoco_model, mjData *mujoco_data);
 
 
         /// \brief Degrees od freedom.
         size_t n_dof_;
-
-        /// \brief Number of sensors.
-        //size_t n_sensors_;
 
         /// \brief Mujoco Model Ptr.
         mjModel *mujoco_model_;
@@ -146,15 +127,6 @@ namespace mujoco_ros2_control
 
         /// \brief last time the write method was called.
         rclcpp::Time last_update_sim_time_ros_;
-
-        /// \brief vector with the lower joint limits
-        std::vector<double> joint_lower_limit_;
-
-        /// \brief vector with the upper joint limits
-        std::vector<double> joint_upper_limit_;
-
-        /// \brief vector with the effort limits
-        std::vector<double> joint_effort_limit_;
 
         /// \brief state interfaces that will be exported to the Resource Manager
         std::vector<hardware_interface::StateInterface> state_interfaces_;

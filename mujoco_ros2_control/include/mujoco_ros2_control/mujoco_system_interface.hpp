@@ -33,30 +33,7 @@
 namespace mujoco_ros2_control
 {
 
-    template<class ENUM, class UNDERLYING = typename std::underlying_type<ENUM>::type>
-    class SafeEnum
-    {
-    public:
-        SafeEnum()
-                : mFlags(0) {}
-        explicit SafeEnum(ENUM singleFlag)
-                : mFlags(singleFlag) {}
-        SafeEnum(const SafeEnum & original)
-                : mFlags(original.mFlags) {}
-        ~SafeEnum() = default;
-
-        SafeEnum & operator|=(ENUM addValue) {mFlags |= addValue; return *this;}
-        SafeEnum operator|(ENUM addValue) {SafeEnum result(*this); result |= addValue; return result;}
-        SafeEnum & operator&=(ENUM maskValue) {mFlags &= maskValue; return *this;}
-        SafeEnum operator&(ENUM maskValue) {SafeEnum result(*this); result &= maskValue; return result;}
-        SafeEnum operator~() {SafeEnum result(*this); result.mFlags = ~result.mFlags; return result;}
-        explicit operator bool() {return mFlags != 0;}
-
-    protected:
-        UNDERLYING mFlags;
-    };
-
-// SystemInterface provides API-level access to read and command joint properties.
+    // SystemInterface provides API-level access to read and command joint properties.
     class MujocoSystemInterface
             : public hardware_interface::SystemInterface
     {
@@ -68,22 +45,9 @@ namespace mujoco_ros2_control
         /// param[in] sdf pointer to the SDF
         virtual bool initSim(
                 rclcpp::Node::SharedPtr & model_nh,
-                //gazebo::physics::ModelPtr parent_model,
                 mjModel* mujoco_model, mjData *mujoco_data,
                 const hardware_interface::HardwareInfo & hardware_info,
-                const urdf::Model *urdf_model_ptr,
-                uint objects_in_scene) = 0;
-
-        // Methods used to control a joint.
-        //enum ControlMethod_
-        //{
-        //    NONE      = 0,
-        //    POSITION  = (1 << 0),
-        //    VELOCITY  = (1 << 1),
-        //    EFFORT    = (1 << 2),
-        //};
-
-        //typedef SafeEnum<enum ControlMethod_> ControlMethod;
+                const urdf::Model *urdf_model_ptr) = 0;
 
     protected:
         rclcpp::Node::SharedPtr nh_;
