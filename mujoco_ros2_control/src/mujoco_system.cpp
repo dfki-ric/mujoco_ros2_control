@@ -58,7 +58,6 @@ namespace mujoco_ros2_control {
                 return default_value;
             }
         };
-
         for (auto& joint_info : hardware_info.joints) {
             joints_.insert(std::pair<std::string, JointData>(joint_info.name, JointData()));
             // Create struct for joint with joint related datas

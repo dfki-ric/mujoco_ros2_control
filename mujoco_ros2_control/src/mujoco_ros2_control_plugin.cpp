@@ -35,11 +35,8 @@ namespace mujoco_ros2_control
         n_free_joints_ = 0;
         model_node_->declare_parameter<std::string>("robot_description_param", "robot_description");
         model_node_->declare_parameter<std::string>("robot_description_node", "robot_state_publisher");
-        //model_node_->declare_parameter<std::string>("robot_model_path", "/home/ubuntu22/ros2_ws/src/kuka_lbr_ros/kuka_lbr_mujoco/config/kuka_lbr.xml");
-        model_node_->declare_parameter<std::string>("robot_model_path", "/home/ubuntu22/ros2_ws/src/panda_ign_moveit2/panda_description/urdf/panda.urdf");
-
+        model_node_->declare_parameter<std::string>("robot_model_path", "/home/ubuntu22/ros2_ws/install/panda_mujoco/share/panda_mujoco/config/panda.urdf");
         model_node_->declare_parameter("robot_joints", std::vector<std::string>{""});
-        //model_node_->declare_parameter<std::string>("params_file_path", "/home/ubuntu22/ros2_ws/src/kuka_lbr_ros/kuka_lbr_mujoco/config/ros2_controllers.yaml");
         model_node_->declare_parameter<std::string>("params_file_path", "/home/ubuntu22/ros2_ws/src/panda_ign_moveit2/panda_moveit_config/config/controllers_position.yaml");
 
         // Check that ROS has been initialized
@@ -96,7 +93,7 @@ namespace mujoco_ros2_control
             rclcpp::shutdown();
         }
         char error[1000];
-
+        RCLCPP_INFO(node->get_logger(), "transmissions: %zu", control_hardware_info[0].transmissions.size());
         // create mjModel
         mujoco_model_ = mj_loadXML(robot_model_path_.c_str(), NULL, error, 1000);
         if (!mujoco_model_)
@@ -106,10 +103,6 @@ namespace mujoco_ros2_control
         } else {
             RCLCPP_INFO(model_node_->get_logger(), "loaded mujoco model");
         }
-
-        //mj_saveLastXML("/home/ubuntu22/ros2_ws/src/kuka_lbr_ros/kuka_lbr_mujoco/config/kuka_lbr.xml", mujoco_model_, error, 1000);
-
-        //add_actuators(control_hardware_info);
 
         // create mjData corresponding to mjModel
         mujoco_data_ = mj_makeData(mujoco_model_);
