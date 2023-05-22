@@ -5,7 +5,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 find_package(ament_cmake REQUIRED)
-install(DIRECTORY config meshes_mujoco launch rviz DESTINATION share/${PROJECT_NAME}/)
+install(DIRECTORY config meshes_mujoco launch urdf rviz DESTINATION share/${PROJECT_NAME}/)
 ament_export_dependencies(${THIS_PACKAGE_INCLUDE_DEPENDS})        
 
 ament_package()

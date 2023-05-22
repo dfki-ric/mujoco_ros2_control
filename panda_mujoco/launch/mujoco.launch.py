@@ -18,12 +18,12 @@ def generate_launch_description():
 
     robot_description_path = os.path.join(
         get_package_share_directory('panda_mujoco'),
-        'config',
-        'panda.urdf.xacro')
+        'urdf',
+        'panda.urdf')
     
     robot_model_path = os.path.join(
     	get_package_share_directory('panda_mujoco'),
-    	'config',
+    	'urdf',
     	'panda.urdf')
     
     generate_urdf = ExecuteProcess(
@@ -78,6 +78,7 @@ def generate_launch_description():
     return LaunchDescription(
         [
             robot_state_publisher,
+            load_joint_state_controller,
             joint_trajectory_controller,
             gripper_trajectory_controller,
             #mujoco

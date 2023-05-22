@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:macro name="mujoco_ros2_control" params="meshdir">
+    <mujoco>
+      <compiler meshdir="${meshdir}"/>
+      <actuator>
+        <motor name="kuka_lbr_l_joint_2_effort" joint="kuka_lbr_l_joint_2" gear="1"/>
+        <motor name="kuka_lbr_l_joint_3_effort" joint="kuka_lbr_l_joint_3" gear="1"/>
+        <motor name="kuka_lbr_l_joint_4_effort" joint="kuka_lbr_l_joint_4" gear="1"/>
+        <motor name="kuka_lbr_l_joint_5_effort" joint="kuka_lbr_l_joint_5" gear="1"/>
+        <motor name="kuka_lbr_l_joint_6_effort" joint="kuka_lbr_l_joint_6" gear="1"/>
+      </actuator>
+    </mujoco>
+  </xacro:macro>
+
+</robot>

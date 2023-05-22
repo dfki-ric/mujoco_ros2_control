@@ -71,9 +71,6 @@ protected:
     // get the URDF XML from the parameter server
     [[nodiscard]] std::string get_urdf(const std::string& param_name) const;
 
-    // get number of degrees of freedom
-    void get_number_of_dofs();
-
     // publish simulation time to ros clock
     void publish_sim_time();
 

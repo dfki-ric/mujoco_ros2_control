@@ -547,6 +547,6 @@
     </joint>
   </ros2_control>
   <mujoco>
-    <compiler meshdir="/home/ubuntu22/ros2_ws/install/panda_mujoco/share/panda_mujoco/meshes_mujoco/visual"/>
+    <compiler meshdir="/home/ubuntu22/ros2_ws/install/panda_mujoco/share/panda_mujoco/meshes_mujoco"/>
   </mujoco>
 </robot>

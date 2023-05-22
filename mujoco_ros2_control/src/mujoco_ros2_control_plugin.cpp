@@ -1,31 +1,43 @@
-/*
-* Copyright 2018 Shadow Robot Company Ltd.
-*
-* This program is free software: you can redistribute it and/or modify it
-* under the terms of the GNU General Public License as published by the Free
-* Software Foundation version 2 of the License.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT
-* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-* FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
-* more details.
-*
-* You should have received a copy of the GNU General Public License along
-* with this program. If not, see <http://www.gnu.org/licenses/>.
-*
-* @file   mujoco_ros_control.cpp
-* @author Giuseppe Barbieri <giuseppe@shadowrobot.com>
-* @brief  Hardware interface for simulated robot in Mujoco
-**/
+// Copyright (c) 2013, Open Source Robotics Foundation. All rights reserved.
+// Copyright (c) 2013, The Johns Hopkins University. All rights reserved.
+// Modifications copyright (C) 2013, DFKI GmbH, Robotics Innovation Center. All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met:
+//
+//    * Redistributions of source code must retain the above copyright
+//      notice, this list of conditions and the following disclaimer.
+//
+//    * Redistributions in binary form must reproduce the above copyright
+//      notice, this list of conditions and the following disclaimer in the
+//      documentation and/or other materials provided with the distribution.
+//
+//    * Neither the name of the Open Source Robotics Foundation nor the names of its
+//      contributors may be used to endorse or promote products derived from
+//      this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+// POSSIBILITY OF SUCH DAMAGE.
 
+/* Author: Dave Coleman, Jonathan Bohren, Adrian Danzglock
+   Desc:   Mujoco plugin for ros_control that allows 'hardware_interfaces' to be plugged in
+   using pluginlib
+*/
 
-//#include <boost/bind.hpp>
 #include "mujoco_ros2_control/mujoco_ros2_control_plugin.hpp"
 #include "mujoco_ros2_control/mujoco_system.hpp"
 #include <urdf/urdf/model.h>
 #include <string>
 #include <vector>
-#include <map>
 #include <algorithm>
 
 namespace mujoco_ros2_control
@@ -34,7 +46,10 @@ namespace mujoco_ros2_control
     {
         model_node_->declare_parameter<std::string>("robot_description_param", "robot_description");
         model_node_->declare_parameter<std::string>("robot_description_node", "robot_state_publisher");
-        model_node_->declare_parameter<std::string>("robot_model_path", "/home/ubuntu22/ros2_ws/install/panda_mujoco/share/panda_mujoco/config/panda.urdf");
+        model_node_->declare_parameter<std::string>("robot_model_path", "/home/ubuntu22/ros2_ws/install/panda_mujoco/share/panda_mujoco/urdf/panda.xml");
+        //model_node_->declare_parameter<std::string>("robot_model_path", "/home/ubuntu22/git/mujoco_menagerie/franka_emika_panda/panda.xml");
+
+
         model_node_->declare_parameter("robot_joints", std::vector<std::string>{""});
         model_node_->declare_parameter<std::string>("params_file_path", "/home/ubuntu22/ros2_ws/src/panda_ign_moveit2/panda_moveit_config/config/controllers_effort.yaml");
 
@@ -92,7 +107,7 @@ namespace mujoco_ros2_control
             rclcpp::shutdown();
         }
         char error[1000];
-        RCLCPP_INFO(node->get_logger(), "transmissions: %zu", control_hardware_info[0].transmissions.size());
+
         // create mjModel
         mujoco_model_ = mj_loadXML(robot_model_path_.c_str(), NULL, error, 1000);
         if (!mujoco_model_)
@@ -129,15 +144,6 @@ namespace mujoco_ros2_control
             robot_hw_sim_loader_->createUnmanagedInstance("mujoco_ros2_control/MujocoSystem");
             urdf::Model urdf_model;
             const urdf::Model *const urdf_model_ptr = urdf_model.initString(urdf_string) ? &urdf_model : NULL;
-
-            // get robot links from urdf
-            std::map<std::string, std::shared_ptr<urdf::Link> > robot_links;
-            robot_links = urdf_model_ptr->links_;
-            std::map<std::string, std::shared_ptr<urdf::Link> >::iterator it;
-            //for (it = robot_links.begin(); it != robot_links.end(); ++it)
-            //{
-            //    robot_link_names_.push_back(it->first);
-            //}
 
             for (auto & i : control_hardware_info) {
                 std::string robot_hw_sim_type_str_ = i.hardware_class_type;
@@ -248,6 +254,7 @@ namespace mujoco_ros2_control
         mj_deactivate();
     }
 
+    // from https://github.com/shadow-robot/mujoco_ros_pkgs/blob/kinetic-devel/mujoco_ros_control/src/mujoco_ros_control.cpp
     void MujocoRos2Control::update()
     {
         publish_sim_time();
@@ -343,10 +350,11 @@ namespace mujoco_ros2_control
 
 int main(int argc, char** argv)
 {
-    rclcpp::init(argc, argv);
-    std::cout << " " << std::endl;
+    // partially from https://github.com/shadow-robot/mujoco_ros_pkgs/blob/kinetic-devel/mujoco_ros_control/src/mujoco_ros_control.cpp
+    // (the gui related parts and the while loop are from there)
 
-    //ros::NodeHandle nh_;
+    rclcpp::init(argc, argv);
+
     rclcpp::Node::SharedPtr node = rclcpp::Node::make_shared("mujoco_node");
 
     mujoco_ros2_control::MujocoRos2Control mujoco_ros2_control_plugin(node);
@@ -359,7 +367,7 @@ int main(int argc, char** argv)
         mju_error("Could not initialize GLFW");
 
     // create window, make OpenGL context current, request v-sync
-    GLFWwindow* window = glfwCreateWindow(1200, 900, "Demo", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(1200, 900, "Mujoco", NULL, NULL);
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1);
 
@@ -370,26 +378,19 @@ int main(int argc, char** argv)
     mujoco_visualization_utils.init(mujoco_ros2_control_plugin.mujoco_model_, mujoco_ros2_control_plugin.mujoco_data_, window);
 
     // spin
-    //ros::AsyncSpinner spinner(1);
-    //spinner.start();
-    //rclcpp::spin(node);
     rclcpp::executors::MultiThreadedExecutor executor;
     executor.add_node(node);
     std::thread executor_thread([ObjectPtr = &executor] { ObjectPtr->spin(); });
     // run main loop, target real-time simulation and 60 fps rendering
     while ( rclcpp::ok() && !glfwWindowShouldClose(window) )
     {
-        //std::cout << "test" <<std::endl;
         // advance interactive simulation for 1/60 sec
         // Assuming MuJoCo can simulate faster than real-time, which it usually can,
         // this loop will finish on time for the next frame to be rendered at 60 fps.
         mjtNum sim_start = mujoco_ros2_control_plugin.mujoco_data_->time;
         while ( mujoco_ros2_control_plugin.mujoco_data_->time - sim_start < 1.0/60.0 && rclcpp::ok() )
         {
-            //RCLCPP_INFO(rclcpp::get_logger("test"), "%f; %f", mujoco_ros2_control_plugin.mujoco_data_->time, sim_start);
-            //RCLCPP_INFO(rclcpp::get_logger("test"), "%f < %f", mujoco_ros2_control_plugin.mujoco_data_->time - sim_start, 1.0/60.0);
             mujoco_ros2_control_plugin.update();
-            //mj_step(mujoco_ros2_control_plugin.mujoco_model_, mujoco_ros2_control_plugin.mujoco_data_);
         }
         mujoco_visualization_utils.update(window);
     }
@@ -399,3 +400,36 @@ int main(int argc, char** argv)
 
     return 0;
 }
+
+// it also works without gui
+/**int main(int argc, char** argv)
+{
+    // partially from https://github.com/shadow-robot/mujoco_ros_pkgs/blob/kinetic-devel/mujoco_ros_control/src/mujoco_ros_control.cpp
+    // (the gui related parts and the while loop are from there)
+
+    rclcpp::init(argc, argv);
+
+    rclcpp::Node::SharedPtr node = rclcpp::Node::make_shared("mujoco_node");
+
+    mujoco_ros2_control::MujocoRos2Control mujoco_ros2_control_plugin(node);
+
+    // spin
+    rclcpp::executors::MultiThreadedExecutor executor;
+    executor.add_node(node);
+    std::thread executor_thread([ObjectPtr = &executor] { ObjectPtr->spin(); });
+    // run main loop, target real-time simulation and 60 fps rendering
+    while ( rclcpp::ok())
+    {
+        // advance interactive simulation for 1/60 sec
+        // Assuming MuJoCo can simulate faster than real-time, which it usually can,
+        // this loop will finish on time for the next frame to be rendered at 60 fps.
+        mjtNum sim_start = mujoco_ros2_control_plugin.mujoco_data_->time;
+        while ( mujoco_ros2_control_plugin.mujoco_data_->time - sim_start < 1.0/60.0 && rclcpp::ok() )
+        {
+            mujoco_ros2_control_plugin.update();
+        }
+    }
+    executor_thread.join();
+
+    return 0;
+}*/
