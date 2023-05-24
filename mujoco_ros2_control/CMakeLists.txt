@@ -100,6 +100,7 @@ install(TARGETS
 
 install(PROGRAMS
         scripts/xacro2mjcf.sh
+        scripts/add_actuators.py
         DESTINATION share/${PROJECT_NAME}/)
 
 ament_export_include_directories(

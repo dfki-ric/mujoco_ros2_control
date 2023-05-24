@@ -36,10 +36,8 @@
 // msgs
 #include "geometry_msgs/msg/pose.hpp"
 #include "std_msgs/msg/float64_multi_array.hpp"
-#include "mujoco_ros2_msgs/msg/model_states.hpp"
 
 #include <controller_manager/controller_manager.hpp>
-//#include <transmission_interface/transmission_parser.h>
 #include <hardware_interface/hardware_info.hpp>
 #include "hardware_interface/resource_manager.hpp"
 #include "hardware_interface/component_parser.hpp"
@@ -70,9 +68,6 @@ protected:
 
     // get the URDF XML from the parameter server
     [[nodiscard]] std::string get_urdf(const std::string& param_name) const;
-
-    // get number of degrees of freedom
-    void get_number_of_dofs();
 
     // publish simulation time to ros clock
     void publish_sim_time();

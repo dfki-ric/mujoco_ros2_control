@@ -34,7 +34,7 @@ def generate_launch_description():
         cmd=[xacro2mjcf_path, robot_description_path, robot_model_path],
         output='screen'
     )
-    
+
     robot_description = {'robot_description': xacro.process_file(robot_description_path).toxml()}
 
     robot_state_publisher = Node(

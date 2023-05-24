@@ -1,10 +1,10 @@
-<library path="mujoco_hardware_plugins">
+<library path="mujoco_system_plugins">
     <class
             name="mujoco_ros2_control/MujocoSystem"
             type="mujoco_ros2_control::MujocoSystem"
             base_class_type="mujoco_ros2_control::MujocoSystemInterface">
         <description>
-            MujocoPositionJoint
+            Mujoco System Interface
         </description>
     </class>
 </library>
