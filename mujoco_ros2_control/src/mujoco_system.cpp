@@ -300,7 +300,7 @@ namespace mujoco_ros2_control {
                     mujoco_data_->qfrc_applied[joint.mujoco_dofadr] = effort;
                 }
             }
-            mj_forward(mujoco_model_, mujoco_data_);
+            //mj_forward(mujoco_model_, mujoco_data_);
         }
 
         return hardware_interface::return_type::OK;

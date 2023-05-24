@@ -46,12 +46,10 @@ namespace mujoco_ros2_control
     {
         model_node_->declare_parameter<std::string>("robot_description_param", "robot_description");
         model_node_->declare_parameter<std::string>("robot_description_node", "robot_state_publisher");
-        model_node_->declare_parameter<std::string>("robot_model_path", "/home/ubuntu22/ros2_ws/install/panda_mujoco/share/panda_mujoco/urdf/panda.xml");
-        //model_node_->declare_parameter<std::string>("robot_model_path", "/home/ubuntu22/git/mujoco_menagerie/franka_emika_panda/panda.xml");
-
+        model_node_->declare_parameter<std::string>("robot_model_path", "");
 
         model_node_->declare_parameter("robot_joints", std::vector<std::string>{""});
-        model_node_->declare_parameter<std::string>("params_file_path", "/home/ubuntu22/ros2_ws/src/panda_ign_moveit2/panda_moveit_config/config/controllers_effort.yaml");
+        model_node_->declare_parameter<std::string>("params_file_path", "");
 
         // Check that ROS has been initialized
         if (!rclcpp::ok())

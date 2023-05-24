@@ -3,6 +3,7 @@ import os
 from ament_index_python import get_package_share_directory
 
 from launch import LaunchDescription
+import launch_ros
 from launch.actions import ExecuteProcess
 from launch.actions import IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
@@ -19,18 +20,23 @@ def generate_launch_description():
     robot_description_path = os.path.join(
         get_package_share_directory('panda_mujoco'),
         'urdf',
-        'panda.urdf')
+        'panda.urdf.xacro')
     
     robot_model_path = os.path.join(
     	get_package_share_directory('panda_mujoco'),
     	'urdf',
-    	'panda.urdf')
-    
-    generate_urdf = ExecuteProcess(
-        cmd=['xacro', robot_description_path, '>', robot_model_path],
+    	'panda.xml')
+
+
+    xacro2mjcf_path = os.path.join(
+        get_package_share_directory('mujoco_ros2_control'),
+        'scripts',
+        'xacro2mjcf.sh')
+
+    xacro2mjcf = ExecuteProcess(
+        cmd=[xacro2mjcf_path, robot_description_path, robot_model_path],
         output='screen'
-    )    
-    
+    )
     
     robot_description = {'robot_description': xacro.process_file(robot_description_path).toxml()}
 
@@ -52,6 +58,7 @@ def generate_launch_description():
         executable="mujoco_ros2_control",
         name="mujoco_ros2_control",
         namespace=namespace,
+        respawn=True,
         parameters=[
         {"robot_model_path": robot_model_path},
     	{"params_file_path": ros2_control_params_file}]
@@ -75,12 +82,26 @@ def generate_launch_description():
         output='screen'
     )
 
+    # RViz
+    rviz_config_file = (
+            get_package_share_directory("panda_mujoco") + "/rviz/panda.rviz"
+    )
+    rviz_node = launch_ros.actions.Node(
+        package="rviz2",
+        executable="rviz2",
+        name="rviz2",
+        output="log",
+        arguments=["-d", rviz_config_file]
+    )
+
     return LaunchDescription(
         [
+            xacro2mjcf,
             robot_state_publisher,
             load_joint_state_controller,
             joint_trajectory_controller,
             gripper_trajectory_controller,
-            #mujoco
+            mujoco,
+            rviz_node
         ]
     )

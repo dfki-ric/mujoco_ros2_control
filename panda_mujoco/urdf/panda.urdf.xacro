@@ -108,7 +108,7 @@
   <!-- Gazebo - ROS 2 control (Ignition) -->
   <xacro:if value="$(arg ros2_control)">
     <xacro:if value="${'mujoco' in '$(arg ros2_control_plugin)'}">
-      <xacro:mujoco_ros2_control meshdir="$(find panda_mujoco)/meshes_mujoco"/>
+      <xacro:mujoco_ros2_control meshdir="$(find panda_mujoco)/meshes_mujoco/visual"/>
     </xacro:if>
   </xacro:if>
 
