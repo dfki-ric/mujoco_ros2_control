@@ -44,7 +44,6 @@ namespace mujoco_ros2_control
         /// param[in] control_hardware vector filled with information about robot's control resources
         /// param[in] sdf pointer to the SDF
         virtual bool initSim(
-                rclcpp::Node::SharedPtr & model_nh,
                 mjModel* mujoco_model, mjData *mujoco_data,
                 const hardware_interface::HardwareInfo & hardware_info,
                 const urdf::Model *urdf_model_ptr) = 0;

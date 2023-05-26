@@ -16,14 +16,22 @@
 #ifndef MUJOCO_ROS2_CONTROL__MUJOCO_SYSTEM_HPP_
 #define MUJOCO_ROS2_CONTROL__MUJOCO_SYSTEM_HPP_
 
+// std libraries
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
+#include <utility>
 #include <algorithm>
 
-#include "angles/angles.h"
-
+// Mujoco system interface
 #include "mujoco_ros2_control/mujoco_system_interface.hpp"
+
+// ROS Hardware Interface
+#include "hardware_interface/hardware_info.hpp"
+#include "hardware_interface/types/hardware_interface_type_values.hpp"
+
+// ROS messages
 #include "std_msgs/msg/bool.hpp"
 
 namespace mujoco_ros2_control
@@ -66,7 +74,6 @@ namespace mujoco_ros2_control
 
         /**
          * Load and stores the required Datas and Pointers from MuJoCo and ROS2 to this class
-         * @param model_nh          ROS2 Node Handle
          * @param mujoco_model      Pointer to the MuJoCo model
          * @param mujoco_data       Pointer to the MuJoCo data
          * @param hardware_info     Description of the ROS2 Control definitions
@@ -75,7 +82,6 @@ namespace mujoco_ros2_control
          * @return
          */
         bool initSim(
-                rclcpp::Node::SharedPtr & model_nh,
                 mjModel* mujoco_model, mjData *mujoco_data,
                 const hardware_interface::HardwareInfo & hardware_info,
                 const urdf::Model *urdf_model_ptr) override;
@@ -86,7 +92,6 @@ namespace mujoco_ros2_control
         struct JointData
         {
             std::string name;
-            int type;
             double lower_limit = 0.0;
             double upper_limit = 0.0;
             double velocity_limit = 2.0;
@@ -115,11 +120,6 @@ namespace mujoco_ros2_control
     private:
         void registerJoints(const hardware_interface::HardwareInfo & hardware_info,
                             const std::map<std::string, std::shared_ptr<urdf::Joint>> &joints);
-        static bool extractSubstr(std::string const & str, std::string const & ending, std::string& joint_name);
-
-
-        /// \brief Degrees od freedom.
-        size_t n_dof_;
 
         /// \brief Mujoco Model Ptr.
         mjModel *mujoco_model_;

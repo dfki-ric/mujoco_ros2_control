@@ -3,32 +3,32 @@
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
   <xacro:macro name="mujoco_ros2_control" params="meshdir">
     <mujoco>
-      <compiler meshdir="${meshdir}"/>  
+      <compiler meshdir="${meshdir}"/>
       <actuator>
-	<motor name="panda_joint1_eff" joint="panda_joint1" gear="1"/>
-	<motor name="panda_joint2_eff" joint="panda_joint2" gear="1"/>
-	<motor name="panda_joint3_eff" joint="panda_joint3" gear="1"/>
-	<motor name="panda_joint4_eff" joint="panda_joint4" gear="1"/>
-	<motor name="panda_joint5_eff" joint="panda_joint5" gear="1"/>
-	<motor name="panda_joint6_eff" joint="panda_joint6" gear="1"/>
-	<motor name="panda_joint7_eff" joint="panda_joint7" gear="1"/>
-	
-	<!--position name="panda_joint1_pos" joint="panda_joint1" gear="1" kp="1"/>
-	<position name="panda_joint2_pos" joint="panda_joint2" gear="1" kp="1"/>
-	<position name="panda_joint3_pos" joint="panda_joint3" gear="1" kp="1"/>
-	<position name="panda_joint4_pos" joint="panda_joint4" gear="1" kp="1"/>
-	<position name="panda_joint5_pos" joint="panda_joint5" gear="1" kp="1"/>
-	<position name="panda_joint6_pos" joint="panda_joint6" gear="1" kp="1"/>
-	<position name="panda_joint7_pos" joint="panda_joint7" gear="1" kp="1"/-->
-	
-	<!--velocity name="panda_joint1_vel" joint="panda_joint1" gear="1" kv="1"/>
-	<velocity name="panda_joint2_vel" joint="panda_joint2" gear="1" kv="1"/>
-	<velocity name="panda_joint3_vel" joint="panda_joint3" gear="1" kv="1"/>
-	<velocity name="panda_joint4_vel" joint="panda_joint4" gear="1" kv="1"/>
-	<velocity name="panda_joint5_vel" joint="panda_joint5" gear="1" kv="1"/>
-	<velocity name="panda_joint6_vel" joint="panda_joint6" gear="1" kv="1"/>
-	<velocity name="panda_joint7_vel" joint="panda_joint7" gear="1" kv="1"/-->
-  </actuator>
+        <motor name="panda_joint1_eff" joint="panda_joint1" gear="1"/>
+        <motor name="panda_joint2_eff" joint="panda_joint2" gear="1"/>
+        <motor name="panda_joint3_eff" joint="panda_joint3" gear="1"/>
+        <motor name="panda_joint4_eff" joint="panda_joint4" gear="1"/>
+        <motor name="panda_joint5_eff" joint="panda_joint5" gear="1"/>
+        <motor name="panda_joint6_eff" joint="panda_joint6" gear="1"/>
+        <motor name="panda_joint7_eff" joint="panda_joint7" gear="1"/>
+
+        <!--position name="panda_joint1_pos" joint="panda_joint1" gear="2" kp="1"/>
+        <position name="panda_joint2_pos" joint="panda_joint2" gear="2" kp="1"/>
+        <position name="panda_joint3_pos" joint="panda_joint3" gear="2" kp="1"/>
+        <position name="panda_joint4_pos" joint="panda_joint4" gear="2" kp="1"/>
+        <position name="panda_joint5_pos" joint="panda_joint5" gear="2" kp="1"/>
+        <position name="panda_joint6_pos" joint="panda_joint6" gear="2" kp="1"/>
+        <position name="panda_joint7_pos" joint="panda_joint7" gear="2" kp="1"/-->
+
+        <!--velocity name="panda_joint1_vel" joint="panda_joint1" gear="1" kv="1"/>
+        <velocity name="panda_joint2_vel" joint="panda_joint2" gear="1" kv="1"/>
+        <velocity name="panda_joint3_vel" joint="panda_joint3" gear="1" kv="1"/>
+        <velocity name="panda_joint4_vel" joint="panda_joint4" gear="1" kv="1"/>
+        <velocity name="panda_joint5_vel" joint="panda_joint5" gear="1" kv="1"/>
+        <velocity name="panda_joint6_vel" joint="panda_joint6" gear="1" kv="1"/>
+        <velocity name="panda_joint7_vel" joint="panda_joint7" gear="1" kv="1"/-->
+      </actuator>
     </mujoco>
   </xacro:macro>
 
