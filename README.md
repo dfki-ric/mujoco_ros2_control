@@ -6,5 +6,4 @@ mkdir mujoco/build
 cd mujoco/build
 cmake ..
 cmake --build ..
-cmake --install ..
-```
+cmake --install ..```

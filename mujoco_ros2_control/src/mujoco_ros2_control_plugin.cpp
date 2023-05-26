@@ -34,6 +34,11 @@
 */
 
 #include "mujoco_ros2_control/mujoco_ros2_control_plugin.hpp"
+#include "mujoco_ros2_control/mujoco_system.hpp"
+#include <urdf/urdf/model.h>
+#include <string>
+#include <vector>
+#include <algorithm>
 
 namespace mujoco_ros2_control
 {
@@ -69,7 +74,6 @@ namespace mujoco_ros2_control
         arguments.push_back(params_file_path);
 
         std::vector<const char *> argv;
-        argv.reserve(arguments.size());
         for (const auto & arg : arguments) {
             argv.push_back(reinterpret_cast<const char *>(arg.data()));
         }
@@ -143,7 +147,10 @@ namespace mujoco_ros2_control
                 std::string robot_hw_sim_type_str_ = i.hardware_class_type;
                 auto mujocoSystem = std::unique_ptr<mujoco_ros2_control::MujocoSystemInterface>(
                         robot_hw_sim_loader_->createUnmanagedInstance(robot_hw_sim_type_str_));
+
+                rclcpp::Node::SharedPtr node_ros2 = std::dynamic_pointer_cast<rclcpp::Node>(this->model_node_);
                 if (!mujocoSystem->initSim(
+                        node_ros2,
                         mujoco_model_,
                         mujoco_data_,
                         i,
@@ -339,10 +346,61 @@ namespace mujoco_ros2_control
     }
 }  // namespace mujoco_ros_control
 
-
-/**
-// it also works without gui
 int main(int argc, char** argv)
+{
+    // partially from https://github.com/shadow-robot/mujoco_ros_pkgs/blob/kinetic-devel/mujoco_ros_control/src/mujoco_ros_control.cpp
+    // (the gui related parts and the while loop are from there)
+
+    rclcpp::init(argc, argv);
+
+    rclcpp::Node::SharedPtr node = rclcpp::Node::make_shared("mujoco_node");
+
+    mujoco_ros2_control::MujocoRos2Control mujoco_ros2_control_plugin(node);
+
+    mujoco_ros2_control::MujocoVisualizationUtils &mujoco_visualization_utils =
+            mujoco_ros2_control::MujocoVisualizationUtils::getInstance();
+
+    // init GLFW
+    if ( !glfwInit() )
+        mju_error("Could not initialize GLFW");
+
+    // create window, make OpenGL context current, request v-sync
+    GLFWwindow* window = glfwCreateWindow(1200, 900, "Mujoco", NULL, NULL);
+    glfwMakeContextCurrent(window);
+    glfwSwapInterval(1);
+
+    // make context current
+    glfwMakeContextCurrent(window);
+
+    // initialize mujoco visualization functions
+    mujoco_visualization_utils.init(mujoco_ros2_control_plugin.mujoco_model_, mujoco_ros2_control_plugin.mujoco_data_, window);
+
+    // spin
+    rclcpp::executors::MultiThreadedExecutor executor;
+    executor.add_node(node);
+    std::thread executor_thread([ObjectPtr = &executor] { ObjectPtr->spin(); });
+    // run main loop, target real-time simulation and 60 fps rendering
+    while ( rclcpp::ok() && !glfwWindowShouldClose(window) )
+    {
+        // advance interactive simulation for 1/60 sec
+        // Assuming MuJoCo can simulate faster than real-time, which it usually can,
+        // this loop will finish on time for the next frame to be rendered at 60 fps.
+        mjtNum sim_start = mujoco_ros2_control_plugin.mujoco_data_->time;
+        while ( mujoco_ros2_control_plugin.mujoco_data_->time - sim_start < 1.0/60.0 && rclcpp::ok() )
+        {
+            mujoco_ros2_control_plugin.update();
+        }
+        mujoco_visualization_utils.update(window);
+    }
+
+    mujoco_visualization_utils.terminate();
+    executor_thread.join();
+
+    return 0;
+}
+
+// it also works without gui
+/**int main(int argc, char** argv)
 {
     // partially from https://github.com/shadow-robot/mujoco_ros_pkgs/blob/kinetic-devel/mujoco_ros_control/src/mujoco_ros_control.cpp
     // (the gui related parts and the while loop are from there)
