@@ -1,53 +1,41 @@
-//
-// Created by ubuntu22 on 18.04.23.
-//
-
 #ifndef MUJOCO_ROS2_CONTROL_MUJOCO_ROS2_CONTROL_PLUGIN_HPP
 #define MUJOCO_ROS2_CONTROL_MUJOCO_ROS2_CONTROL_PLUGIN_HPP
 
-// Boost
-#include <boost/shared_ptr.hpp>
-#include <boost/thread.hpp>
-
-// ROS
-#include <rclcpp/rclcpp.hpp>
-//#include <pluginlib/class_loader.h>
-#include <std_msgs/msg/bool.hpp>
-//#include <ros/package.h>
-#include "rclcpp/executors/multi_threaded_executor.hpp"
-
-// Mujoco dependencies
-#include <mujoco/mujoco.h>
-#include <mujoco/mjdata.h>
-#include <mujoco/mjmodel.h>
-
+// std libraries
+#include <algorithm>
 #include <fstream>
 #include <string>
 #include <iostream>
 #include <vector>
 #include <map>
 
-#include "yaml-cpp/yaml.h"
+// ROS
+#include "rclcpp/rclcpp.hpp"
+#include "rclcpp/executors/multi_threaded_executor.hpp"
+
+// Mujoco dependencies
+#include "mujoco/mujoco.h"
+#include "mujoco/mjdata.h"
+#include "mujoco/mjmodel.h"
+#include "mujoco_ros2_control/mujoco_system.hpp"
 
 // ros_control
-#include <mujoco_ros2_control/mujoco_system.hpp>
-#include <mujoco_ros2_control/mujoco_system_interface.hpp>
-
-// msgs
-#include "geometry_msgs/msg/pose.hpp"
-#include "std_msgs/msg/float64_multi_array.hpp"
-
-#include <controller_manager/controller_manager.hpp>
-#include <hardware_interface/hardware_info.hpp>
+#include "mujoco_ros2_control/mujoco_system.hpp"
+#include "mujoco_ros2_control/mujoco_system_interface.hpp"
+#include "controller_manager/controller_manager.hpp"
+#include "hardware_interface/hardware_info.hpp"
 #include "hardware_interface/resource_manager.hpp"
 #include "hardware_interface/component_parser.hpp"
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
 
-// openGL stuff
-#include <GLFW/glfw3.h>
-#include <mujoco_ros2_control/mujoco_visualization_utils.hpp>
+// msgs
+#include "std_msgs/msg/bool.hpp"
+#include "geometry_msgs/msg/pose.hpp"
+#include "rosgraph_msgs/msg/clock.hpp"
+#include "std_msgs/msg/float64_multi_array.hpp"
 
-#include <rosgraph_msgs/msg/clock.hpp>
+// URDF
+#include "urdf/urdf/model.h"
 
 namespace mujoco_ros2_control
 {
@@ -94,9 +82,6 @@ protected:
     std::string robot_description_param_;
     std::string robot_description_node_;
     std::string robot_model_path_;
-
-    // transmissions in this plugin's scope
-    //std::vector<transmission_interface::TransmissionInfo> transmissions_;
 
     // robot simulator interface
     std::shared_ptr<mujoco_ros2_control::MujocoSystemInterface> robot_hw_sim_;

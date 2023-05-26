@@ -12,23 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <map>
-#include <memory>
-#include <string>
-#include <vector>
-#include <utility>
-
 #include "mujoco_ros2_control/mujoco_system.hpp"
-
-#include "hardware_interface/hardware_info.hpp"
-#include "hardware_interface/types/hardware_interface_type_values.hpp"
-
-
 
 namespace mujoco_ros2_control {
 
     bool MujocoSystem::initSim(
-            rclcpp::Node::SharedPtr &model_nh,
             mjModel *mujoco_model, mjData *mujoco_data,
             const hardware_interface::HardwareInfo &hardware_info,
             const urdf::Model *const urdf_model_ptr) {
@@ -145,11 +133,6 @@ namespace mujoco_ros2_control {
             }
             std::string actuator_name = mj_id2name(mujoco_model_, mjOBJ_ACTUATOR, mujoco_actuator_id);
 
-            int& trntype = mujoco_model_->actuator_trntype[mujoco_actuator_id];
-            int& dyntype = mujoco_model_->actuator_dyntype[mujoco_actuator_id];
-            int& gaintype = mujoco_model_->actuator_gaintype[mujoco_actuator_id];
-            int& biastype = mujoco_model_->actuator_biastype[mujoco_actuator_id];
-
             double *dynprm = &mujoco_model_->actuator_dynprm[mujoco_actuator_id * mjNDYN];
             double *gainprm = &mujoco_model_->actuator_gainprm[mujoco_actuator_id * mjNGAIN];
             double *biasprm = &mujoco_model_->actuator_biasprm[mujoco_actuator_id * mjNBIAS];
@@ -265,6 +248,7 @@ namespace mujoco_ros2_control {
                 if (actuators.find(POSITION) != actuators.end()) {
                     // write to actuator ctrl
                     mujoco_data_->ctrl[actuators[POSITION]] = position;
+                    mujoco_data_->qvel[joint.mujoco_dofadr] = joint.velocity_limit;
                 } else {
                     // write to position and velocity address from the joint
                     mujoco_data_->qpos[joint.mujoco_qpos_addr] = position;
@@ -300,21 +284,10 @@ namespace mujoco_ros2_control {
                     mujoco_data_->qfrc_applied[joint.mujoco_dofadr] = effort;
                 }
             }
-            //mj_forward(mujoco_model_, mujoco_data_);
+            mj_forward(mujoco_model_, mujoco_data_);
         }
 
         return hardware_interface::return_type::OK;
-    }
-
-    bool MujocoSystem::extractSubstr(const std::string& str, const std::string& ending, std::string& joint_name) {
-        size_t pos = str.rfind(ending);
-        if (pos == std::string::npos) {
-            return false;
-        }
-        else {
-            joint_name = str.substr(0, pos);
-            return true;
-        }
     }
 }  // namespace mujoco_ros2_control
 
