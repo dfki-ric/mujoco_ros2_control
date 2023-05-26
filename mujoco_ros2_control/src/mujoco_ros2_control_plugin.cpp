@@ -340,7 +340,7 @@ namespace mujoco_ros2_control
 }  // namespace mujoco_ros_control
 
 
-/**
+
 // it also works without gui
 int main(int argc, char** argv)
 {
@@ -372,4 +372,4 @@ int main(int argc, char** argv)
     executor_thread.join();
 
     return 0;
-}*/
+}
