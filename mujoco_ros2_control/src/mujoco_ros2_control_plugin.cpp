@@ -229,6 +229,8 @@ namespace mujoco_ros2_control
         mj_step(mujoco_model_, mujoco_data_);
 
         RCLCPP_INFO(model_node_->get_logger(), "Sim environment setup complete");
+
+        mj_vis_.init(mujoco_model_, mujoco_data_);
     }
 
     MujocoRos2Control::~MujocoRos2Control() 
@@ -273,6 +275,7 @@ namespace mujoco_ros2_control
 
         last_write_sim_time_ros_ = sim_time_ros;
         mj_step2(mujoco_model_, mujoco_data_);
+        mj_vis_.update();
     }
 
     // get the URDF XML from the parameter server

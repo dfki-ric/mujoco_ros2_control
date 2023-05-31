@@ -37,6 +37,9 @@
 // URDF
 #include "urdf/urdf/model.h"
 
+
+#include "mujoco_ros2_control/mujoco_visualization.hpp"
+
 namespace mujoco_ros2_control
 {
 class MujocoRos2Control {
@@ -99,6 +102,9 @@ protected:
     rclcpp::Duration mujoco_period_ = rclcpp::Duration(1, 0);
     rclcpp::Time last_update_sim_time_ros_ = rclcpp::Time((int64_t)0, RCL_ROS_TIME);
     rclcpp::Time last_write_sim_time_ros_ = rclcpp::Time((int64_t)0, RCL_ROS_TIME);
+
+    // Visualization
+    mujoco_visualization::MujocoVisualization& mj_vis_ = mujoco_visualization::MujocoVisualization::getInstance();
 };
 }  // namespace mujoco_ros2_control
 

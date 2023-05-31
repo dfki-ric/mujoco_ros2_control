@@ -22,7 +22,7 @@ def generate_launch_description():
     robot_description_path = os.path.join(
         get_package_share_directory('panda_mujoco'),
         'urdf',
-        'panda.urdf.xacro')
+        'dual_panda.urdf.xacro')
 
     robot_model_path = "/tmp/panda.xml"
 
@@ -50,7 +50,7 @@ def generate_launch_description():
     ros2_control_params_file = os.path.join(
         get_package_share_directory('panda_mujoco'),
         'config',
-        'controllers_joint_trajectory_controller.yaml')
+        'controllers_joint_trajectory_controller_dual_panda.yaml')
 
     mujoco = Node(
         package="mujoco_ros2_control",
@@ -80,13 +80,25 @@ def generate_launch_description():
 
     joint_trajectory_controller = ExecuteProcess(
         cmd=['ros2', 'control', 'load_controller', '--set-state', 'active',
-             'joint_trajectory_controller'],
+             'joint_trajectory_controller_1'],
         output='screen'
     )
 
     gripper_trajectory_controller = ExecuteProcess(
         cmd=['ros2', 'control', 'load_controller', '--set-state', 'active',
-             'gripper_trajectory_controller'],
+             'gripper_trajectory_controller_1'],
+        output='screen'
+    )
+
+    joint_trajectory_controller_2 = ExecuteProcess(
+        cmd=['ros2', 'control', 'load_controller', '--set-state', 'active',
+             'joint_trajectory_controller_2'],
+        output='screen'
+    )
+
+    gripper_trajectory_controller_2 = ExecuteProcess(
+        cmd=['ros2', 'control', 'load_controller', '--set-state', 'active',
+             'gripper_trajectory_controller_2'],
         output='screen'
     )
 
@@ -94,10 +106,12 @@ def generate_launch_description():
         OnProcessStart(
             target_action=mujoco,
             on_start=[
-                LogInfo(msg='Turtlesim started, spawning turtle'),
+                LogInfo(msg='Mujoco started, spawning controllers'),
                 load_joint_state_controller,
                 joint_trajectory_controller,
-                gripper_trajectory_controller
+                gripper_trajectory_controller,
+                joint_trajectory_controller_2,
+                gripper_trajectory_controller_2
             ]
         )
     )
@@ -127,7 +141,7 @@ def generate_launch_description():
             on_completion=[
                 LogInfo(msg='Created mujoco xml'),
                 rviz_node,
-                #rqt_joint_trajectory_controller
+                rqt_joint_trajectory_controller
             ]
         )
     )
