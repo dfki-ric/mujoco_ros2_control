@@ -22,22 +22,37 @@ def generate_launch_description():
     robot_description_path = os.path.join(
         get_package_share_directory('panda_mujoco'),
         'urdf',
-        'dual_panda.urdf.xacro')
+        'multi_panda.urdf.xacro')
 
+    # Path must be in /tmp because mujoco can't read absolute or relative paths
     robot_model_path = "/tmp/panda.xml"
 
-    xacro2mjcf_path = os.path.join(
-        get_package_share_directory('mujoco_ros2_control'),
-        'scripts',
-        'xacro2mjcf.py')
+    robot_description_1_string = xacro.process_file(robot_description_path, mappings={
+        'ros2_control_command_interface': command_interface,
+        'name': 'panda1',
+        'origin_xyz': '0 -0.8 0.5',
+        'origin_rpy': '0 0 1.5708'
+    }).toxml()
 
-    xacro2mjcf = ExecuteProcess(
-        cmd=[xacro2mjcf_path, robot_description_path, robot_model_path],
-        output='screen'
+    robot_description_2_string = xacro.process_file(robot_description_path, mappings={
+        'ros2_control_command_interface': command_interface,
+        'name': 'panda2',
+        'origin_xyz': '0 0.8 0.5',
+        'origin_rpy': '0 0 -1.5708'
+    }).toxml()
+
+    robot_description = {'robot_description': robot_description_1_string}
+
+    xacro2mjcf_config = os.path.join(
+        get_package_share_directory('panda_mujoco'),
+        'config',
+        'xacro2mjcf.conf')
+
+    xacro2mjcf = Node(
+        package="mujoco_ros2_control",
+        executable="xacro2mjcf_node.py",
+        parameters=[xacro2mjcf_config, {'robot_descriptions': [robot_description_1_string, robot_description_2_string]}]
     )
-
-    robot_description = {'robot_description': xacro.process_file(robot_description_path, mappings={
-        'ros2_control_command_interface': command_interface}).toxml()}
 
     robot_state_publisher = Node(
         package="robot_state_publisher",
@@ -140,14 +155,15 @@ def generate_launch_description():
             target_action=load_joint_state_controller,
             on_completion=[
                 LogInfo(msg='Created mujoco xml'),
-                rviz_node,
-                rqt_joint_trajectory_controller
+                #rviz_node,
+                #rqt_joint_trajectory_controller
             ]
         )
     )
 
     return LaunchDescription(
         [
+            #mujoco,
             start_mujoco,
             register_controllers,
             start_rviz,

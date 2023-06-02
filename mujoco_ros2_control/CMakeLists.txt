@@ -26,6 +26,7 @@ find_package(urdf REQUIRED)
 find_package(mujoco REQUIRED)
 find_package(ament_lint_auto REQUIRED)
 find_package(glfw3 REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
 
 ## Specify additional locations of header files
 add_definitions(
@@ -88,9 +89,11 @@ install(TARGETS
         RUNTIME DESTINATION bin
         )
 
+ament_python_install_package(scripts)
+
 install(PROGRAMS
-        scripts/xacro2mjcf.py
-        DESTINATION share/${PROJECT_NAME}/scripts/)
+        scripts/xacro2mjcf_node.py
+        DESTINATION bin)
 
 ament_export_include_directories(
         include
