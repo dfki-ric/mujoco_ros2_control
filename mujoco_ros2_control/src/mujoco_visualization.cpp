@@ -13,9 +13,11 @@
 // limitations under the License.
 
 #include <iostream>
+#include <thread>
 #include "mujoco_ros2_control/mujoco_visualization.hpp"
 
 namespace mujoco_visualization {
+
     void MujocoVisualization::init(mjModel_* model, mjData_* data) {
         m = model;
         d = data;
@@ -25,7 +27,7 @@ namespace mujoco_visualization {
         }
 
         // create window, make OpenGL context current, request v-sync
-        window = glfwCreateWindow(1200, 900, "Demo", NULL, NULL);
+        window = glfwCreateWindow(1200, 900, "MuJoCo ROS2", NULL, NULL);
         glfwMakeContextCurrent(window);
         glfwSwapInterval(1);
 
@@ -44,6 +46,8 @@ namespace mujoco_visualization {
         glfwSetCursorPosCallback(window, &mouse_move_cb);
         glfwSetMouseButtonCallback(window, &mouse_button_cb);
         glfwSetScrollCallback(window, &scroll_cb);
+
+
     }
 
     void MujocoVisualization::update() {

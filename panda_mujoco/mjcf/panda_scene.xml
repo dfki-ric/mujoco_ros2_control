@@ -1,5 +1,4 @@
 <mujoco model="panda scene">
-
     <statistic center="0.3 0 0.4" extent="1"/>
 
     <visual>

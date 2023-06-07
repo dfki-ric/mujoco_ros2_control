@@ -45,6 +45,7 @@ namespace mujoco_ros2_control
 
         model_node_->declare_parameter("robot_joints", std::vector<std::string>{""});
         model_node_->declare_parameter<std::string>("params_file_path", "");
+        model_node_->declare_parameter<bool>("visualization", true);
 
         // Check that ROS has been initialized
         if (!rclcpp::ok())
@@ -54,13 +55,16 @@ namespace mujoco_ros2_control
         }
 
         // publish clock for simulated time
-        pub_clock_ = model_node_->create_publisher<rosgraph_msgs::msg::Clock>("/clock", 10);
+        //pub_clock_ = model_node_->create_publisher<rosgraph_msgs::msg::Clock>("/clock", 10);
+        publisher_ = model_node_->create_publisher<rosgraph_msgs::msg::Clock>("/clock", rclcpp::SystemDefaultsQoS());
+        clock_publisher_ = std::make_unique<ClockPublisher>(publisher_);
 
         // read urdf from ros parameter server then setup actuators and mechanism control node.
         robot_description_param_ = model_node_->get_parameter("robot_description_param").as_string();
         robot_description_node_ = model_node_->get_parameter("robot_description_node").as_string();
         robot_model_path_ = model_node_->get_parameter("robot_model_path").as_string();
         std::string params_file_path = model_node_->get_parameter("params_file_path").as_string();
+        mujoco_vis_ = model_node_->get_parameter("visualization").as_bool();
 
         auto rcl_context = model_node_->get_node_base_interface()->get_context()->get_rcl_context();
         std::vector<std::string> arguments = {"--ros-args"};
@@ -111,6 +115,8 @@ namespace mujoco_ros2_control
         } else {
             RCLCPP_INFO(model_node_->get_logger(), "loaded mujoco model");
         }
+
+        mujoco_model_->opt.timestep = 0.001;
 
         // create mjData corresponding to mjModel
         mujoco_data_ = mj_makeData(mujoco_model_);
@@ -227,10 +233,13 @@ namespace mujoco_ros2_control
 
         // run simulation to setup the new pos
         mj_step(mujoco_model_, mujoco_data_);
-
+        mujoco_start_time_ = mujoco_data_->time;
+        //system_start_time_ = std::chrono::system_clock::now();
+        clock_gettime(CLOCK_MONOTONIC, &startTime_);
         RCLCPP_INFO(model_node_->get_logger(), "Sim environment setup complete");
-
-        mj_vis_.init(mujoco_model_, mujoco_data_);
+        if (mujoco_vis_) {
+            mj_vis_.init(mujoco_model_, mujoco_data_);
+        }
     }
 
     MujocoRos2Control::~MujocoRos2Control() 
@@ -248,34 +257,38 @@ namespace mujoco_ros2_control
     }
 
     // from https://github.com/shadow-robot/mujoco_ros_pkgs/blob/kinetic-devel/mujoco_ros_control/src/mujoco_ros_control.cpp
-    void MujocoRos2Control::update()
-    {
-        publish_sim_time();
-        rclcpp::Time sim_time_ros = rclcpp::Time((int64_t) (mujoco_data_->time * 1e+9), RCL_ROS_TIME);
+    void MujocoRos2Control::update() {
+        mjtNum simstart = mujoco_data_->time;
+        while( mujoco_data_->time - simstart < 1.0/60.0 ) {
+            clock_gettime(CLOCK_MONOTONIC, &currentTime_);
+            double duration_since_start = (currentTime_.tv_sec-startTime_.tv_sec) + (currentTime_.tv_nsec-startTime_.tv_nsec) / 1e9;
+            if (duration_since_start >= mujoco_data_->time-mujoco_start_time_) {
+                publish_sim_time();
+                rclcpp::Time sim_time_ros = rclcpp::Time((int64_t) (mujoco_data_->time * 1e+9), RCL_ROS_TIME);
 
-        rclcpp::Duration sim_period = sim_time_ros - last_update_sim_time_ros_;
+                rclcpp::Duration sim_period = sim_time_ros - last_update_sim_time_ros_;
 
-        mj_step1(mujoco_model_, mujoco_data_);
+                //mj_step1(mujoco_model_, mujoco_data_);
 
-        // check if we should update the controllers
-        if (sim_period >= control_period_)
-        {
-            // store simulation time
-            last_update_sim_time_ros_ = sim_time_ros;
+                // check if we should update the controllers
+                if (sim_period >= control_period_) {
+                    // store simulation time
+                    last_update_sim_time_ros_ = sim_time_ros;
+                    // compute the controller commands
+                    controller_manager_->update(sim_time_ros, sim_period);
 
-            // update the robot simulation with the state of the mujoco model
-            controller_manager_->read(sim_time_ros, sim_period);
+                    // update the robot simulation with the state of the mujoco model
+                    controller_manager_->read(sim_time_ros, sim_period);
 
-            // compute the controller commands
-            controller_manager_->update(sim_time_ros, sim_period);
+                    // update the mujoco model with the result of the controller
+                    controller_manager_->write(sim_time_ros, sim_period);
+                }
+                mj_step(mujoco_model_, mujoco_data_);
+            }
         }
-
-        // update the mujoco model with the result of the controller
-        controller_manager_->write(sim_time_ros, sim_period);
-
-        last_write_sim_time_ros_ = sim_time_ros;
-        mj_step2(mujoco_model_, mujoco_data_);
-        mj_vis_.update();
+        if (mujoco_vis_) {
+            mj_vis_.update();
+        }
     }
 
     // get the URDF XML from the parameter server
@@ -327,18 +340,22 @@ namespace mujoco_ros2_control
         return urdf_string;
     }
 
-    void MujocoRos2Control::publish_sim_time()
-    {
-        rclcpp::Time sim_time = (rclcpp::Time) (mujoco_data_->time * 1e+9);
-        if (pub_clock_frequency_ > 0 && (sim_time - last_pub_clock_time_).seconds() < 1.0/pub_clock_frequency_)
+    void MujocoRos2Control::publish_sim_time() {
+        double sim_time = mujoco_data_->time;
+        if (pub_clock_frequency_ > 0 && (sim_time - last_pub_clock_time_) < 1.0/pub_clock_frequency_)
             return;
-        rclcpp::Time current_time = (rclcpp::Time) (mujoco_data_->time * 1e+9);
-        rosgraph_msgs::msg::Clock ros_time_;
-        ros_time_.clock.set__nanosec(current_time.nanoseconds());
-        ros_time_.clock.set__sec(current_time.seconds());
+        if (clock_publisher_->trylock()) {
+            clock_publisher_->msg_.clock.sec = std::floor(sim_time);
+            clock_publisher_->msg_.clock.nanosec = std::floor((sim_time-std::floor(sim_time))*1e9);
+            clock_publisher_->unlockAndPublish();
+            last_pub_clock_time_ = sim_time;
+        }
+        //rosgraph_msgs::msg::Clock ros_time;
+        //ros_time.clock.set__sec(std::floor(sim_time));
+        //ros_time.clock.set__nanosec(std::floor((sim_time-ros_time.clock.sec)*1e9));
         // publish time to ros
-        last_pub_clock_time_ = sim_time;
-        pub_clock_->publish(ros_time_);
+        //pub_clock_->publish(ros_time);
+        //last_pub_clock_time_ = sim_time;
     }
 }  // namespace mujoco_ros_control
 
@@ -360,17 +377,10 @@ int main(int argc, char** argv)
     rclcpp::executors::MultiThreadedExecutor executor;
     executor.add_node(node);
     std::thread executor_thread([ObjectPtr = &executor] { ObjectPtr->spin(); });
-    // run main loop, target real-time simulation and 60 fps rendering
+
     while ( rclcpp::ok())
     {
-        // advance interactive simulation for 1/60 sec
-        // Assuming MuJoCo can simulate faster than real-time, which it usually can,
-        // this loop will finish on time for the next frame to be rendered at 60 fps.
-        mjtNum sim_start = mujoco_ros2_control_plugin.mujoco_data_->time;
-        while ( mujoco_ros2_control_plugin.mujoco_data_->time - sim_start < 1.0/60.0 && rclcpp::ok() )
-        {
-            mujoco_ros2_control_plugin.update();
-        }
+        mujoco_ros2_control_plugin.update();
     }
     executor_thread.join();
 

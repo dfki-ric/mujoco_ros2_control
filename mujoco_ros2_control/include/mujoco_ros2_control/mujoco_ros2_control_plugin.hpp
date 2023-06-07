@@ -8,6 +8,8 @@
 #include <iostream>
 #include <vector>
 #include <map>
+#include <cmath>
+#include <ctime>
 
 // ROS
 #include "rclcpp/rclcpp.hpp"
@@ -40,6 +42,10 @@
 
 #include "mujoco_ros2_control/mujoco_visualization.hpp"
 
+
+#include "realtime_tools/realtime_buffer.h"
+#include "realtime_tools/realtime_publisher.h"
+
 namespace mujoco_ros2_control
 {
 class MujocoRos2Control {
@@ -54,6 +60,9 @@ public:
     // pointer to the mujoco model
     mjModel* mujoco_model_{};
     mjData* mujoco_data_{};
+
+    // Visualization
+    mujoco_visualization::MujocoVisualization& mj_vis_ = mujoco_visualization::MujocoVisualization::getInstance();
 
 protected:
 
@@ -93,18 +102,28 @@ protected:
     std::shared_ptr<controller_manager::ControllerManager> controller_manager_;
 
     // simulated clock
-    std::shared_ptr<rclcpp::Publisher<rosgraph_msgs::msg::Clock>> pub_clock_;
-    int pub_clock_frequency_{};
-    rclcpp::Time last_pub_clock_time_ = rclcpp::Time((int64_t)0, RCL_ROS_TIME);
+    //std::shared_ptr<rclcpp::Publisher<rosgraph_msgs::msg::Clock>> pub_clock_;
 
+    using ClockPublisher = realtime_tools::RealtimePublisher<rosgraph_msgs::msg::Clock>;
+    using ClockPublisherPtr = std::unique_ptr<ClockPublisher>;
+    rclcpp::Publisher<rosgraph_msgs::msg::Clock>::SharedPtr publisher_;
+    ClockPublisherPtr clock_publisher_;
+
+    double pub_clock_frequency_ = 0;
+    //rclcpp::Time last_pub_clock_time_ = rclcpp::Time((int64_t)0, RCL_ROS_TIME);
+    double last_pub_clock_time_;
     // timing
     rclcpp::Duration control_period_ = rclcpp::Duration(1, 0);
     rclcpp::Duration mujoco_period_ = rclcpp::Duration(1, 0);
     rclcpp::Time last_update_sim_time_ros_ = rclcpp::Time((int64_t)0, RCL_ROS_TIME);
     rclcpp::Time last_write_sim_time_ros_ = rclcpp::Time((int64_t)0, RCL_ROS_TIME);
 
-    // Visualization
-    mujoco_visualization::MujocoVisualization& mj_vis_ = mujoco_visualization::MujocoVisualization::getInstance();
+    double last_vis_time_;
+
+    std::chrono::system_clock::time_point system_start_time_;
+    double mujoco_start_time_ = 0;
+    bool mujoco_vis_;
+    struct timespec startTime_, currentTime_;
 };
 }  // namespace mujoco_ros2_control
 

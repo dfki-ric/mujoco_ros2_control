@@ -24,20 +24,41 @@ def generate_launch_description():
         'urdf',
         'panda.urdf.xacro')
 
-    robot_model_path = "/tmp/panda.xml"
+    robot_description_string = xacro.process_file(robot_description_path, mappings={
+        'ros2_control_command_interface': command_interface,
+        'name': 'panda',
+        'origin_xyz': '0 0 0',
+        'origin_rpy': '0 0 0',
+        'world_name': 'world'
+    }).toxml()
 
-    xacro2mjcf_path = os.path.join(
-        get_package_share_directory('mujoco_ros2_control'),
-        'scripts',
-        'xacro2mjcf.py')
+    robot_description = {'robot_description': robot_description_string}
 
-    xacro2mjcf = ExecuteProcess(
-        cmd=[xacro2mjcf_path, robot_description_path, robot_model_path],
-        output='screen'
+    mujoco_model_path = "/tmp/mujoco"
+    mujoco_model_file = mujoco_model_path + "/panda.xml"
+
+    mujoco_scene_file = os.path.join(
+        get_package_share_directory('panda_mujoco'),
+        'mjcf',
+        'panda_scene.xml')
+
+    # Add a free joint
+    mujoco_box_file = os.path.join(
+        get_package_share_directory('panda_mujoco'),
+        'urdf',
+        'box.urdf')
+
+    xacro2mjcf = Node(
+        package="mujoco_ros2_control",
+        executable="xacro2mjcf.py",
+        parameters=[{'robot_descriptions': [robot_description_string]},
+                    {'input_files': [
+                        mujoco_scene_file,
+                        mujoco_box_file
+                    ]},
+                    {'output_file': mujoco_model_file},
+                    {'mujoco_files_path': mujoco_model_path}]
     )
-
-    robot_description = {'robot_description': xacro.process_file(robot_description_path, mappings={
-        'ros2_control_command_interface': command_interface}).toxml()}
 
     robot_state_publisher = Node(
         package="robot_state_publisher",
@@ -51,6 +72,8 @@ def generate_launch_description():
         get_package_share_directory('panda_mujoco'),
         'config',
         'controllers_joint_trajectory_controller.yaml')
+        #'controllers_effort.yaml')
+
 
     mujoco = Node(
         package="mujoco_ros2_control",
@@ -58,7 +81,7 @@ def generate_launch_description():
         namespace=namespace,
         respawn=True,
         parameters=[
-            {"robot_model_path": robot_model_path},
+            {"robot_model_path": mujoco_model_file},
             {"params_file_path": ros2_control_params_file}]
     )
 
@@ -78,15 +101,15 @@ def generate_launch_description():
         output='screen'
     )
 
-    joint_trajectory_controller = ExecuteProcess(
+    load_arm_controller = ExecuteProcess(
         cmd=['ros2', 'control', 'load_controller', '--set-state', 'active',
-             'joint_trajectory_controller'],
+             'arm_controller'],
         output='screen'
     )
 
-    gripper_trajectory_controller = ExecuteProcess(
+    load_gripper_controller = ExecuteProcess(
         cmd=['ros2', 'control', 'load_controller', '--set-state', 'active',
-             'gripper_trajectory_controller'],
+             'gripper_controller'],
         output='screen'
     )
 
@@ -96,8 +119,8 @@ def generate_launch_description():
             on_start=[
                 LogInfo(msg='Turtlesim started, spawning turtle'),
                 load_joint_state_controller,
-                joint_trajectory_controller,
-                gripper_trajectory_controller
+                load_arm_controller,
+                load_gripper_controller
             ]
         )
     )
@@ -127,7 +150,7 @@ def generate_launch_description():
             on_completion=[
                 LogInfo(msg='Created mujoco xml'),
                 rviz_node,
-                #rqt_joint_trajectory_controller
+                rqt_joint_trajectory_controller
             ]
         )
     )

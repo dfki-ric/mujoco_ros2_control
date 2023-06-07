@@ -49,6 +49,9 @@ namespace mujoco_visualization {
         static void keyboard_cb(GLFWwindow *window, int key, int scancode, int act, int mods);
         void keyboard(GLFWwindow *window, int key, int scancode, int act, int mods);
 
+        //stop visualization
+        bool stop_ = false;
+
     };
 
 } // mujoco_visualization

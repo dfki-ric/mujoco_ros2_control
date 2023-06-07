@@ -1,69 +1,49 @@
 <?xml version="1.0"?>
 <!-- URDF for Franka Emika Panda -->
-<robot xmlns:xacro="http://wiki.ros.org/xacro">
+<robot xmlns:xacro="http://wiki.ros.org/xacro" name="$(arg name)">
 
-  <!--                   -->
-  <!-- Imported elements -->
-  <!--                   -->
-  <xacro:macro name="panda" params="name origin_xyz:='0 0 0' origin_rpy:='0 0 0' world_name:=world">
-    <xacro:include filename="$(find panda_description)/urdf/panda_arm.xacro"/>
-    <xacro:include filename="$(find panda_description)/urdf/panda_gripper.xacro"/>
-    <xacro:include filename="$(find panda_description)/urdf/panda_utils.xacro"/>
-    <xacro:include filename="$(find panda_mujoco)/urdf/panda.mujoco"/>
+    <xacro:include filename="$(find panda_mujoco)/urdf/include/panda.urdf.xacro"/>
+    <xacro:include filename="$(find panda_mujoco)/urdf/include/panda_utils.xacro"/>
+
+    <!-- Flag to enable default gripper -->
+    <xacro:arg name="gripper" default="true" />
+
+    <!-- Flag to enable collision geometry for manipulator's arm -->
+    <xacro:arg name="collision_arm" default="true"/>
+    <!-- Flag to enable collision geometry for manipulator's gripper (hand and fingers) -->
+    <xacro:arg name="collision_gripper" default="true"/>
+
+    <!-- Flag to enable safety limits controllers on manipulator joints -->
+    <xacro:arg name="safety_limits" default="false"/>
+    <!-- Lower and upper margin for position limits of all safety controllers -->
+    <xacro:arg name="safety_position_margin" default="0.17453293"/>
+    <!-- Parametric k-position factor of all safety controllers -->
+    <xacro:arg name="safety_k_position" default="100.0"/>
+    <!-- Parametric k-velocity factor of all safety controllers -->
+    <xacro:arg name="safety_k_velocity" default="40.0"/>
+
+    <!-- Flag to enable ros2 controllers for manipulator -->
+    <xacro:arg name="ros2_control" default="true"/>
+    <!-- The ros2_control plugin that should be loaded for the manipulator ('fake', 'ign', 'real' or custom) -->
+    <xacro:arg name="ros2_control_plugin" default="mujoco_ros2_control/MujocoSystem"/>
+    <!-- The output control command interface provided by ros2_control ('position', 'velocity', 'effort' or certain combinations 'position,velocity') -->
+    <xacro:arg name="ros2_control_command_interface" default="effort"/>
+    <!-- The filepath to parameters of ROS 2 controllers -->
+    <!--xacro:arg name="ros2_controller_parameters" default="$(find panda_mujoco)/config/controllers_$(arg ros2_control_command_interface).yaml"/-->
+    <!-- Flag to preserve fixed joints and prevent lumping when generating SDF for Gazebo -->
+    <xacro:arg name="gazebo_preserve_fixed_joint" default="false"/>
+
+    <xacro:arg name="mujoco_meshdir" default="$(find panda_mujoco)/meshes/mujoco/visual"/>
 
 
-    <!--            -->
-    <!-- Parameters -->
-    <!--            -->
-    <!-- Prefix for all entities -->
-    <xacro:property name="prefix" value="${name}_"/>
-
-    <!--       -->
-    <!-- Robot -->
-    <!--       -->
+    
     <!-- Dummy world link that the robot is fixed to -->
-    <!--xacro:panda_dummy_link
-            link_name="${world_name}"
-            gazebo_preserve_fixed_joint="$(arg gazebo_preserve_fixed_joint)"
-    /-->
-
-    <!-- Arm -->
-    <xacro:panda_arm
-            base_parent="${world_name}"
-            prefix="${prefix}"
-            origin_xyz="${origin_xyz}"
-            origin_rpy="${origin_rpy}"
-            collision="$(arg collision_arm)"
-            safety_limits="$(arg safety_limits)"
-            safety_position_margin="$(arg safety_position_margin)"
-            safety_k_position="$(arg safety_k_position)"
-            safety_k_velocity="$(arg safety_k_velocity)"
-            ros2_control="$(arg ros2_control)"
-            ros2_control_plugin="$(arg ros2_control_plugin)"
-            ros2_control_command_interface="$(arg ros2_control_command_interface)"
+    <xacro:panda_dummy_link
+            link_name="$(arg world_name)"
             gazebo_preserve_fixed_joint="$(arg gazebo_preserve_fixed_joint)"
     />
 
-    <!-- Gripper -->
-    <xacro:if value="$(arg gripper)">
-      <xacro:panda_gripper
-              wrist_flange="${prefix}${wrist_flange_name}"
-              prefix="${prefix}"
-              origin_xyz="0 0 0"
-              origin_rpy="0 0 0"
-              collision="$(arg collision_gripper)"
-              ros2_control="$(arg ros2_control)"
-              ros2_control_plugin="$(arg ros2_control_plugin)"
-              ros2_control_command_interface="$(arg ros2_control_command_interface)"
-              gazebo_preserve_fixed_joint="$(arg gazebo_preserve_fixed_joint)"
-      />
-    </xacro:if>
+    <xacro:panda name="$(arg name)" origin_xyz="$(arg origin_xyz)" origin_rpy="$(arg origin_rpy)" world_name="$(arg world_name)"/>
 
-    <!-- Gazebo - ROS 2 control (Ignition) -->
-    <xacro:if value="$(arg ros2_control)">
-      <xacro:if value="${'mujoco' in '$(arg ros2_control_plugin)'}">
-        <xacro:mujoco_ros2_control meshdir="$(find panda_mujoco)/meshes_mujoco/visual" prefix="${prefix}"/>
-      </xacro:if>
-    </xacro:if>
-  </xacro:macro>
+
 </robot>

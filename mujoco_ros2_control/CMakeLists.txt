@@ -92,8 +92,8 @@ install(TARGETS
 ament_python_install_package(scripts)
 
 install(PROGRAMS
-        scripts/xacro2mjcf_node.py
-        DESTINATION bin)
+        scripts/xacro2mjcf.py
+        DESTINATION lib/${PROJECT_NAME})
 
 ament_export_include_directories(
         include
