@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:macro name="mujoco_ros2_control" params="prefix">
+    <mujoco>
+      <compiler meshdir="$(arg mujoco_meshdir)"/>
+      <actuator>
+        <motor name="${prefix}joint1_eff" joint="${prefix}joint1" gear="1"/>
+        <motor name="${prefix}joint2_eff" joint="${prefix}joint2" gear="1"/>
+        <motor name="${prefix}joint3_eff" joint="${prefix}joint3" gear="1"/>
+        <motor name="${prefix}joint4_eff" joint="${prefix}joint4" gear="1"/>
+        <motor name="${prefix}joint5_eff" joint="${prefix}joint5" gear="1"/>
+        <motor name="${prefix}joint6_eff" joint="${prefix}joint6" gear="1"/>
+        <motor name="${prefix}joint7_eff" joint="${prefix}joint7" gear="1"/>
+
+        <motor name="${prefix}finger_joint1_eff" joint="${prefix}finger_joint1" gear="10"/>
+        <motor name="${prefix}finger_joint2_eff" joint="${prefix}finger_joint2" gear="10"/>
+
+        <!--position name="${prefix}joint1_pos" joint="${prefix}joint1" gear="2" kp="1"/>
+        <position name="${prefix}joint2_pos" joint="${prefix}joint2" gear="2" kp="1"/>
+        <position name="${prefix}joint3_pos" joint="${prefix}joint3" gear="2" kp="1"/>
+        <position name="${prefix}joint4_pos" joint="${prefix}joint4" gear="2" kp="1"/>
+        <position name="${prefix}joint5_pos" joint="${prefix}joint5" gear="2" kp="1"/>
+        <position name="${prefix}joint6_pos" joint="${prefix}joint6" gear="2" kp="1"/>
+        <position name="${prefix}joint7_pos" joint="${prefix}joint7" gear="2" kp="1"/-->
+
+        <!--velocity name="${prefix}joint1_vel" joint="${prefix}joint1" gear="1" kv="1"/>
+        <velocity name="${prefix}joint2_vel" joint="${prefix}joint2" gear="1" kv="1"/>
+        <velocity name="${prefix}joint3_vel" joint="${prefix}joint3" gear="1" kv="1"/>
+        <velocity name="${prefix}joint4_vel" joint="${prefix}joint4" gear="1" kv="1"/>
+        <velocity name="${prefix}joint5_vel" joint="${prefix}joint5" gear="1" kv="1"/>
+        <velocity name="${prefix}joint6_vel" joint="${prefix}joint6" gear="1" kv="1"/>
+        <velocity name="${prefix}joint7_vel" joint="${prefix}joint7" gear="1" kv="1"/-->
+      </actuator>
+    </mujoco>
+  </xacro:macro>
+
+</robot>
