@@ -101,16 +101,13 @@ protected:
     // controller manager
     std::shared_ptr<controller_manager::ControllerManager> controller_manager_;
 
-    // simulated clock
-    //std::shared_ptr<rclcpp::Publisher<rosgraph_msgs::msg::Clock>> pub_clock_;
-
+    // simulated clock publisher
     using ClockPublisher = realtime_tools::RealtimePublisher<rosgraph_msgs::msg::Clock>;
     using ClockPublisherPtr = std::unique_ptr<ClockPublisher>;
     rclcpp::Publisher<rosgraph_msgs::msg::Clock>::SharedPtr publisher_;
     ClockPublisherPtr clock_publisher_;
 
     double pub_clock_frequency_ = 0;
-    //rclcpp::Time last_pub_clock_time_ = rclcpp::Time((int64_t)0, RCL_ROS_TIME);
     double last_pub_clock_time_;
     // timing
     rclcpp::Duration control_period_ = rclcpp::Duration(1, 0);
@@ -118,12 +115,13 @@ protected:
     rclcpp::Time last_update_sim_time_ros_ = rclcpp::Time((int64_t)0, RCL_ROS_TIME);
     rclcpp::Time last_write_sim_time_ros_ = rclcpp::Time((int64_t)0, RCL_ROS_TIME);
 
-    double last_vis_time_;
-
     std::chrono::system_clock::time_point system_start_time_;
-    double mujoco_start_time_ = 0;
-    bool mujoco_vis_;
+    double mujoco_start_time_;
+    bool show_gui_;
     struct timespec startTime_, currentTime_;
+
+    double simulation_frequency_;
+    double real_time_factor_;
 };
 }  // namespace mujoco_ros2_control
 

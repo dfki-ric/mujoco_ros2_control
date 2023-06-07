@@ -54,7 +54,7 @@ def generate_launch_description():
         parameters=[{'robot_descriptions': [robot_description_string]},
                     {'input_files': [
                         mujoco_scene_file,
-                        mujoco_box_file
+                        #mujoco_box_file
                     ]},
                     {'output_file': mujoco_model_file},
                     {'mujoco_files_path': mujoco_model_path}]
@@ -71,8 +71,8 @@ def generate_launch_description():
     ros2_control_params_file = os.path.join(
         get_package_share_directory('panda_mujoco'),
         'config',
-        'controllers_joint_trajectory_controller.yaml')
-        #'controllers_effort.yaml')
+        #'controllers_joint_trajectory_controller.yaml')
+        'controllers_effort.yaml')
 
 
     mujoco = Node(
@@ -161,7 +161,6 @@ def generate_launch_description():
             register_controllers,
             start_rviz,
             xacro2mjcf,
-            robot_state_publisher,
-            #rqt_joint_trajectory_controller
+            robot_state_publisher
         ]
     )

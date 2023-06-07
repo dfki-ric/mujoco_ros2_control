@@ -45,7 +45,9 @@ namespace mujoco_ros2_control
 
         model_node_->declare_parameter("robot_joints", std::vector<std::string>{""});
         model_node_->declare_parameter<std::string>("params_file_path", "");
-        model_node_->declare_parameter<bool>("visualization", true);
+        model_node_->declare_parameter<bool>("show_gui", true);
+        model_node_->declare_parameter<double>("simulation_frequency", 1000);
+        model_node_->declare_parameter<double>("real_time_factor", 1.0);
 
         // Check that ROS has been initialized
         if (!rclcpp::ok())
@@ -55,7 +57,6 @@ namespace mujoco_ros2_control
         }
 
         // publish clock for simulated time
-        //pub_clock_ = model_node_->create_publisher<rosgraph_msgs::msg::Clock>("/clock", 10);
         publisher_ = model_node_->create_publisher<rosgraph_msgs::msg::Clock>("/clock", rclcpp::SystemDefaultsQoS());
         clock_publisher_ = std::make_unique<ClockPublisher>(publisher_);
 
@@ -64,7 +65,8 @@ namespace mujoco_ros2_control
         robot_description_node_ = model_node_->get_parameter("robot_description_node").as_string();
         robot_model_path_ = model_node_->get_parameter("robot_model_path").as_string();
         std::string params_file_path = model_node_->get_parameter("params_file_path").as_string();
-        mujoco_vis_ = model_node_->get_parameter("visualization").as_bool();
+        show_gui_ = model_node_->get_parameter("show_gui").as_bool();
+        simulation_frequency_ = model_node_->get_parameter("simulation_frequency").as_double();
 
         auto rcl_context = model_node_->get_node_base_interface()->get_context()->get_rcl_context();
         std::vector<std::string> arguments = {"--ros-args"};
@@ -116,7 +118,7 @@ namespace mujoco_ros2_control
             RCLCPP_INFO(model_node_->get_logger(), "loaded mujoco model");
         }
 
-        mujoco_model_->opt.timestep = 0.001;
+        mujoco_model_->opt.timestep = 1/simulation_frequency_;
 
         // create mjData corresponding to mjModel
         mujoco_data_ = mj_makeData(mujoco_model_);
@@ -237,7 +239,7 @@ namespace mujoco_ros2_control
         //system_start_time_ = std::chrono::system_clock::now();
         clock_gettime(CLOCK_MONOTONIC, &startTime_);
         RCLCPP_INFO(model_node_->get_logger(), "Sim environment setup complete");
-        if (mujoco_vis_) {
+        if (show_gui_) {
             mj_vis_.init(mujoco_model_, mujoco_data_);
         }
     }
@@ -262,7 +264,7 @@ namespace mujoco_ros2_control
         while( mujoco_data_->time - simstart < 1.0/60.0 ) {
             clock_gettime(CLOCK_MONOTONIC, &currentTime_);
             double duration_since_start = (currentTime_.tv_sec-startTime_.tv_sec) + (currentTime_.tv_nsec-startTime_.tv_nsec) / 1e9;
-            if (duration_since_start >= mujoco_data_->time-mujoco_start_time_) {
+            if (duration_since_start >= (mujoco_data_->time-mujoco_start_time_)*real_time_factor_) {
                 publish_sim_time();
                 rclcpp::Time sim_time_ros = rclcpp::Time((int64_t) (mujoco_data_->time * 1e+9), RCL_ROS_TIME);
 
@@ -286,7 +288,7 @@ namespace mujoco_ros2_control
                 mj_step(mujoco_model_, mujoco_data_);
             }
         }
-        if (mujoco_vis_) {
+        if (show_gui_) {
             mj_vis_.update();
         }
     }
