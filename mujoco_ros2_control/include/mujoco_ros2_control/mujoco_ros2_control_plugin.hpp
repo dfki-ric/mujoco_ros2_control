@@ -14,16 +14,15 @@
 // ROS
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp/executors/multi_threaded_executor.hpp"
+#include "realtime_tools/realtime_buffer.h"
+#include "realtime_tools/realtime_publisher.h"
 
 // Mujoco dependencies
 #include "mujoco/mujoco.h"
 #include "mujoco/mjdata.h"
 #include "mujoco/mjmodel.h"
-#include "mujoco_ros2_control/mujoco_system.hpp"
 
 // ros_control
-#include "mujoco_ros2_control/mujoco_system.hpp"
-#include "mujoco_ros2_control/mujoco_system_interface.hpp"
 #include "controller_manager/controller_manager.hpp"
 #include "hardware_interface/hardware_info.hpp"
 #include "hardware_interface/resource_manager.hpp"
@@ -39,12 +38,10 @@
 // URDF
 #include "urdf/urdf/model.h"
 
-
+// Package header
 #include "mujoco_ros2_control/mujoco_visualization.hpp"
-
-
-#include "realtime_tools/realtime_buffer.h"
-#include "realtime_tools/realtime_publisher.h"
+#include "mujoco_ros2_control/mujoco_system.hpp"
+#include "mujoco_ros2_control/mujoco_system_interface.hpp"
 
 namespace mujoco_ros2_control
 {
@@ -57,71 +54,77 @@ public:
     // step update function
     void update();
 
+protected:
+    /**
+     * Publish the clock message to ros
+     */
+    void publish_sim_time();
+
+    /**
+     * Initialize the controller manager
+     */
+    void init_controller_manager();
+
+    /**
+     * Initialize the MuJoCo model and create the MuJoCo data
+     */
+    void init_mujoco();
+
     // pointer to the mujoco model
     mjModel* mujoco_model_{};
     mjData* mujoco_data_{};
 
-    // Visualization
+    // Visualization class
     mujoco_visualization::MujocoVisualization& mj_vis_ = mujoco_visualization::MujocoVisualization::getInstance();
 
-protected:
-
-    // get the URDF XML from the parameter server
-    [[nodiscard]] std::string get_urdf(const std::string& param_name) const;
-
-    // publish simulation time to ros clock
-    void publish_sim_time();
-
     // node handles
-    std::shared_ptr<rclcpp::Node> parameter_node_ = rclcpp::Node::make_shared("mujoco_param_node");
-    std::shared_ptr<rclcpp::Node> model_node_;
+    std::shared_ptr<rclcpp::Node> nh_;
 
+    // Controller manager related pointers
     // Executor to spin the controller
     rclcpp::executors::MultiThreadedExecutor::SharedPtr executor_;
-
+    // Recourse manager for child nodes
     std::unique_ptr<hardware_interface::ResourceManager> resource_manager_;
-
+    // bool to stop the controller_manager node before thread is joined
     bool stop_{};
-
     // Thread where the executor will spin
     std::thread thread_executor_spin_;
-
     // interface loader
     std::shared_ptr<pluginlib::ClassLoader<mujoco_ros2_control::MujocoSystemInterface> > robot_hw_sim_loader_;
-
-    // strings
-    std::string robot_namespace_;
-    std::string robot_description_param_;
-    std::string robot_description_node_;
-    std::string robot_model_path_;
-
     // robot simulator interface
     std::shared_ptr<mujoco_ros2_control::MujocoSystemInterface> robot_hw_sim_;
-
-    // controller manager
+    // controller manager node
     std::shared_ptr<controller_manager::ControllerManager> controller_manager_;
 
-    // simulated clock publisher
+    // realtime_tools publisher for the clock message
     using ClockPublisher = realtime_tools::RealtimePublisher<rosgraph_msgs::msg::Clock>;
     using ClockPublisherPtr = std::unique_ptr<ClockPublisher>;
     rclcpp::Publisher<rosgraph_msgs::msg::Clock>::SharedPtr publisher_;
     ClockPublisherPtr clock_publisher_;
 
-    double pub_clock_frequency_ = 0;
-    double last_pub_clock_time_;
-    // timing
+
+    // timing and durations
+    // Period from ros2_control
     rclcpp::Duration control_period_ = rclcpp::Duration(1, 0);
+    // Period from MuJoCo
     rclcpp::Duration mujoco_period_ = rclcpp::Duration(1, 0);
+    // timestamp of last controller manager update
     rclcpp::Time last_update_sim_time_ros_ = rclcpp::Time((int64_t)0, RCL_ROS_TIME);
-    rclcpp::Time last_write_sim_time_ros_ = rclcpp::Time((int64_t)0, RCL_ROS_TIME);
 
-    std::chrono::system_clock::time_point system_start_time_;
+    // MuJoCo simulation time after first step
     double mujoco_start_time_;
-    bool show_gui_;
+    // Timestamp of System time
     struct timespec startTime_, currentTime_;
+    // frequency of ros clock publisher
+    double pub_clock_frequency_;
+    // last clock publish timestamp (in sim time)
+    double last_pub_clock_time_;
 
-    double simulation_frequency_;
+    // Parameters
+    // Speed factor for mujoco
     double real_time_factor_;
+    // Show the mujoco gui
+    bool show_gui_;
 };
 }  // namespace mujoco_ros2_control
 

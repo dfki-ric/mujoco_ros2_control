@@ -71,8 +71,8 @@ def generate_launch_description():
     ros2_control_params_file = os.path.join(
         get_package_share_directory('panda_mujoco'),
         'config',
-        #'controllers_joint_trajectory_controller.yaml')
-        'controllers_effort.yaml')
+        'controllers_joint_trajectory_controller.yaml')
+        #'controllers_effort.yaml')
 
 
     mujoco = Node(
@@ -81,8 +81,11 @@ def generate_launch_description():
         namespace=namespace,
         respawn=True,
         parameters=[
+            robot_description,
+            {"simulation_frequency": 1000.0},
+            {"realtime_factor": 1.0},
             {"robot_model_path": mujoco_model_file},
-            {"params_file_path": ros2_control_params_file}]
+            {"ros2_control_params_file_path": ros2_control_params_file}]
     )
 
     start_mujoco = RegisterEventHandler(
