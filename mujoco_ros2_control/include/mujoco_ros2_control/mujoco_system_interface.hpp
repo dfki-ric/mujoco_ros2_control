@@ -38,13 +38,16 @@ namespace mujoco_ros2_control
             : public hardware_interface::SystemInterface
     {
     public:
-        /// \brief Initilize the system interface
-        /// param[in] model_nh pointer to the ros2 node
-        /// param[in] parent_model pointer to the model
-        /// param[in] control_hardware vector filled with information about robot's control resources
-        /// param[in] sdf pointer to the SDF
+
+        /**
+         * Load and stores the required Datas and Pointers from MuJoCo and ROS2 to this class
+         * @param mujoco_model      Pointer to the MuJoCo model
+         * @param mujoco_data       Pointer to the MuJoCo data
+         * @param hardware_info     Description of the ROS2 Control definitions
+         * @param urdf_model_ptr    Pointer to parsed URDF model
+         * @return return true if the setup was completed
+         */
         virtual bool initSim(
-                rclcpp::Node::SharedPtr & model_nh,
                 mjModel* mujoco_model, mjData *mujoco_data,
                 const hardware_interface::HardwareInfo & hardware_info,
                 const urdf::Model *urdf_model_ptr) = 0;

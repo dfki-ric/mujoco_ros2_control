@@ -9,16 +9,19 @@
   <license>Apache License 2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>ament_cmake_python</buildtool_depend>
   <depend>angles</depend>
   <depend>controller_manager</depend>
   <depend>hardware_interface</depend>
   <depend>geometry_msgs</depend>
   <depend>pluginlib</depend>
   <depend>rclcpp</depend>
+  <depend>rclpy</depend>
   <depend>std_msgs</depend>
   <depend>yaml_cpp_vendor</depend>
   <depend>urdf</depend>
   <depend>mujoco</depend>
+  <depend>realtime-tools</depend>
 
   <test_depend>ament_lint_common</test_depend>
   <test_depend>ament_lint_auto</test_depend>

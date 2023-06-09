@@ -1,0 +1,69 @@
+<?xml version="1.0"?>
+<!-- URDF for Franka Emika Panda -->
+<robot xmlns:xacro="http://wiki.ros.org/xacro">
+
+  <!--                   -->
+  <!-- Imported elements -->
+  <!--                   -->
+  <xacro:macro name="panda" params="name origin_xyz:='0 0 0' origin_rpy:='0 0 0' world_name:=world">
+    <xacro:include filename="$(find panda_mujoco)/urdf/include/panda_arm.xacro"/>
+    <xacro:include filename="$(find panda_mujoco)/urdf/include/panda_gripper.xacro"/>
+    <xacro:include filename="$(find panda_mujoco)/urdf/include/panda_utils.xacro"/>
+    <xacro:include filename="$(find panda_mujoco)/config/panda.mujoco"/>
+    <xacro:include filename="$(find panda_mujoco)/config/panda.gazebo"/>
+
+
+    <!--            -->
+    <!-- Parameters -->
+    <!--            -->
+    <!-- Prefix for all entities -->
+    <xacro:property name="prefix" value="${name}_"/>
+
+    <!--       -->
+    <!-- Robot -->
+    <!--       -->
+
+    <!-- Arm -->
+    <xacro:panda_arm
+            base_parent="${world_name}"
+            prefix="${prefix}"
+            origin_xyz="${origin_xyz}"
+            origin_rpy="${origin_rpy}"
+            collision="$(arg collision_arm)"
+            safety_limits="$(arg safety_limits)"
+            safety_position_margin="$(arg safety_position_margin)"
+            safety_k_position="$(arg safety_k_position)"
+            safety_k_velocity="$(arg safety_k_velocity)"
+            ros2_control="$(arg ros2_control)"
+            ros2_control_plugin="$(arg ros2_control_plugin)"
+            ros2_control_command_interface="$(arg ros2_control_command_interface)"
+            gazebo_preserve_fixed_joint="$(arg gazebo_preserve_fixed_joint)"
+    />
+
+    <!-- Gripper -->
+    <xacro:if value="$(arg gripper)">
+      <xacro:panda_gripper
+              wrist_flange="${prefix}${wrist_flange_name}"
+              prefix="${prefix}"
+              origin_xyz="0 0 0"
+              origin_rpy="0 0 0"
+              collision="$(arg collision_gripper)"
+              ros2_control="$(arg ros2_control)"
+              ros2_control_plugin="$(arg ros2_control_plugin)"
+              ros2_control_command_interface="$(arg ros2_control_command_interface)"
+              gazebo_preserve_fixed_joint="$(arg gazebo_preserve_fixed_joint)"
+      />
+    </xacro:if>
+
+    <!-- Gazebo - ROS 2 control (Ignition) -->
+    <xacro:if value="$(arg ros2_control)">
+      <xacro:if value="${'mujoco' in '$(arg ros2_control_plugin)'}">
+        <xacro:mujoco_ros2_control prefix="${prefix}"/>
+      </xacro:if>
+
+      <xacro:if value="${'ign' in '$(arg ros2_control_plugin)'}">
+        <xacro:ign_ros2_control controller_parameters="$(arg ros2_controller_parameters)"/>
+      </xacro:if>
+    </xacro:if>
+  </xacro:macro>
+</robot>
