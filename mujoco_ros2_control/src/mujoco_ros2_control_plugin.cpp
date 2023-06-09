@@ -97,19 +97,21 @@ namespace mujoco_ros2_control
         // deallocate existing mjData
         mj_deleteData(mujoco_data_);
         mj_deactivate();
+        if(show_gui_) {
+            mj_vis_.terminate();
+        }
     }
 
     void MujocoRos2Control::update() {
         mjtNum simstart = mujoco_data_->time;
+        // run until the next frame must be rendered with 60Hz
         while( mujoco_data_->time - simstart < 1.0/60.0 ) {
+            // check that mujoco is not faster than the expected realtime factor
             clock_gettime(CLOCK_MONOTONIC, &currentTime_);
             if (double (currentTime_.tv_sec-startTime_.tv_sec) + double (currentTime_.tv_nsec-startTime_.tv_nsec) / 1e9 >= (mujoco_data_->time-mujoco_start_time_)*real_time_factor_) {
                 publish_sim_time();
                 rclcpp::Time sim_time_ros = rclcpp::Time((int64_t) (mujoco_data_->time * 1e+9), RCL_ROS_TIME);
-
                 rclcpp::Duration sim_period = sim_time_ros - last_update_sim_time_ros_;
-
-                //mj_step1(mujoco_model_, mujoco_data_);
 
                 // check if we should update the controllers
                 if (sim_period >= control_period_) {
@@ -117,16 +119,16 @@ namespace mujoco_ros2_control
                     last_update_sim_time_ros_ = sim_time_ros;
                     // compute the controller commands
                     controller_manager_->update(sim_time_ros, sim_period);
-
                     // update the robot simulation with the state of the mujoco model
                     controller_manager_->read(sim_time_ros, sim_period);
-
                     // update the mujoco model with the result of the controller
                     controller_manager_->write(sim_time_ros, sim_period);
                 }
+                // Calculate the next mujoco step
                 mj_step(mujoco_model_, mujoco_data_);
             }
         }
+        // render the next frame is gui is enabled
         if (show_gui_) {
             mj_vis_.update();
         }
@@ -170,12 +172,12 @@ namespace mujoco_ros2_control
             RCLCPP_INFO(nh_->get_logger(), "Created mujoco data");
         }
 
-        // get the Mujoco simulation period
+        // get the Mujoco simulation period as ros duration
         mujoco_period_ = rclcpp::Duration::from_seconds(mujoco_model_->opt.timestep);
     }
 
     void MujocoRos2Control::init_controller_manager() {
-        // Get controller_manager related parameters
+        // Parse the parameters from ros2_control specific parameter file
         auto rcl_context = nh_->get_node_base_interface()->get_context()->get_rcl_context();
         std::vector<std::string> arguments = {"--ros-args"};
 
@@ -297,7 +299,7 @@ namespace mujoco_ros2_control
         // Force setting of use_sime_time parameter
         controller_manager_->set_parameter(
                 rclcpp::Parameter("use_sim_time", rclcpp::ParameterValue(true)));
-
+        // create and start the thread for the controller_manager executor
         stop_ = false;
         auto spin = [this]()
         {
@@ -315,11 +317,11 @@ namespace mujoco_ros2_control
 int main(int argc, char** argv)
 {
     rclcpp::init(argc, argv);
-
     rclcpp::Node::SharedPtr node = rclcpp::Node::make_shared("mujoco_node");
-
+    // create the mujoco_ros2_control_plugin
     mujoco_ros2_control::MujocoRos2Control mujoco_ros2_control_plugin(node);
 
+    // create an executor and spin the created node with it
     rclcpp::executors::MultiThreadedExecutor executor;
     executor.add_node(node);
     std::thread executor_thread([ObjectPtr = &executor] { ObjectPtr->spin(); });

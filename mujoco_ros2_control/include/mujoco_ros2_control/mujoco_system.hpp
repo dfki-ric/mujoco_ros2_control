@@ -62,12 +62,17 @@ namespace mujoco_ros2_control
                 const std::vector<std::string> & start_interfaces,
                 const std::vector<std::string> & stop_interfaces) override;
 
-        // Documentation Inherited
+        //! @copydoc hardware_interface::SystemInterface::read()
         hardware_interface::return_type read(
                 const rclcpp::Time & time,
                 const rclcpp::Duration & period) override;
 
-        // Documentation Inherited
+        /**
+         * Write the commands from ros to mujoco
+         * @param time      actual timestamp
+         * @param period
+         * @return
+         */
         hardware_interface::return_type write(
                 const rclcpp::Time & time,
                 const rclcpp::Duration & period) override;
@@ -78,8 +83,7 @@ namespace mujoco_ros2_control
          * @param mujoco_data       Pointer to the MuJoCo data
          * @param hardware_info     Description of the ROS2 Control definitions
          * @param urdf_model_ptr    Pointer to parsed URDF model
-         * @param objects_in_scene
-         * @return
+         * @return return true if the setup was completed
          */
         bool initSim(
                 mjModel* mujoco_model, mjData *mujoco_data,
@@ -89,6 +93,7 @@ namespace mujoco_ros2_control
         // Methods used to control a joint.
         enum ControlMethod {EFFORT, POSITION, VELOCITY};
 
+        // Stores all required datas for one joint
         struct JointData
         {
             std::string name;
@@ -111,18 +116,18 @@ namespace mujoco_ros2_control
             int mujoco_dofadr;
         };
 
-        struct MimicJoint {
-            std::size_t joint_index;
-            std::size_t mimicked_joint_index;
-            double multiplier = 1.0;
-        };
-
     private:
+        /**
+         * This method create the interfaces and the JointData struct for every Joint in the hardware info struct
+         * @param hardware_info struct with the information parsed from the urdf
+         * @param joints        map with the detected joints
+         */
         void registerJoints(const hardware_interface::HardwareInfo & hardware_info,
                             const std::map<std::string, std::shared_ptr<urdf::Joint>> &joints);
 
         /// \brief Mujoco Model Ptr.
         mjModel *mujoco_model_;
+        /// \brief Mujoco Data Ptr.
         mjData *mujoco_data_;
 
         /// \brief last time the write method was called.
@@ -134,10 +139,8 @@ namespace mujoco_ros2_control
         /// \brief command interfaces that will be exported to the Resource Manager
         std::vector<hardware_interface::CommandInterface> command_interfaces_;
 
-        /// \brief mapping of mimicked joints to index of joint they mimic
-        std::vector<MimicJoint> mimic_joints_;
-
     protected:
+        /// \brief Map that holds every registered joint with his name
         std::map<std::string, JointData> joints_;
     };
 

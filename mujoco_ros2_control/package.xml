@@ -21,6 +21,7 @@
   <depend>yaml_cpp_vendor</depend>
   <depend>urdf</depend>
   <depend>mujoco</depend>
+  <depend>realtime-tools</depend>
 
   <test_depend>ament_lint_common</test_depend>
   <test_depend>ament_lint_auto</test_depend>

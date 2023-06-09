@@ -21,18 +21,10 @@ namespace mujoco_ros2_control {
             const hardware_interface::HardwareInfo &hardware_info,
             const urdf::Model *const urdf_model_ptr) {
 
-        // from https://github.com/shadow-robot/mujoco_ros_pkgs/blob/kinetic-devel/mujoco_ros_control/src/robot_hw_sim.cpp
         this->mujoco_model_ = mujoco_model;
         this->mujoco_data_ = mujoco_data;
 
-        RCLCPP_INFO(rclcpp::get_logger("mujoco_system"), "%i generalized coordinates (qpos) found.", mujoco_model_->nq);
-        RCLCPP_INFO(rclcpp::get_logger("mujoco_system"), "%i degrees of freedom (qvel) found.", mujoco_model_->nv);
-        RCLCPP_INFO(rclcpp::get_logger("mujoco_system"), "%i actuators/controls (ctrl) found.", mujoco_model_->nu);
-        RCLCPP_INFO(rclcpp::get_logger("mujoco_system"), "%i actuation states (act) found.", mujoco_model_->na);
-        RCLCPP_INFO(rclcpp::get_logger("mujoco_system"), "%i joints (njnt) found.", mujoco_model_->njnt);
-
         registerJoints(hardware_info, urdf_model_ptr->joints_);
-        //registerSensors(hardware_info, mujoco_model, mujoco_data);
         return true;
     }
 
@@ -284,7 +276,6 @@ namespace mujoco_ros2_control {
                     mujoco_data_->qfrc_applied[joint.mujoco_dofadr] = effort;
                 }
             }
-            //mj_forward(mujoco_model_, mujoco_data_);
         }
 
         return hardware_interface::return_type::OK;

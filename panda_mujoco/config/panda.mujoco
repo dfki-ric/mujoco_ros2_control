@@ -4,6 +4,7 @@
   <xacro:macro name="mujoco_ros2_control" params="prefix">
     <mujoco>
       <compiler meshdir="$(arg mujoco_meshdir)"/>
+      <option integrator="implicitfast"/>
       <actuator>
         <motor name="${prefix}joint1_eff" joint="${prefix}joint1" gear="1"/>
         <motor name="${prefix}joint2_eff" joint="${prefix}joint2" gear="1"/>

@@ -48,7 +48,14 @@ namespace mujoco_ros2_control
 class MujocoRos2Control {
 
 public:
+    /**
+     * Set up the ros node, the controller_manager and mujoco
+     * @param node pointer to a ros node
+     */
     explicit MujocoRos2Control(rclcpp::Node::SharedPtr &node);
+    /**
+     * Destructor stop and join the controller_manager executor and remove and deactivate mujoco
+     */
     virtual ~MujocoRos2Control();
 
     // step update function
@@ -72,6 +79,7 @@ protected:
 
     // pointer to the mujoco model
     mjModel* mujoco_model_{};
+    // pointer to the mujoco data
     mjData* mujoco_data_{};
 
     // Visualization class
@@ -99,7 +107,9 @@ protected:
     // realtime_tools publisher for the clock message
     using ClockPublisher = realtime_tools::RealtimePublisher<rosgraph_msgs::msg::Clock>;
     using ClockPublisherPtr = std::unique_ptr<ClockPublisher>;
+    //Pointer to the default ros clock publisher
     rclcpp::Publisher<rosgraph_msgs::msg::Clock>::SharedPtr publisher_;
+    //Pointer to the realtime_tools ros clock publisher
     ClockPublisherPtr clock_publisher_;
 
 

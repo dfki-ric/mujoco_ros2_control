@@ -7,8 +7,12 @@ import os
 import uuid
 
 
+#Ros node to create a mjcf model from different file sources
 class Xacro2Mjcf(Node):
 
+    '''
+    Making all in the init function, because we only use a class to get the ros parameters
+    '''
     def __init__(self):
         super().__init__('xacro2mjcf')
         self.declare_parameters(
@@ -47,12 +51,13 @@ class Xacro2Mjcf(Node):
                 name = filename.split('.')[-2].split('/')[-1]
                 if filename.split('.')[-1] == 'xacro':
                     os.system('xacro ' + filename + ' > ' + mujoco_files_path + '/tmp_' + name + '.urdf')
-                    os.system(compile_executable + ' ' + mujoco_files_path + '/tmp_' + name + '.urdf ' + mujoco_files_path + '/tmp_' + name + '.xml')
+                    os.system(
+                        compile_executable + ' ' + mujoco_files_path + '/tmp_' + name + '.urdf ' + mujoco_files_path + '/tmp_' + name + '.xml')
 
                     # Get the actuators element from the urdf (in robot/mujoco/actuators
                     in_tree = ET.parse(mujoco_files_path + '/tmp_' + name + '.urdf')
                 else:
-                    os.system(compile_executable + ' ' + filename + ' ' + mujoco_files_path +'/tmp_' + name + '.xml')
+                    os.system(compile_executable + ' ' + filename + ' ' + mujoco_files_path + '/tmp_' + name + '.xml')
                     # Get the actuators element from the urdf (in robot/mujoco/actuators
                     in_tree = ET.parse(filename)
 
@@ -78,7 +83,6 @@ class Xacro2Mjcf(Node):
                     out_root.remove(out_tree.find('asset'))
                 # Write the resulting xml tree to the destination file
                 out_tree.write(mujoco_files_path + '/' + name + '.xml')
-                #os.system('rm /tmp/tmp_' + name + '.*')
                 output_model_files.append(name + '.xml')
             elif input_file.split('.')[-1] == 'xml':
                 name = input_file.split('/')[-1]

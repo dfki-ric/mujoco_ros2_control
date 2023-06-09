@@ -54,7 +54,7 @@ def generate_launch_description():
         parameters=[{'robot_descriptions': [robot_description_string]},
                     {'input_files': [
                         mujoco_scene_file,
-                        #mujoco_box_file
+                        mujoco_box_file
                     ]},
                     {'output_file': mujoco_model_file},
                     {'mujoco_files_path': mujoco_model_path}]
@@ -82,7 +82,7 @@ def generate_launch_description():
         respawn=True,
         parameters=[
             robot_description,
-            {"simulation_frequency": 1000.0},
+            {"simulation_frequency": 2000.0},
             {"realtime_factor": 1.0},
             {"robot_model_path": mujoco_model_file},
             {"ros2_control_params_file_path": ros2_control_params_file}]

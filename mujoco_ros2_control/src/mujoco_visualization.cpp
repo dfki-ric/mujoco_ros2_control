@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <iostream>
-#include <thread>
 #include "mujoco_ros2_control/mujoco_visualization.hpp"
 
 namespace mujoco_visualization {
