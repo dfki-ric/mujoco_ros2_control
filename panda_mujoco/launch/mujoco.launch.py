@@ -82,6 +82,7 @@ def generate_launch_description():
         respawn=True,
         parameters=[
             robot_description,
+            ros2_control_params_file,
             {"simulation_frequency": 2000.0},
             {"realtime_factor": 1.0},
             {"robot_model_path": mujoco_model_file},
@@ -120,7 +121,7 @@ def generate_launch_description():
         OnProcessStart(
             target_action=mujoco,
             on_start=[
-                LogInfo(msg='Turtlesim started, spawning turtle'),
+                LogInfo(msg='MuJoCo started, spawning robot'),
                 load_joint_state_controller,
                 load_arm_controller,
                 load_gripper_controller

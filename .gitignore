@@ -4,4 +4,5 @@
 cmake-build-debug/
 */old/
 venv/
-doc/
+docs/html
+docs/man
