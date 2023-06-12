@@ -47,7 +47,6 @@ namespace mujoco_ros2_control
         nh_->declare_parameter<std::string>("robot_description", std::string());
         nh_->declare_parameter<std::string>("robot_model_path", std::string());
 
-        nh_->declare_parameter<std::string>("ros2_control_params_file_path", std::string());
         nh_->declare_parameter<bool>("show_gui", true);
         nh_->declare_parameter<double>("simulation_frequency", 1000);
         nh_->declare_parameter<double>("clock_publisher_frequency", 0.0);

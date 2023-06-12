@@ -85,8 +85,7 @@ def generate_launch_description():
             ros2_control_params_file,
             {"simulation_frequency": 2000.0},
             {"realtime_factor": 1.0},
-            {"robot_model_path": mujoco_model_file},
-            {"ros2_control_params_file_path": ros2_control_params_file}]
+            {"robot_model_path": mujoco_model_file}]
     )
 
     start_mujoco = RegisterEventHandler(
