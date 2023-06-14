@@ -62,7 +62,6 @@ Here are some guidelines on how to use the **MuJoCo ROS2 Control** effectively:
      - ```real_time_factor``` realtime factor for mujoco (1.0 is realtime)
      - ```show_gui``` enable disable the gui (default true)
       
-
 ## License
 
 The **MuJoCo ROS2 Control** is released under the [Apache-2](license.md). Please review the license file for more information.

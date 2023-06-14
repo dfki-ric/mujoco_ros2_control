@@ -100,7 +100,6 @@ namespace mujoco_ros2_control
 
         // deallocate existing mjData
         mj_deleteData(mujoco_data_);
-        mj_deactivate();
         if(show_gui_) {
             mj_vis_.terminate();
         }

@@ -72,9 +72,9 @@
 
 // msgs
 #include "std_msgs/msg/bool.hpp"
+#include "std_msgs/msg/float64_multi_array.hpp"
 #include "geometry_msgs/msg/pose.hpp"
 #include "rosgraph_msgs/msg/clock.hpp"
-#include "std_msgs/msg/float64_multi_array.hpp"
 
 // URDF
 #include "urdf/urdf/model.h"

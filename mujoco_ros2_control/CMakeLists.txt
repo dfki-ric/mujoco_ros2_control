@@ -17,16 +17,19 @@ set(OpenGL_GL_PREFERENCE LEGACY)
 ## is used, also find other catkin packages
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+
 find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(rosgraph_msgs REQUIRED)
+
 find_package(controller_manager REQUIRED)
 find_package(hardware_interface REQUIRED)
+
 find_package(urdf REQUIRED)
 find_package(mujoco REQUIRED)
 find_package(ament_lint_auto REQUIRED)
 find_package(glfw3 REQUIRED)
-find_package(rosidl_default_generators REQUIRED)
+find_package(realtime_tools REQUIRED)
 
 ## Specify additional locations of header files
 add_definitions(
@@ -41,6 +44,7 @@ include_directories(
         include
         ${rclcpp_INCLUDE_DIRS}
 )
+
 ament_lint_auto_find_test_dependencies()
 
 add_library(mujoco_system_plugins SHARED
@@ -68,6 +72,7 @@ ament_target_dependencies(${PROJECT_NAME}
         urdf
         mujoco
         glfw3
+        realtime_tools
         )
 target_link_libraries(
         mujoco_ros2_control
