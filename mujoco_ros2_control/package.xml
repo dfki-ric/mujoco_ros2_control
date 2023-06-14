@@ -2,24 +2,27 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>mujoco_ros2_control</name>
-  <version>0.0.0</version>
+  <version>1.0.0</version>
   <description>mujoco_ros2_control</description>
   <maintainer email="adrian.danzglock@dfki.de">Adrian Danzglock</maintainer>
-  <license>BSD</license>
   <license>Apache License 2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
   <buildtool_depend>ament_cmake_python</buildtool_depend>
-  <depend>angles</depend>
+
   <depend>controller_manager</depend>
   <depend>hardware_interface</depend>
+
   <depend>geometry_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>rosgraph_msgs</depend>
+
+  <depend>urdf</depend>
+
   <depend>pluginlib</depend>
   <depend>rclcpp</depend>
   <depend>rclpy</depend>
   <depend>std_msgs</depend>
-  <depend>yaml_cpp_vendor</depend>
-  <depend>urdf</depend>
   <depend>mujoco</depend>
   <depend>realtime-tools</depend>
 

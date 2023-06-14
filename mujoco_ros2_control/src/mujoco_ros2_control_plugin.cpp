@@ -1,36 +1,41 @@
-// Copyright (c) 2013, Open Source Robotics Foundation. All rights reserved.
-// Copyright (c) 2013, The Johns Hopkins University. All rights reserved.
-// Modifications copyright (C) 2013, DFKI GmbH, Robotics Innovation Center. All rights reserved.
-//
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-//
-//    * Redistributions of source code must retain the above copyright
-//      notice, this list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright
-//      notice, this list of conditions and the following disclaimer in the
-//      documentation and/or other materials provided with the distribution.
-//
-//    * Neither the name of the Open Source Robotics Foundation nor the names of its
-//      contributors may be used to endorse or promote products derived from
-//      this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
-// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-// POSSIBILITY OF SUCH DAMAGE.
-
-/* Author: Dave Coleman, Jonathan Bohren, Adrian Danzglock
-   Desc:   Mujoco plugin for ros_control that allows 'hardware_interfaces' to be plugged in
-   using pluginlib
+/**
+* @file mujoco_ros2_control_plugin.cpp
+*
+* @brief This file contains the implementation of the Mujoco ROS2 Control plugin.
+*
+* @author Adrian Danzglock
+* @date 2023
+*
+* @license Apache License, Version 2.0
+* @copyright Copyright (c) 2023, DFKI GmbH
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+*     http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*
+*
+* The init_controller_manager method contains a modified version of the original code from Cyberbotics Ltd.
+* https://github.com/cyberbotics/webots_ros2/blob/master/webots_ros2_control/src/Ros2Control.cpp
+*
+* Original code licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+        *
+        *     http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+        * limitations under the License.
 */
 
 #include "mujoco_ros2_control/mujoco_ros2_control_plugin.hpp"
@@ -42,7 +47,6 @@ namespace mujoco_ros2_control
         nh_->declare_parameter<std::string>("robot_description", std::string());
         nh_->declare_parameter<std::string>("robot_model_path", std::string());
 
-        nh_->declare_parameter<std::string>("ros2_control_params_file_path", std::string());
         nh_->declare_parameter<bool>("show_gui", true);
         nh_->declare_parameter<double>("simulation_frequency", 1000);
         nh_->declare_parameter<double>("clock_publisher_frequency", 0.0);
@@ -96,7 +100,6 @@ namespace mujoco_ros2_control
 
         // deallocate existing mjData
         mj_deleteData(mujoco_data_);
-        mj_deactivate();
         if(show_gui_) {
             mj_vis_.terminate();
         }
@@ -104,11 +107,12 @@ namespace mujoco_ros2_control
 
     void MujocoRos2Control::update() {
         mjtNum simstart = mujoco_data_->time;
+        timespec currentTime{};
         // run until the next frame must be rendered with 60Hz
         while( mujoco_data_->time - simstart < 1.0/60.0 ) {
             // check that mujoco is not faster than the expected realtime factor
-            clock_gettime(CLOCK_MONOTONIC, &currentTime_);
-            if (double (currentTime_.tv_sec-startTime_.tv_sec) + double (currentTime_.tv_nsec-startTime_.tv_nsec) / 1e9 >= (mujoco_data_->time-mujoco_start_time_)*real_time_factor_) {
+            clock_gettime(CLOCK_MONOTONIC, &currentTime);
+            if (double (currentTime.tv_sec-startTime_.tv_sec) + double (currentTime.tv_nsec-startTime_.tv_nsec) / 1e9 >= (mujoco_data_->time-mujoco_start_time_)*real_time_factor_) {
                 publish_sim_time();
                 rclcpp::Time sim_time_ros = rclcpp::Time((int64_t) (mujoco_data_->time * 1e+9), RCL_ROS_TIME);
                 rclcpp::Duration sim_period = sim_time_ros - last_update_sim_time_ros_;
@@ -153,7 +157,7 @@ namespace mujoco_ros2_control
         mujoco_model_ = mj_loadXML(nh_->get_parameter("robot_model_path").as_string().c_str(), NULL, error, 1000);
         if (!mujoco_model_)
         {
-            RCLCPP_ERROR(nh_->get_logger(), "Could not load mujoco model with error: %s.\n", error);
+            RCLCPP_FATAL(nh_->get_logger(), "Could not load mujoco model with error: %s.\n", error);
             return;
         } else {
             RCLCPP_INFO(nh_->get_logger(), "loaded mujoco model");
@@ -166,7 +170,7 @@ namespace mujoco_ros2_control
         mujoco_data_ = mj_makeData(mujoco_model_);
         if (!mujoco_data_)
         {
-            printf("Could not create mujoco data from model.\n");
+            RCLCPP_FATAL(nh_->get_logger(), "Could not create mujoco data from model.");
             return;
         }else {
             RCLCPP_INFO(nh_->get_logger(), "Created mujoco data");
@@ -177,103 +181,40 @@ namespace mujoco_ros2_control
     }
 
     void MujocoRos2Control::init_controller_manager() {
-        // Parse the parameters from ros2_control specific parameter file
-        auto rcl_context = nh_->get_node_base_interface()->get_context()->get_rcl_context();
-        std::vector<std::string> arguments = {"--ros-args"};
-
-        arguments.emplace_back(RCL_PARAM_FILE_FLAG);
-        arguments.push_back(nh_->get_parameter("ros2_control_params_file_path").as_string());
-
-        std::vector<const char *> argv;
-        argv.reserve(arguments.size());
-        for (const auto & arg : arguments) {
-            argv.push_back(reinterpret_cast<const char *>(arg.data()));
-        }
-        rcl_arguments_t rcl_args = rcl_get_zero_initialized_arguments();
-        rcl_ret_t rcl_ret = rcl_parse_arguments(
-                static_cast<int>(argv.size()),
-                argv.data(), rcl_get_default_allocator(), &rcl_args);
-        rcl_context->global_arguments = rcl_args;
-        if (rcl_ret != RCL_RET_OK) {
-            RCLCPP_ERROR(nh_->get_logger(), "parser error %s\n", rcl_get_error_string().str);
-            rcl_reset_error();
-            return;
-        }
-        if (rcl_arguments_get_param_files_count(&rcl_args) < 1) {
-            RCLCPP_ERROR(
-                    nh_->get_logger(), "failed to parse input yaml file(s)");
-            return;
-        }
-
-        // configure hardware interface
-        std::string urdf_string;
-        std::vector<hardware_interface::HardwareInfo> control_hardware_info;
         try {
-            urdf_string = nh_->get_parameter("robot_description").as_string();
-            control_hardware_info = hardware_interface::parse_control_resources_from_urdf(urdf_string);
-        } catch (const std::runtime_error & ex) {
-            RCLCPP_ERROR_STREAM(
-                    nh_->get_logger(),
-                    "Error parsing URDF in mujoco_ros2_control plugin, plugin not active : " << ex.what());
-            rclcpp::shutdown();
-        }
-
-        // load the RobotHWSim abstraction to interface the controllers with the mujoco model
-        resource_manager_ = std::make_unique<hardware_interface::ResourceManager>();
-        try
-        {
             robot_hw_sim_loader_.reset(
                     new pluginlib::ClassLoader<mujoco_ros2_control::MujocoSystemInterface>
                             ("mujoco_ros2_control", "mujoco_ros2_control::MujocoSystemInterface"));
-            robot_hw_sim_loader_->createUnmanagedInstance("mujoco_ros2_control/MujocoSystem");
-            urdf::Model urdf_model;
-            const urdf::Model *const urdf_model_ptr = urdf_model.initString(urdf_string) ? &urdf_model : NULL;
-
-            for (auto & i : control_hardware_info) {
-                std::string robot_hw_sim_type_str_ = i.hardware_class_type;
-                auto mujocoSystem = std::unique_ptr<mujoco_ros2_control::MujocoSystemInterface>(
-                        robot_hw_sim_loader_->createUnmanagedInstance(robot_hw_sim_type_str_));
-                if (!mujocoSystem->initSim(
-                        mujoco_model_,
-                        mujoco_data_,
-                        i,
-                        urdf_model_ptr))
-                {
-                    RCLCPP_FATAL(
-                            nh_->get_logger(), "Could not initialize robot simulation interface");
-                    return;
-                }
-
-                resource_manager_->import_component(std::move(mujocoSystem), i);
-
-                // activate all components
-                rclcpp_lifecycle::State state(
-                        lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE,
-                        hardware_interface::lifecycle_state_names::ACTIVE);
-                resource_manager_->set_component_state(i.name, state);
-            }
+        } catch (pluginlib::LibraryLoadException &ex) {
+            RCLCPP_FATAL(nh_->get_logger() , "Failed to create robot sim interface loader: %s", ex.what());
         }
-        catch(pluginlib::LibraryLoadException &ex)
-        {
-            RCLCPP_FATAL_STREAM(nh_->get_logger() , "Failed to create robot sim interface loader: "
-                    << ex.what());
+
+        std::string urdf_string;
+        urdf::Model urdf_model;
+        std::vector<hardware_interface::HardwareInfo> control_hardware;
+        resource_manager_ = std::make_unique<hardware_interface::ResourceManager>();
+
+        try {
+            urdf_string = nh_->get_parameter("robot_description").as_string();
+            urdf_model.initString(urdf_string);
+            control_hardware = hardware_interface::parse_control_resources_from_urdf(urdf_string);
+        } catch (const std::runtime_error & ex) {
+            RCLCPP_ERROR(nh_->get_logger(), "Error parsing URDF in mujoco_ros2_control plugin: %s",
+                         ex.what());
+            rclcpp::shutdown();
+
         }
-        RCLCPP_INFO(nh_->get_logger(), "Loaded mujoco_ros_control.");
+        for (auto & hw_info : control_hardware) {
+            const std::string hardware_type = hw_info.hardware_class_type;
+            auto system = std::unique_ptr<mujoco_ros2_control::MujocoSystemInterface>(robot_hw_sim_loader_->createUnmanagedInstance(hardware_type));
+            system->initSim(mujoco_model_, mujoco_data_, hw_info, &urdf_model);
+            resource_manager_->import_component(std::move(system), hw_info);
+            resource_manager_->activate_all_components();
+        }
         executor_ = std::make_shared<rclcpp::executors::MultiThreadedExecutor>();
-
-        // Create the controller manager
-        RCLCPP_INFO(nh_->get_logger(), "Loading controller_manager");
-        controller_manager_.reset(
-                new controller_manager::ControllerManager(
-                        std::move(resource_manager_),
-                        executor_,
-                        "controller_manager",
-                        nh_->get_namespace()));
-        executor_->add_node(controller_manager_);
-
+        controller_manager_.reset(new controller_manager::ControllerManager(std::move(resource_manager_), executor_));
         if (!controller_manager_->has_parameter("update_rate")) {
-            RCLCPP_ERROR_STREAM(
-                    nh_->get_logger(), "controller manager doesn't have an update_rate parameter");
+            RCLCPP_ERROR(nh_->get_logger(), "controller manager doesn't have an update_rate parameter");
             return;
         }
 
@@ -283,27 +224,19 @@ namespace mujoco_ros2_control
                         std::chrono::duration<double>(1.0 / static_cast<double>(cm_update_rate))));
         // Check the period against the simulation period
         if (control_period_ < mujoco_period_) {
-            RCLCPP_ERROR_STREAM(
-                    nh_->get_logger(),
-                    "Desired controller update period (" << control_period_.seconds() <<
-                                                         " s) is faster than the mujoco simulation period (" <<
-                                                         mujoco_period_.seconds() << " s).");
+            RCLCPP_ERROR(nh_->get_logger(), "The controller period (%f) is faster than the simulation period (%f).",
+                         control_period_.seconds(), mujoco_period_.seconds());
+            control_period_ = mujoco_period_;
         } else if (control_period_ > mujoco_period_) {
-            RCLCPP_WARN_STREAM(
-                    nh_->get_logger(),
-                    " Desired controller update period (" << control_period_.seconds() <<
-                                                          " s) is slower than the mujoco simulation period (" <<
-                                                          mujoco_period_.seconds() << " s).");
+            if (control_period_ < mujoco_period_) {
+                RCLCPP_WARN(nh_->get_logger(), "The controller period (%f) is slower than the simulation period (%f).",
+                            control_period_.seconds(), mujoco_period_.seconds());
+            }
         }
 
-        // Force setting of use_sime_time parameter
-        controller_manager_->set_parameter(
-                rclcpp::Parameter("use_sim_time", rclcpp::ParameterValue(true)));
-        // create and start the thread for the controller_manager executor
-        stop_ = false;
-        auto spin = [this]()
-        {
-            while (rclcpp::ok() && !stop_) {
+        executor_->add_node(controller_manager_);
+        auto spin = [this]() {
+            while(rclcpp::ok() && !stop_) {
                 executor_->spin_once();
             }
         };
@@ -312,10 +245,13 @@ namespace mujoco_ros2_control
 }  // namespace mujoco_ros_control
 
 
-
-// it also works without gui
-int main(int argc, char** argv)
-{
+/**
+ * @brief Main function for the Mujoco ROS2 Control plugin.
+ * @param argc Number of command-line arguments.
+ * @param argv Command-line arguments.
+ * @return Exit code of the program.
+ */
+int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
     rclcpp::Node::SharedPtr node = rclcpp::Node::make_shared("mujoco_node");
     // create the mujoco_ros2_control_plugin

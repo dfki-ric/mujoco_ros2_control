@@ -7,14 +7,46 @@ import os
 import uuid
 
 
-#Ros node to create a mjcf model from different file sources
+
+## @file xacro2mjcf.py
+# @brief Converts Xacro and URDF files into Mujoco MJCF XML file.
+#
+# This script is a ROS node that converts Xacro and URDF files into a Mujoco MJCF (MuJoCo Composite Format) XML file.
+# It takes a list of input files, including Xacro and URDF files, and a target output file path as parameters. Additionally,
+# it allows specifying a custom executable for compilation and a list of robot descriptions. The script processes the input files,
+# resolves Xacro macros, and combines them into a single MJCF XML file. It also handles redundant mesh names to prevent crashes
+# when using Mujoco.
+#
+# The main functionality of the script includes:
+#   1. Parsing ROS parameters to get the input files, output file path, compile executable, robot descriptions, and Mujoco files path.
+#   2. Creating a directory for storing temporary Mujoco files.
+#   3. Converting robot descriptions to URDF files and adding them to the input files list.
+#   4. Processing each input file:
+#      - Converting Xacro files to URDF using the specified compile executable.
+#      - Parsing the input file to extract relevant elements.
+#      - Inserting the extracted elements into the MJCF XML file tree.
+#   5. Handling URDF files and symbolic links.
+#   6. Writing the resulting MJCF XML file containing all the processed elements.
+#
+# Usage:
+#   1. Set the necessary ROS parameters in the launch file or command line:
+#      - input_files: A list of Xacro and URDF files to be processed.
+#      - output_file: The path of the output MJCF XML file.
+#      - compile_executable (optional): The custom executable for Xacro/URDF compilation (default: 'compile').
+#      - robot_descriptions (optional): A list of robot descriptions to be converted to URDF and processed.
+#      - mujoco_files_path (optional): The path to store temporary Mujoco files (default: '/tmp/mujoco/').
+#   2. Run the script as a ROS node.
+#
+# @note This script requires ROS and the rclpy Python package to be installed.
+# @note The Mujoco software and its dependencies must be installed separately.
+# @note Make sure to set appropriate file permissions for the script to run as an executable.
 class Xacro2Mjcf(Node):
 
-    '''
-    Making all in the init function, because we only use a class to get the ros parameters
-    '''
+    ## @brief Initializes the Xacro2Mjcf node.
     def __init__(self):
         super().__init__('xacro2mjcf')
+
+        # Declare parameters
         self.declare_parameters(
             namespace='',
             parameters=[
@@ -25,52 +57,60 @@ class Xacro2Mjcf(Node):
                 ('mujoco_files_path', "/tmp/mujoco/")
             ]
         )
+
+        # Get parameters
         input_files = self.get_parameter('input_files').value
         output_file = self.get_parameter('output_file').value
         compile_executable = self.get_parameter('compile_executable').value
         robot_descriptions = self.get_parameter('robot_descriptions').value
         mujoco_files_path = self.get_parameter('mujoco_files_path').value
+
+        # Remove trailing slash from mujoco_files_path
         if mujoco_files_path.split("/")[-1] == '':
             mujoco_files_path = mujoco_files_path[:-1]
-        output_model_files = []
+
+        # Create directory for Mujoco files
         os.system("rm -r " + mujoco_files_path)
         os.system("mkdir " + mujoco_files_path)
 
+        output_model_files = []
+
+        # Convert robot descriptions to URDF files
         for robot_description in robot_descriptions:
             name = str(uuid.uuid4())
             with open(mujoco_files_path + '/' + name + '.urdf', 'w') as f:
                 f.write(str(robot_description))
             input_files.append(mujoco_files_path + '/' + name + '.urdf')
 
-        # Store assets because redundant mesh names cause in crash from mujoco
         out_assets = ET.Element('asset')
 
+        # Process input files
         for i, input_file in enumerate(input_files):
             filename = input_file
             if filename.split('.')[-1] == 'xacro' or filename.split('.')[-1] == 'urdf':
                 name = filename.split('.')[-2].split('/')[-1]
                 if filename.split('.')[-1] == 'xacro':
+                    # Convert Xacro to URDF
                     os.system('xacro ' + filename + ' > ' + mujoco_files_path + '/tmp_' + name + '.urdf')
                     os.system(
-                        compile_executable + ' ' + mujoco_files_path + '/tmp_' + name + '.urdf ' + mujoco_files_path + '/tmp_' + name + '.xml')
-
-                    # Get the actuators element from the urdf (in robot/mujoco/actuators
+                        compile_executable + ' ' + mujoco_files_path + '/tmp_' + name + '.urdf ' +
+                        mujoco_files_path + '/tmp_' + name + '.xml')
                     in_tree = ET.parse(mujoco_files_path + '/tmp_' + name + '.urdf')
                 else:
                     os.system(compile_executable + ' ' + filename + ' ' + mujoco_files_path + '/tmp_' + name + '.xml')
-                    # Get the actuators element from the urdf (in robot/mujoco/actuators
                     in_tree = ET.parse(filename)
 
                 in_root = in_tree.getroot()
-                # Insert the elements in the mjcf file tree
                 out_tree = ET.parse(mujoco_files_path + '/tmp_' + name + '.xml')
                 out_root = out_tree.getroot()
 
+                # Insert elements into the MJCF file tree
                 mujoco = in_root.find('mujoco')
                 if mujoco is not None:
                     for element in mujoco:
                         if element.tag != 'compiler':
                             out_root.insert(len(out_root), element)
+
                 if out_tree.find('asset') is not None:
                     for element in out_tree.find('asset'):
                         exist = False
@@ -104,7 +144,8 @@ class Xacro2Mjcf(Node):
         self.destroy_node()
         exit(0)
 
-
+## @brief Main function to initialize and run the Xacro2Mjcf node.
+#  @param args: Command-line arguments.
 def main(args=None):
     rclpy.init(args=args)
 

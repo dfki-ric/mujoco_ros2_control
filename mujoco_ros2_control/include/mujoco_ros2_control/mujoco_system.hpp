@@ -1,16 +1,42 @@
-// Copyright 2021 Open Source Robotics Foundation, Inc.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+/**
+ * @file mujoco_system.hpp
+ * @brief This file contains the implementation of the MujocoSystem class.
+ *
+ *
+ * @author Adrian Danzglock
+ * @date 2023
+ *
+ * @license Apache License, Version 2.0
+ * @copyright Copyright (c) 2023, DFKI GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ *
+ * This code is a modified version of the original code from Open Source Robotics Foundation, Inc.
+ * https://github.com/ros-controls/gazebo_ros2_control/blob/master/gazebo_ros2_control/include/gazebo_ros2_control/gazebo_system.hpp
+ *
+ * Original code licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 
 #ifndef MUJOCO_ROS2_CONTROL__MUJOCO_SYSTEM_HPP_
@@ -37,111 +63,220 @@
 namespace mujoco_ros2_control
 {
     using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
-
+    /**
+     * @class MujocoSystem
+     * @brief Implements the MujocoSystem interface for controlling a Mujoco robot model.
+     *
+     * The MujocoSystem class is an implementation of the MujocoSystemInterface, which serves as the interface between the
+     * Mujoco physics engine and the ROS 2 control framework. It provides methods for initializing the Mujoco model,
+     * updating the model state, and sending commands to the model.
+     *
+     * This class utilizes the Mujoco C library to interact with the Mujoco model. It provides functions for initializing
+     * the model, setting the control inputs, and stepping the simulation forward in time. It also interfaces with the ROS 2
+     * control framework by implementing the necessary interfaces and callbacks.
+     *
+     * The MujocoSystem class is responsible for reading the state of the Mujoco model, updating the controller outputs, and
+     * writing the results back to the model. It acts as the bridge between the ROS 2 control system and the underlying
+     * Mujoco simulation.
+     */
     class MujocoSystem : public MujocoSystemInterface
     {
     public:
-        // Documentation Inherited
-        CallbackReturn on_init(const hardware_interface::HardwareInfo & system_info)
-        override;
+        /**
+         * @brief Callback function for the on_init lifecycle event.
+         *
+         * This method is called when the system is initialized. It returns the success status of the initialization.
+         *
+         * @param system_info System information.
+         * @return The success status of the on_init callback.
+         */
+        CallbackReturn on_init(const hardware_interface::HardwareInfo & system_info) override;
 
-        // Documentation Inherited
+        /**
+         * @brief Exports the state interfaces.
+         *
+         * This method exports the state interfaces by returning a vector of state interfaces.
+         *
+         * @return A vector of state interfaces.
+         */
         std::vector<hardware_interface::StateInterface> export_state_interfaces() override;
 
-        // Documentation Inherited
+        /**
+         * @brief Exports the command interfaces.
+         *
+         * This method exports the command interfaces by returning a vector of command interfaces.
+         *
+         * @return A vector of command interfaces.
+         */
         std::vector<hardware_interface::CommandInterface> export_command_interfaces() override;
 
-        // Documentation Inherited
+        /**
+         * @brief Callback function for the on_activate lifecycle event.
+         *
+         * This method is called when the system is activated. It returns the success status of the activation.
+         *
+         * @param previous_state The previous lifecycle state.
+         * @return The success status of the on_activate callback.
+         */
         CallbackReturn on_activate(const rclcpp_lifecycle::State & previous_state) override;
 
-        // Documentation Inherited
+        /**
+         * @brief Callback function for the on_deactivate lifecycle event.
+         *
+         * This method is called when the system is deactivated. It returns the success status of the deactivation.
+         *
+         * @param previous_state The previous lifecycle state.
+         * @return The success status of the on_deactivate callback.
+         */
         CallbackReturn on_deactivate(const rclcpp_lifecycle::State & previous_state) override;
 
-        // Documentation Inherited
+
+        /**
+         * @brief Performs the command mode switch for the interfaces.
+         *
+         * This method performs the command mode switch by updating the control methods of the joints based on the
+         * start and stop interfaces.
+         *
+         * @param start_interfaces The interfaces to start.
+         * @param stop_interfaces The interfaces to stop.
+         * @return The return type of the command mode switch.
+         */
         hardware_interface::return_type perform_command_mode_switch(
                 const std::vector<std::string> & start_interfaces,
                 const std::vector<std::string> & stop_interfaces) override;
 
-        //! @copydoc hardware_interface::SystemInterface::read()
+        /**
+         * @brief Reads the joint states from the Mujoco simulation.
+         *
+         * This method reads the joint states from the Mujoco simulation and updates the joint positions, velocities,
+         * and efforts.
+         *
+         * @param time The current time.
+         * @param period The duration of the current cycle.
+         * @return The return type of the read operation.
+         */
         hardware_interface::return_type read(
                 const rclcpp::Time & time,
                 const rclcpp::Duration & period) override;
 
         /**
-         * Write the commands from ros to mujoco
-         * @param time      actual timestamp
-         * @param period
-         * @return
+         * @brief Writes the commands to the Mujoco simulation.
+         *
+         * This method writes the commands to the Mujoco simulation by updating the joint control efforts.
+         *
+         * @param time The current time.
+         * @param period The duration of the current cycle.
+         * @return The return type of the write operation.
          */
         hardware_interface::return_type write(
                 const rclcpp::Time & time,
                 const rclcpp::Duration & period) override;
 
         /**
-         * Load and stores the required Datas and Pointers from MuJoCo and ROS2 to this class
-         * @param mujoco_model      Pointer to the MuJoCo model
-         * @param mujoco_data       Pointer to the MuJoCo data
-         * @param hardware_info     Description of the ROS2 Control definitions
-         * @param urdf_model_ptr    Pointer to parsed URDF model
-         * @return return true if the setup was completed
+         * @brief Initializes the Mujoco simulation.
+         *
+         * This method initializes the Mujoco simulation by setting the Mujoco model and data pointers,
+         * registering joints, and returning true if successful.
+         *
+         * @param mujoco_model A pointer to the Mujoco model.
+         * @param mujoco_data A pointer to the Mujoco data.
+         * @param hardware_info Hardware information.
+         * @param urdf_model_ptr A pointer to the URDF model.
+         * @return True if initialization is successful, false otherwise.
          */
         bool initSim(
                 mjModel* mujoco_model, mjData *mujoco_data,
                 const hardware_interface::HardwareInfo & hardware_info,
                 const urdf::Model *urdf_model_ptr) override;
 
-        // Methods used to control a joint.
-        enum ControlMethod {EFFORT, POSITION, VELOCITY};
-
-        // Stores all required datas for one joint
-        struct JointData
-        {
-            std::string name;
-            double lower_limit = 0.0;
-            double upper_limit = 0.0;
-            double velocity_limit = 2.0;
-            double effort_limit = 0.0;
-            std::vector<ControlMethod> control_methods;
-            double position;
-            double velocity;
-            double effort;
-            double effort_command;
-            double position_command;
-            double velocity_command;
-            std::map<ControlMethod, int> actuators;
-            std::vector<hardware_interface::CommandInterface*> command_interfaces;
-            std::vector<hardware_interface::StateInterface*> state_interfaces;
-            int mujoco_joint_id;
-            int mujoco_qpos_addr;
-            int mujoco_dofadr;
-        };
-
     private:
+
         /**
-         * This method create the interfaces and the JointData struct for every Joint in the hardware info struct
-         * @param hardware_info struct with the information parsed from the urdf
-         * @param joints        map with the detected joints
+         * @brief Registers the joints in the Mujoco simulation.
+         *
+         * This method registers the joints in the Mujoco simulation by creating a JointData struct for each joint,
+         * setting the necessary joint information, and populating the joint limits.
+         *
+         * @param hardware_info Hardware information.
+         * @param joints A map of joint names to URDF joint pointers.
          */
         void registerJoints(const hardware_interface::HardwareInfo & hardware_info,
                             const std::map<std::string, std::shared_ptr<urdf::Joint>> &joints);
 
-        /// \brief Mujoco Model Ptr.
-        mjModel *mujoco_model_;
-        /// \brief Mujoco Data Ptr.
-        mjData *mujoco_data_;
+        // Variables
+        mjModel *mujoco_model_;  ///< Pointer to the Mujoco model.
+        mjData *mujoco_data_;    ///< Pointer to the Mujoco data.
 
-        /// \brief last time the write method was called.
+        // Enums
+        /**
+         * @brief Enum representing control methods for a joint.
+         *
+         * This enum defines the available control methods that can be used to control a joint.
+         * It provides options for different control strategies, such as position control, velocity control, etc.
+         */
+        enum ControlMethod {
+            EFFORT,  ///< Effort control method.
+            POSITION,  ///< Position control method.
+            VELOCITY  ///< Velocity control method.
+        };
+
+        // Structs
+        /**
+         * @brief Struct representing joint data.
+         *
+         * This struct contains information related to a joint, including its name, limits, control methods,
+         * current state, commanded values, actuator mappings, interfaces, and Mujoco-specific IDs.
+         */
+        struct JointData {
+            std::string name;  ///< Name of the joint.
+            double lower_limit = 0.0;  ///< Lower limit of the joint position.
+            double upper_limit = 0.0;  ///< Upper limit of the joint position.
+            double velocity_limit = 2.0;  ///< Limit on the joint velocity.
+            double effort_limit = 0.0;  ///< Limit on the joint effort.
+            std::vector<ControlMethod> control_methods;  ///< Available control methods for the joint.
+            double position;  ///< Current position of the joint.
+            double velocity;  ///< Current velocity of the joint.
+            double effort;  ///< Current effort applied to the joint.
+            double effort_command;  ///< Commanded effort to be applied to the joint.
+            double position_command;  ///< Commanded position for the joint.
+            double velocity_command;  ///< Commanded velocity for the joint.
+            std::map<ControlMethod, int> actuators;  ///< Mapping of control methods to actuator IDs.
+            std::vector<hardware_interface::CommandInterface*> command_interfaces;  ///< Command interfaces associated with the joint.
+            std::vector<hardware_interface::StateInterface*> state_interfaces;  ///< State interfaces associated with the joint.
+            int mujoco_joint_id;  ///< ID of the joint in the Mujoco simulation.
+            int mujoco_qpos_addr;  ///< Address of the joint position in the Mujoco data structure.
+            int mujoco_dofadr;  ///< Degree-of-freedom (DOF) address of the joint in the Mujoco data structure.
+        };
+
+        /**
+         * @brief Last update simulation time in ROS.
+         *
+         * This variable represents the time of the last update in the ROS simulation. It is used to track the timing
+         * of the simulation and synchronize it with other components or systems.
+         */
         rclcpp::Time last_update_sim_time_ros_;
 
-        /// \brief state interfaces that will be exported to the Resource Manager
+
+        /**
+         * @brief State interfaces for the joint.
+         *
+         * This vector holds pointers to the state interfaces associated with the joint. State interfaces are used to
+         * provide access to the joint's current state, such as position, velocity, and effort, for external systems or modules.
+         * It allows read-only access to the joint's state information.
+         */
         std::vector<hardware_interface::StateInterface> state_interfaces_;
 
-        /// \brief command interfaces that will be exported to the Resource Manager
+        /**
+         * @brief Command interfaces for the joint.
+         *
+         * This vector contains pointers to the command interfaces associated with the joint. Command interfaces are used
+         * to send control commands, such as position, velocity, or effort commands, to the joint. It allows external systems
+         * or modules to control the joint's behavior.
+         */
         std::vector<hardware_interface::CommandInterface> command_interfaces_;
 
     protected:
-        /// \brief Map that holds every registered joint with his name
-        std::map<std::string, JointData> joints_;
+        std::map<std::string, JointData> joints_; ///< Map of joint names to JointData structs.
     };
 
 }  // namespace mujoco_ros2_control
