@@ -4,6 +4,7 @@
 
     <xacro:include filename="$(find panda_mujoco)/urdf/include/panda.urdf.xacro"/>
     <xacro:include filename="$(find panda_mujoco)/urdf/include/panda_utils.xacro"/>
+    <xacro:include filename="$(find panda_mujoco)/urdf/table.urdf.xacro"/>
 
     <!-- Flag to enable default gripper -->
     <xacro:arg name="gripper" default="true" />
@@ -42,12 +43,19 @@
 
     
     <!-- Dummy world link that the robot is fixed to -->
-    <xacro:panda_dummy_link
+    <!--xacro:panda_dummy_link
             link_name="$(arg world_name)"
             gazebo_preserve_fixed_joint="$(arg gazebo_preserve_fixed_joint)"
-    />
+    /-->
 
-    <xacro:panda name="$(arg name)" origin_xyz="$(arg origin_xyz)" origin_rpy="$(arg origin_rpy)" world_name="$(arg world_name)"/>
+    <xacro:if value="$(arg generate_world_frame)">
+        <xacro:panda_dummy_link
+            link_name="$(arg world_name)"
+            gazebo_preserve_fixed_joint="$(arg gazebo_preserve_fixed_joint)"
+        />
+    </xacro:if>
+
+    <xacro:panda name="$(arg name)" origin_xyz="$(arg origin_xyz)" origin_rpy="$(arg origin_rpy)" base_parent="$(arg world_name)"/>
 
 
 </robot>

@@ -22,7 +22,6 @@
   <depend>pluginlib</depend>
   <depend>rclcpp</depend>
   <depend>rclpy</depend>
-  <depend>std_msgs</depend>
   <depend>mujoco</depend>
   <depend>realtime-tools</depend>
 

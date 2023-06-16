@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>mujoco_ros2_pkgs</name>
+  <version>1.0.0</version>
+  <description>URDF description of the Kuka lbr robot</description>
+
+  <maintainer email="adrian.danzglock@dfki.de">Adrian Danzglock</maintainer>
+
+  <license>BSD</license>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

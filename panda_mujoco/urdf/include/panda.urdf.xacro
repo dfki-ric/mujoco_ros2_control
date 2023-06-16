@@ -5,7 +5,7 @@
   <!--                   -->
   <!-- Imported elements -->
   <!--                   -->
-  <xacro:macro name="panda" params="name origin_xyz:='0 0 0' origin_rpy:='0 0 0' world_name:=world">
+  <xacro:macro name="panda" params="name origin_xyz:='0 0 0' origin_rpy:='0 0 0' base_parent:=$(arg world_name)">
     <xacro:include filename="$(find panda_mujoco)/urdf/include/panda_arm.xacro"/>
     <xacro:include filename="$(find panda_mujoco)/urdf/include/panda_gripper.xacro"/>
     <xacro:include filename="$(find panda_mujoco)/urdf/include/panda_utils.xacro"/>
@@ -25,7 +25,7 @@
 
     <!-- Arm -->
     <xacro:panda_arm
-            base_parent="${world_name}"
+            base_parent="${base_parent}"
             prefix="${prefix}"
             origin_xyz="${origin_xyz}"
             origin_rpy="${origin_rpy}"
