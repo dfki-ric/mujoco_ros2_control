@@ -26,8 +26,8 @@
     <!-- Flag to enable ros2 controllers for manipulator -->
     <xacro:arg name="ros2_control" default="true"/>
     <!-- The ros2_control plugin that should be loaded for the manipulator ('fake', 'ign', 'real' or custom) -->
-    <xacro:arg name="ros2_control_plugin" default="mujoco_ros2_control/MujocoSystem"/>
-    <!--xacro:arg name="ros2_control_plugin" default="ign"/-->
+    <!--xacro:arg name="ros2_control_plugin" default="mujoco_ros2_control/MujocoSystem"/-->
+    <xacro:arg name="ros2_control_plugin" default="ign"/>
 
     <!-- The output control command interface provided by ros2_control ('position', 'velocity', 'effort' or certain combinations 'position,velocity') -->
     <xacro:arg name="ros2_control_command_interface" default="effort"/>

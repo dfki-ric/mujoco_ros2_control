@@ -10,7 +10,7 @@
   ">
     <gazebo>
       <plugin filename="ign_ros2_control-system" name="ign_ros2_control::IgnitionROS2ControlPlugin">
-        <parameters>/home/dfki.uni-bremen.de/adanzglock/ros2_ws/src/mujoco_ros2_pkgs/panda_mujoco/config/controllers_effort.yaml</parameters>
+        <parameters>$(find panda_mujoco)/config/controllers_effort.yaml</parameters>
       </plugin>
     </gazebo>
   </xacro:macro>

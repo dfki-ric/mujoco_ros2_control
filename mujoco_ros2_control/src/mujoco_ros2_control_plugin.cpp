@@ -6,7 +6,7 @@
 * @author Adrian Danzglock
 * @date 2023
 *
-* @license Apache License, Version 2.0
+* @license GNU General Public License, version 3 (GPL-3.0)
 * @copyright Copyright (c) 2023, DFKI GmbH
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
