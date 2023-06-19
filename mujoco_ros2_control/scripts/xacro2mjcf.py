@@ -10,6 +10,18 @@ import uuid
 
 ## @file xacro2mjcf.py
 # @brief Converts Xacro and URDF files into Mujoco MJCF XML file.
+# @author Adrian Danzglock
+# @date 2023
+#
+# @license GNU General Public License, version 3 (GPL-3.0)
+# @copyright Copyright (c) 2023, DFKI GmbH
+#
+# This file is governed by the GNU General Public License, version 3 (GPL-3.0).
+# The GPL-3.0 is a copyleft license that allows users to use, modify, and distribute software
+# while ensuring that these freedoms are passed on to subsequent users. It requires that any
+#  derivative works or modifications of the software be licensed under the GPL-3.0 as well.
+# You should have received a copy of the GNU General Public License along with this program.
+# If not, see https://www.gnu.org/licenses/gpl-3.0.html.
 #
 # This script is a ROS node that converts Xacro and URDF files into a Mujoco MJCF (MuJoCo Composite Format) XML file.
 # It takes a list of input files, including Xacro and URDF files, and a target output file path as parameters. Additionally,

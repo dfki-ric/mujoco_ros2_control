@@ -6,20 +6,15 @@
  * @author Adrian Danzglock
  * @date 2023
  *
- * @license Apache License, Version 2.0
+ * @license GNU General Public License, version 3 (GPL-3.0)
  * @copyright Copyright (c) 2023, DFKI GmbH
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * This file is governed by the GNU General Public License, version 3 (GPL-3.0).
+ * The GPL-3.0 is a copyleft license that allows users to use, modify, and distribute software
+ * while ensuring that these freedoms are passed on to subsequent users. It requires that any
+ * derivative works or modifications of the software be licensed under the GPL-3.0 as well.
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see https://www.gnu.org/licenses/gpl-3.0.html.
  *
  *
  * This code is a modified version of the original code from Open Source Robotics Foundation, Inc.
@@ -60,9 +55,9 @@
 // ROS messages
 #include "std_msgs/msg/bool.hpp"
 
-namespace mujoco_ros2_control
-{
+namespace mujoco_ros2_control {
     using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
+
     /**
      * @class MujocoSystem
      * @brief Implements the MujocoSystem interface for controlling a Mujoco robot model.
@@ -79,8 +74,7 @@ namespace mujoco_ros2_control
      * writing the results back to the model. It acts as the bridge between the ROS 2 control system and the underlying
      * Mujoco simulation.
      */
-    class MujocoSystem : public MujocoSystemInterface
-    {
+    class MujocoSystem : public MujocoSystemInterface {
     public:
         /**
          * @brief Callback function for the on_init lifecycle event.
@@ -90,7 +84,7 @@ namespace mujoco_ros2_control
          * @param system_info System information.
          * @return The success status of the on_init callback.
          */
-        CallbackReturn on_init(const hardware_interface::HardwareInfo & system_info) override;
+        CallbackReturn on_init(const hardware_interface::HardwareInfo &system_info) override;
 
         /**
          * @brief Exports the state interfaces.
@@ -118,7 +112,7 @@ namespace mujoco_ros2_control
          * @param previous_state The previous lifecycle state.
          * @return The success status of the on_activate callback.
          */
-        CallbackReturn on_activate(const rclcpp_lifecycle::State & previous_state) override;
+        CallbackReturn on_activate(const rclcpp_lifecycle::State &previous_state) override;
 
         /**
          * @brief Callback function for the on_deactivate lifecycle event.
@@ -128,7 +122,7 @@ namespace mujoco_ros2_control
          * @param previous_state The previous lifecycle state.
          * @return The success status of the on_deactivate callback.
          */
-        CallbackReturn on_deactivate(const rclcpp_lifecycle::State & previous_state) override;
+        CallbackReturn on_deactivate(const rclcpp_lifecycle::State &previous_state) override;
 
 
         /**
@@ -142,8 +136,8 @@ namespace mujoco_ros2_control
          * @return The return type of the command mode switch.
          */
         hardware_interface::return_type perform_command_mode_switch(
-                const std::vector<std::string> & start_interfaces,
-                const std::vector<std::string> & stop_interfaces) override;
+                const std::vector<std::string> &start_interfaces,
+                const std::vector<std::string> &stop_interfaces) override;
 
         /**
          * @brief Reads the joint states from the Mujoco simulation.
@@ -156,8 +150,8 @@ namespace mujoco_ros2_control
          * @return The return type of the read operation.
          */
         hardware_interface::return_type read(
-                const rclcpp::Time & time,
-                const rclcpp::Duration & period) override;
+                const rclcpp::Time &time,
+                const rclcpp::Duration &period) override;
 
         /**
          * @brief Writes the commands to the Mujoco simulation.
@@ -169,8 +163,8 @@ namespace mujoco_ros2_control
          * @return The return type of the write operation.
          */
         hardware_interface::return_type write(
-                const rclcpp::Time & time,
-                const rclcpp::Duration & period) override;
+                const rclcpp::Time &time,
+                const rclcpp::Duration &period) override;
 
         /**
          * @brief Initializes the Mujoco simulation.
@@ -185,8 +179,8 @@ namespace mujoco_ros2_control
          * @return True if initialization is successful, false otherwise.
          */
         bool initSim(
-                mjModel* mujoco_model, mjData *mujoco_data,
-                const hardware_interface::HardwareInfo & hardware_info,
+                mjModel *mujoco_model, mjData *mujoco_data,
+                const hardware_interface::HardwareInfo &hardware_info,
                 const urdf::Model *urdf_model_ptr) override;
 
     private:
@@ -200,7 +194,7 @@ namespace mujoco_ros2_control
          * @param hardware_info Hardware information.
          * @param joints A map of joint names to URDF joint pointers.
          */
-        void registerJoints(const hardware_interface::HardwareInfo & hardware_info,
+        void registerJoints(const hardware_interface::HardwareInfo &hardware_info,
                             const std::map<std::string, std::shared_ptr<urdf::Joint>> &joints);
 
         // Variables
@@ -241,8 +235,8 @@ namespace mujoco_ros2_control
             double position_command;  ///< Commanded position for the joint.
             double velocity_command;  ///< Commanded velocity for the joint.
             std::map<ControlMethod, int> actuators;  ///< Mapping of control methods to actuator IDs.
-            std::vector<hardware_interface::CommandInterface*> command_interfaces;  ///< Command interfaces associated with the joint.
-            std::vector<hardware_interface::StateInterface*> state_interfaces;  ///< State interfaces associated with the joint.
+            std::vector<hardware_interface::CommandInterface *> command_interfaces;  ///< Command interfaces associated with the joint.
+            std::vector<hardware_interface::StateInterface *> state_interfaces;  ///< State interfaces associated with the joint.
             int mujoco_joint_id;  ///< ID of the joint in the Mujoco simulation.
             int mujoco_qpos_addr;  ///< Address of the joint position in the Mujoco data structure.
             int mujoco_dofadr;  ///< Degree-of-freedom (DOF) address of the joint in the Mujoco data structure.

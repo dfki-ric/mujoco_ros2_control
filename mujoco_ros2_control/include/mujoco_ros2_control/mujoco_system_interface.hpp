@@ -10,20 +10,15 @@
  * @author Adrian Danzglock
  * @date 2023
  *
- * @license Apache License, Version 2.0
+ * @license GNU General Public License, version 3 (GPL-3.0)
  * @copyright Copyright (c) 2023, DFKI GmbH
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * This file is governed by the GNU General Public License, version 3 (GPL-3.0).
+ * The GPL-3.0 is a copyleft license that allows users to use, modify, and distribute software
+ * while ensuring that these freedoms are passed on to subsequent users. It requires that any
+ * derivative works or modifications of the software be licensed under the GPL-3.0 as well.
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see https://www.gnu.org/licenses/gpl-3.0.html.
  */
 
 #ifndef MUJOCO_ROS2_CONTROL__MUJOCO_SYSTEM_INTERFACE_HPP_
