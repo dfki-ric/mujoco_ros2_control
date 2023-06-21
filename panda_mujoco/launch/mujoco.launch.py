@@ -27,7 +27,7 @@ def generate_launch_description():
     robot_description_string = xacro.process_file(robot_description_path, mappings={
         'ros2_control_command_interface': command_interface,
         'name': 'panda',
-        'origin_xyz': '0 0 0',
+        'origin_xyz': '0 0 0.875',
         'origin_rpy': '0 0 0',
         'world_name': 'base_link',
         'generate_world_frame': 'false'
@@ -62,7 +62,7 @@ def generate_launch_description():
                     {'input_files': [  # Paths to all files that must be included, like free joints or scene files
                         mujoco_scene_file,
                         mujoco_box_file,
-                        mujoco_table_file
+                        #mujoco_table_file
                     ]},
                     {'output_file': mujoco_model_file},  # Path to the output file
                     {'mujoco_files_path': mujoco_model_path}]

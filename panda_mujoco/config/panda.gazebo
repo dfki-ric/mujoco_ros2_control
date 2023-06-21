@@ -12,6 +12,7 @@
       <plugin filename="ign_ros2_control-system" name="ign_ros2_control::IgnitionROS2ControlPlugin">
         <parameters>$(find panda_mujoco)/config/controllers_effort.yaml</parameters>
       </plugin>
+      <self_collide>1</self_collide>
     </gazebo>
   </xacro:macro>
 
