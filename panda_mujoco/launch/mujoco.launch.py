@@ -80,7 +80,9 @@ def generate_launch_description():
     ros2_control_params_file = os.path.join(
         get_package_share_directory('panda_mujoco'),
         'config',
-        'controllers_joint_trajectory_controller.yaml')
+        'controllers_cartesian_impedance_controller.yaml'
+    )
+    #    'controllers_joint_trajectory_controller.yaml')
     # 'controllers_effort.yaml')
 
     mujoco = Node(
@@ -173,7 +175,7 @@ def generate_launch_description():
         [
             start_mujoco,
             register_controllers,
-            start_rviz,
+            #start_rviz,
             xacro2mjcf,
             robot_state_publisher
         ]
