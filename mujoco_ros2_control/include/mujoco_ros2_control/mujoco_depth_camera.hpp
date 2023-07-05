@@ -18,26 +18,38 @@
 #include <pcl/point_types.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/io/ply_io.h>
-#include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/filters/voxel_grid.h>
+#include <pcl_conversions/pcl_conversions.h>
 
-// #include <ros/ros.h>
-// #include <sensor_msgs/PointCloud2.h>
-// #include <pcl_ros/point_cloud.h>
+#include "chrono"
+#include "rclcpp/rclcpp.hpp"
+#include "sensor_msgs/msg/point_cloud2.hpp"
+
+using namespace std::chrono_literals;
 
 namespace mujoco_sensors {
-class MujocoDepthCamera {
+class MujocoDepthCamera : public rclcpp::Node {
+public:
+    MujocoDepthCamera(mjModel_ *model, mjData_ *data, int id, int res_x, int res_y, double frequency, const std::string& name);
+    ~MujocoDepthCamera();
+    void update();
+
 private:
-    mjModel* mujoco_model_;
-    mjData* mujoco_data_;
+    rclcpp::Node::SharedPtr nh_;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr publisher_;
+    rclcpp::TimerBase::SharedPtr timer_;
+
+    mjModel* mujoco_model_ = nullptr;
+    mjData* mujoco_data_ = nullptr;
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr color_cloud_;
     std::string name_;
+    size_t body_id_;
 
     GLFWwindow* window_;
-    mjvCamera rgbd_camera_;
-    mjrContext sensor_context_;
-    mjvScene sensor_scene_;
-    mjvOption sensor_option_;
+    mjvCamera rgbd_camera_{};
+    mjrContext sensor_context_{};
+    mjvScene sensor_scene_{};
+    mjvOption sensor_option_{};
 
     uchar* color_buffer{};    // color buffer
     float* depth_buffer{};  // depth buffer
@@ -53,6 +65,8 @@ private:
     double f{};   // focal length
     int cx{}, cy{}; // principal points
 
+    std::thread update_thread_;
+
 
     /// @brief Linearize depth buffer and convert depth to depth in meters
     /// @param depth OpenGL depth buffer (nonlinearized)
@@ -60,11 +74,6 @@ private:
     cv::Mat linearize_depth(const cv::Mat& depth) const;
 
     std::mutex mtx_;
-
-
-
-public:
-    MujocoDepthCamera(mjModel* mujoco_model, mjData *mujoco_data, int id);
 
     /// @brief This function sets the camera intrinsics. If the viewport size changes (e.g. you zoom the MuJoCo window), the camera intrinsics should be set again.
     /// @param model
@@ -103,14 +112,8 @@ public:
     {
         return depth_image;
     }
-
-    void update();
 };
 }
-
-pcl::visualization::PCLVisualizer::Ptr color_cloud_visual (pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr cloud);
-
-pcl::visualization::PCLVisualizer::Ptr cloud_visual (pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud);
 
 
 #endif //MUJOCO_ROS2_CONTROL_MUJOCO_DEPTH_CAMERA_HPP

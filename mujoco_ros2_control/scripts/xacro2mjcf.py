@@ -7,7 +7,6 @@ import os
 import uuid
 
 
-
 ## @file xacro2mjcf.py
 # @brief Converts Xacro and URDF files into Mujoco MJCF XML file.
 # @author Adrian Danzglock
@@ -52,6 +51,10 @@ import uuid
 # @note This script requires ROS and the rclpy Python package to be installed.
 # @note The Mujoco software and its dependencies must be installed separately.
 # @note Make sure to set appropriate file permissions for the script to run as an executable.
+
+
+
+
 class Xacro2Mjcf(Node):
 
     ## @brief Initializes the Xacro2Mjcf node.
@@ -120,7 +123,12 @@ class Xacro2Mjcf(Node):
                 mujoco = in_root.find('mujoco')
                 if mujoco is not None:
                     for element in mujoco:
-                        if element.tag != 'compiler':
+                        if element.tag == 'reference':
+                            body_name = element.attrib['name']
+                            mj_element = self.get_element(out_root, 'body', body_name)
+                            for child in element:
+                                mj_element.insert(0, child)
+                        elif element.tag != 'compiler':
                             out_root.insert(len(out_root), element)
 
                 if out_tree.find('asset') is not None:
@@ -155,6 +163,17 @@ class Xacro2Mjcf(Node):
         self.get_logger().info("Saved mjcf xml file under " + output_file)
         self.destroy_node()
         exit(0)
+
+    def get_element(self, xml, tag, name):
+        element = None
+        for child in xml:
+            if child.tag == tag:
+                if child.attrib['name'] == name:
+                    element = child
+                    break
+            element = self.get_element(child, tag, name)
+        return element
+
 
 ## @brief Main function to initialize and run the Xacro2Mjcf node.
 #  @param args: Command-line arguments.

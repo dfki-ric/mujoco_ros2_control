@@ -1,16 +1,17 @@
 // https://github.com/gywhitel/mujoco_RGBD
-#include <thread>
 #include "../include/mujoco_ros2_control/mujoco_depth_camera.hpp"
 
 namespace mujoco_sensors {
-    MujocoDepthCamera::MujocoDepthCamera(mjModel *mujoco_model, mjData *mujoco_data, int id) {
-        mujoco_model_ = mujoco_model;
-        mujoco_data_ = mujoco_data;
+    MujocoDepthCamera::MujocoDepthCamera(mjModel_ *model, mjData_ *data, int id, int res_x, int res_y, double frequency, const std::string& name) : Node(name){
+        mujoco_model_ = model;
+        mujoco_data_ = data;
 
-        name_ = mj_id2name(mujoco_model, mjOBJ_CAMERA, id);
+        name_ = name;
+
+        body_id_ = mujoco_model_->cam_bodyid[id];
 
         glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-        window_ = glfwCreateWindow(1200, 800, name_.c_str(), NULL, NULL);
+        window_ = glfwCreateWindow(res_x, res_y, name_.c_str(), NULL, NULL);
         // glfwSetWindowAttrib(window, GLFW_RESIZABLE, GLFW_FALSE);
         glfwMakeContextCurrent(window_);
         glfwSwapInterval(1);
@@ -24,8 +25,20 @@ namespace mujoco_sensors {
         mjr_defaultContext(&sensor_context_);
 
         // create scene and context
-        mjv_makeScene(mujoco_model, &sensor_scene_, 1000);
-        mjr_makeContext(mujoco_model, &sensor_context_, mjFONTSCALE_150);
+        mjv_makeScene(mujoco_model_, &sensor_scene_, 1000);
+        mjr_makeContext(mujoco_model_, &sensor_context_, mjFONTSCALE_150);
+
+        publisher_ = nh_->create_publisher<sensor_msgs::msg::PointCloud2>("~/points", 10);
+        timer_ = nh_->create_wall_timer(
+                std::chrono::duration<double>(1.0s/frequency), std::bind(&MujocoDepthCamera::update, this));
+    }
+
+    MujocoDepthCamera::~MujocoDepthCamera() {
+        RCLCPP_INFO(rclcpp::get_logger("sensor"), "TEST 1111");
+        update_thread_.join();
+        mjv_freeScene(&sensor_scene_);
+        mjr_freeContext(&sensor_context_);
+        RCLCPP_INFO(rclcpp::get_logger("sensor"), "TEST 2222");
     }
 
     void MujocoDepthCamera::update() {
@@ -43,6 +56,9 @@ namespace mujoco_sensors {
 
         mtx_.lock();
         *color_cloud_ = generate_color_pointcloud();
+        sensor_msgs::msg::PointCloud2 out_cloud;
+        pcl::toROSMsg(*color_cloud_, out_cloud);
+        publisher_->publish(out_cloud);
         mtx_.unlock();
 
         // Swap OpenGL buffers
@@ -132,6 +148,7 @@ namespace mujoco_sensors {
         assert(color_image.size() == depth_image.size());
 
         PointCloud<PointXYZRGB> rgb_cloud;
+        rgb_cloud.header.frame_id = name_;
 
         for (int i = 0; i < color_image.rows; i++) {
             for (int j = 0; j < color_image.cols; j++) {

@@ -77,6 +77,7 @@
 #include "mujoco_ros2_control/mujoco_visualization.hpp"
 #include "mujoco_ros2_control/mujoco_system.hpp"
 #include "mujoco_ros2_control/mujoco_system_interface.hpp"
+#include "mujoco_ros2_control/mujoco_depth_camera.hpp"
 
 namespace mujoco_ros2_control
 {
@@ -186,13 +187,13 @@ private:
     double real_time_factor_; ///< Realtime factor of the simulation
     bool show_gui_; ///< Flag if the gui is loaded
 
-    // Controller Manager variables
+    // Controller Manager
     std::unique_ptr<hardware_interface::ResourceManager> resource_manager_; ///< Resource manager for hardware interfaces
-    rclcpp::executors::MultiThreadedExecutor::SharedPtr executor_; ///< Executor for controller manager
+    rclcpp::executors::MultiThreadedExecutor::SharedPtr controller_manager_executor_; ///< Executor for controller manager
     std::shared_ptr<controller_manager::ControllerManager> controller_manager_; ///< Controller manager object
     rclcpp::Duration control_period_ = rclcpp::Duration(1, 0); ///< Control period of the controller manager
     bool stop_{}; ///< Flag to stop the execution of the controller manager
-    std::thread thread_executor_spin_; ///< Thread for the controller manager executor
+    std::thread controller_manager_thread_executor_spin_; ///< Thread for the controller manager executor
 
     // Visualization class
     mujoco_visualization::MujocoVisualization& mj_vis_ = mujoco_visualization::MujocoVisualization::getInstance(); ///< MuJoCo visualizer object
@@ -200,6 +201,11 @@ private:
     // interface loader
     std::shared_ptr<pluginlib::ClassLoader<mujoco_ros2_control::MujocoSystemInterface> > robot_hw_sim_loader_; ///< Plugin loader for RobotHWSimInterface
     std::shared_ptr<mujoco_ros2_control::MujocoSystemInterface> robot_hw_sim_; ///< Robot hardware simulation interface
+
+    // Camera
+    std::shared_ptr<mujoco_sensors::MujocoDepthCamera> camera_;
+    std::vector<std::shared_ptr<mujoco_sensors::MujocoDepthCamera>> cameras_; ///< Cameras vector
+    void registerSensors();
 
 
 };
