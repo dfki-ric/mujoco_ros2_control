@@ -28,9 +28,9 @@
 using namespace std::chrono_literals;
 
 namespace mujoco_sensors {
-class MujocoDepthCamera : public rclcpp::Node {
+class MujocoDepthCamera {
 public:
-    MujocoDepthCamera(mjModel_ *model, mjData_ *data, int id, int res_x, int res_y, double frequency, const std::string& name);
+    MujocoDepthCamera(rclcpp::Node::SharedPtr &node, mjModel_ *model, mjData_ *data, int id, int res_x, int res_y, double frequency, const std::string& name);
     ~MujocoDepthCamera();
     void update();
 
@@ -41,29 +41,30 @@ private:
 
     mjModel* mujoco_model_ = nullptr;
     mjData* mujoco_data_ = nullptr;
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr color_cloud_;
+    pcl::PointCloud<pcl::PointXYZRGB> color_cloud_;
     std::string name_;
     size_t body_id_;
 
     GLFWwindow* window_;
-    mjvCamera rgbd_camera_{};
-    mjrContext sensor_context_{};
-    mjvScene sensor_scene_{};
-    mjvOption sensor_option_{};
+    mjvCamera rgbd_camera_;
+    mjrContext sensor_context_;
+    mjvScene sensor_scene_;
+    mjvOption sensor_option_;
+    mjvPerturb sensor_perturb_;
 
-    uchar* color_buffer{};    // color buffer
-    float* depth_buffer{};  // depth buffer
+    uchar* color_buffer;    // color buffer
+    float* depth_buffer;  // depth buffer
 
     cv::Mat color_image;
     cv::Mat depth_image;
 
     // OpenGL render range
-    double extent{};  // depth scale (m)
-    double z_near{};  // near clipping plane depth
-    double z_far{};   // far clipping plane depth
+    double extent;  // depth scale (m)
+    double z_near;  // near clipping plane depth
+    double z_far;   // far clipping plane depth
     // camera intrinsics
-    double f{};   // focal length
-    int cx{}, cy{}; // principal points
+    double f;   // focal length
+    int cx, cy; // principal points
 
     std::thread update_thread_;
 

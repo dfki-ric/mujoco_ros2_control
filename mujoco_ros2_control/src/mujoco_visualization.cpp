@@ -63,11 +63,13 @@ namespace mujoco_visualization {
         glfwSetCursorPosCallback(window, &mouse_move_cb);
         glfwSetMouseButtonCallback(window, &mouse_button_cb);
         glfwSetScrollCallback(window, &scroll_cb);
+        mjr_setBuffer(mjFB_WINDOW, &con);
 
 
     }
 
     void MujocoVisualization::update() {
+        glfwMakeContextCurrent(window);
 
         // get framebuffer viewport
         mjrRect viewport = {0, 0, 0, 0};

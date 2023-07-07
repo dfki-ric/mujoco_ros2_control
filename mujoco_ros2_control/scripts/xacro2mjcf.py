@@ -110,29 +110,37 @@ class Xacro2Mjcf(Node):
                     os.system(
                         compile_executable + ' ' + mujoco_files_path + '/tmp_' + name + '.urdf ' +
                         mujoco_files_path + '/tmp_' + name + '.xml')
-                    in_tree = ET.parse(mujoco_files_path + '/tmp_' + name + '.urdf')
+                    urdf_tree = ET.parse(mujoco_files_path + '/tmp_' + name + '.urdf')
                 else:
                     os.system(compile_executable + ' ' + filename + ' ' + mujoco_files_path + '/tmp_' + name + '.xml')
-                    in_tree = ET.parse(filename)
+                    urdf_tree = ET.parse(filename)
 
-                in_root = in_tree.getroot()
-                out_tree = ET.parse(mujoco_files_path + '/tmp_' + name + '.xml')
-                out_root = out_tree.getroot()
+                self.urdf_root = urdf_tree.getroot()
+                mjcf_tree = ET.parse(mujoco_files_path + '/tmp_' + name + '.xml')
+                self.mjcf_root = mjcf_tree.getroot()
 
+                # TODO: Find geoms with pos attribute and replace them with a geom with name from urdf
+                elements = self.get_elements(self.mjcf_root, 'geom', 'pos')
+                if len(elements) > 0:
+                    self.replace_geoms_with_bodys(elements)
                 # Insert elements into the MJCF file tree
-                mujoco = in_root.find('mujoco')
+                mujoco = self.urdf_root.find('mujoco')
                 if mujoco is not None:
                     for element in mujoco:
                         if element.tag == 'reference':
                             body_name = element.attrib['name']
-                            mj_element = self.get_element(out_root, 'body', body_name)
-                            for child in element:
-                                mj_element.insert(0, child)
+                            mj_element = self.get_element(self.mjcf_root, 'body', 'name', body_name)
+                            if mj_element is not None:
+                                for child in element:
+                                    mj_element.insert(0, child)
+                            else:
+                                self.get_logger().error("Body %s not found", body_name)
+                                rclpy.shutdown()
                         elif element.tag != 'compiler':
-                            out_root.insert(len(out_root), element)
+                            self.mjcf_root.insert(len(self.mjcf_root), element)
 
-                if out_tree.find('asset') is not None:
-                    for element in out_tree.find('asset'):
+                if mjcf_tree.find('asset') is not None:
+                    for element in mjcf_tree.find('asset'):
                         exist = False
                         for e in out_assets:
                             if e.attrib == element.attrib:
@@ -140,9 +148,9 @@ class Xacro2Mjcf(Node):
                         if not exist:
                             out_assets.append(element)
 
-                    out_root.remove(out_tree.find('asset'))
+                    self.mjcf_root.remove(mjcf_tree.find('asset'))
                 # Write the resulting xml tree to the destination file
-                out_tree.write(mujoco_files_path + '/' + name + '.xml')
+                mjcf_tree.write(mujoco_files_path + '/' + name + '.xml')
                 output_model_files.append(name + '.xml')
             elif input_file.split('.')[-1] == 'xml':
                 name = input_file.split('/')[-1]
@@ -164,15 +172,82 @@ class Xacro2Mjcf(Node):
         self.destroy_node()
         exit(0)
 
-    def get_element(self, xml, tag, name):
+    def get_element(self, parent, tag, attrib, value):
         element = None
-        for child in xml:
+        for child in parent:
             if child.tag == tag:
-                if child.attrib['name'] == name:
-                    element = child
-                    break
-            element = self.get_element(child, tag, name)
+                if child.attrib[attrib] == value:
+                    return child
+            element = self.get_element(child, tag, attrib, value)
+            if element is not None:
+                return element
         return element
+
+    def get_elements(self, parent, tag, attrib, value=None):
+        elements = []
+        for child in parent:
+            if child.tag == tag:
+                if attrib in child.attrib.keys():
+                    if child.attrib[attrib] == value or value is None:
+                        elements.append(child)
+            elements += self.get_elements(child, tag, attrib, value)
+        return elements
+
+    def get_parent(self, tree, element, tags=None):
+        parent = None
+        for child in tree:
+            if child == element:
+                return tree
+            parent = self.get_parent(child, element, tags)
+            if parent is not None:
+                return parent
+        return parent
+
+    def replace_geoms_with_bodys(self, input_elements):
+        elements = input_elements
+        #self.get_logger().info(str(self.mjcf_root.tag))
+
+        for element in elements:
+            parent_element = self.get_parent(self.mjcf_root, element)
+            if parent_element is None:
+                self.get_logger().info("TTTTTTTTTTT")
+                self.get_logger().info(str(element))
+                continue
+
+            body = ET.Element('body')
+            geom = ET.Element('geom')
+            for key in element.attrib.keys():
+                if key == 'pos' or key == 'quat':
+                    body.set(key, element.attrib[key])
+                else:
+                    geom.set(key, element.attrib[key])
+            potential_elements = self.get_elements(self.urdf_root, 'origin', 'xyz', body.attrib['pos'])
+            name = None
+            for actual_element in potential_elements:
+                tmp_parent = self.get_parent(self.urdf_root, actual_element, ['visual', 'collision'])
+                if tmp_parent is None:
+                    parent = self.get_parent(self.urdf_root, actual_element, ['joint'])
+                    name = parent.find("child").attrib['link']
+                else:
+                    parent = self.get_parent(self.urdf_root, tmp_parent, ['link'])
+                    name = parent.attrib['name']
+                if parent is not None:
+                    self.get_logger().info(name)
+                    break
+            if name is None:
+                self.get_logger().info(body.attrib['pos'])
+                break
+            parent_element.remove(element)
+
+            elements.remove(element)
+            body.set('name', name)
+            body.append(geom)
+            parent_element.append(body)
+        #else:
+            #self.get_logger().info(str(element.attrib['pos']))
+            #elements = self.replace_geoms_with_bodys(element, elements)
+        self.get_logger().info(str(elements))
+
 
 
 ## @brief Main function to initialize and run the Xacro2Mjcf node.

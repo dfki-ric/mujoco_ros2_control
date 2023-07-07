@@ -2,15 +2,17 @@
 #include "../include/mujoco_ros2_control/mujoco_depth_camera.hpp"
 
 namespace mujoco_sensors {
-    MujocoDepthCamera::MujocoDepthCamera(mjModel_ *model, mjData_ *data, int id, int res_x, int res_y, double frequency, const std::string& name) : Node(name){
+    MujocoDepthCamera::MujocoDepthCamera(rclcpp::Node::SharedPtr &node, mjModel_ *model, mjData_ *data, int id, int res_x, int res_y, double frequency, const std::string& name) {
+        nh_ = node;
         mujoco_model_ = model;
         mujoco_data_ = data;
 
         name_ = name;
 
         body_id_ = mujoco_model_->cam_bodyid[id];
-
+        glfwInit();
         glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+        glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
         window_ = glfwCreateWindow(res_x, res_y, name_.c_str(), NULL, NULL);
         // glfwSetWindowAttrib(window, GLFW_RESIZABLE, GLFW_FALSE);
         glfwMakeContextCurrent(window_);
@@ -23,10 +25,13 @@ namespace mujoco_sensors {
         mjv_defaultOption(&sensor_option_);
         mjv_defaultScene(&sensor_scene_);
         mjr_defaultContext(&sensor_context_);
+        mjv_defaultPerturb(&sensor_perturb_);
 
         // create scene and context
         mjv_makeScene(mujoco_model_, &sensor_scene_, 1000);
         mjr_makeContext(mujoco_model_, &sensor_context_, mjFONTSCALE_150);
+
+        mjr_setBuffer(mjFB_OFFSCREEN, &sensor_context_);
 
         publisher_ = nh_->create_publisher<sensor_msgs::msg::PointCloud2>("~/points", 10);
         timer_ = nh_->create_wall_timer(
@@ -34,19 +39,19 @@ namespace mujoco_sensors {
     }
 
     MujocoDepthCamera::~MujocoDepthCamera() {
-        RCLCPP_INFO(rclcpp::get_logger("sensor"), "TEST 1111");
         update_thread_.join();
         mjv_freeScene(&sensor_scene_);
         mjr_freeContext(&sensor_context_);
-        RCLCPP_INFO(rclcpp::get_logger("sensor"), "TEST 2222");
     }
 
     void MujocoDepthCamera::update() {
         // get framebuffer viewport
+        auto logger = nh_->get_logger();
+        int i = 0;
+        glfwMakeContextCurrent(window_);
         mjrRect viewport = {0,0,0,0};
-        glfwGetFramebufferSize(window_, &viewport.width, &viewport.height);
-
         set_camera_intrinsics(mujoco_model_, rgbd_camera_, viewport);
+        glfwGetFramebufferSize(window_, &viewport.width, &viewport.height);
 
         // update scene and render
         mjv_updateScene(mujoco_model_, mujoco_data_, &sensor_option_, NULL, &rgbd_camera_, mjCAT_ALL, &sensor_scene_);
@@ -54,12 +59,10 @@ namespace mujoco_sensors {
 
         get_RGBD_buffer(mujoco_model_, viewport, &sensor_context_);
 
-        mtx_.lock();
-        *color_cloud_ = generate_color_pointcloud();
+        pcl::PointCloud<pcl::PointXYZRGB> color_cloud = generate_color_pointcloud();
         sensor_msgs::msg::PointCloud2 out_cloud;
-        pcl::toROSMsg(*color_cloud_, out_cloud);
+        pcl::toROSMsg(color_cloud, out_cloud);
         publisher_->publish(out_cloud);
-        mtx_.unlock();
 
         // Swap OpenGL buffers
         glfwSwapBuffers(window_);
@@ -143,6 +146,8 @@ namespace mujoco_sensors {
 
 
     pcl::PointCloud<pcl::PointXYZRGB> MujocoDepthCamera::generate_color_pointcloud() {
+        auto logger = nh_->get_logger();
+        int c = 0;
         using namespace pcl;
         // color image and depth image should have the same size and should be aligned
         assert(color_image.size() == depth_image.size());

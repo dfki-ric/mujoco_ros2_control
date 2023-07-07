@@ -88,6 +88,9 @@ namespace mujoco_ros2_control
     MujocoRos2Control::~MujocoRos2Control() 
     {
         stop_ = true;
+        camera_executor_.remove_node(camera_node_);
+        camera_executor_.cancel();
+        camera_executor_thread_.join();
         controller_manager_executor_->remove_node(controller_manager_);
         controller_manager_executor_->cancel();
         controller_manager_thread_executor_spin_.join();
@@ -245,15 +248,12 @@ namespace mujoco_ros2_control
             cameras_.resize(mujoco_model_->ncam);
 
             for (int id = 0; id < mujoco_model_->ncam; id++) {
-                RCLCPP_INFO(rclcpp::get_logger("sensor"), "TEST %d:0", id);
                 std::string name = mj_id2name(mujoco_model_, mjOBJ_CAMERA, id);
-                RCLCPP_INFO(rclcpp::get_logger("sensor"), "TEST %d:1", id);
                 // Hard coded to a resolution from 640*480 and a framerate of 25Hz
-                rclcpp::Node::SharedPtr node = nh_->create_sub_node(name);
-                RCLCPP_INFO(nh_->get_logger(), "Before reset: %p", camera_.get());
-                //TODO: Debug segfault
-                camera_.reset(new mujoco_sensors::MujocoDepthCamera(mujoco_model_, mujoco_data_, id, 640, 480, 25, name));
-                RCLCPP_INFO(nh_->get_logger(), "After reset: %p", camera_.get());
+                camera_node_ = rclcpp::Node::make_shared(name);
+                camera_.reset(new mujoco_sensors::MujocoDepthCamera(camera_node_, mujoco_model_, mujoco_data_, id, 640, 480, 25, name));
+                camera_executor_.add_node(camera_node_);
+                camera_executor_thread_ = std::thread([ObjectPtr = &camera_executor_] {ObjectPtr->spin(); });
             }
         }
     }

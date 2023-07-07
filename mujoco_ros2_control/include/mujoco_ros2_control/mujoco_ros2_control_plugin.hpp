@@ -203,6 +203,9 @@ private:
     std::shared_ptr<mujoco_ros2_control::MujocoSystemInterface> robot_hw_sim_; ///< Robot hardware simulation interface
 
     // Camera
+    rclcpp::executors::MultiThreadedExecutor camera_executor_;
+    std::thread camera_executor_thread_;
+    rclcpp::Node::SharedPtr camera_node_;
     std::shared_ptr<mujoco_sensors::MujocoDepthCamera> camera_;
     std::vector<std::shared_ptr<mujoco_sensors::MujocoDepthCamera>> cameras_; ///< Cameras vector
     void registerSensors();
