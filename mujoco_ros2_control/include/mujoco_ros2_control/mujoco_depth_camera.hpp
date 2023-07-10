@@ -13,6 +13,10 @@
 
 // OpenCV header
 #include <opencv2/opencv.hpp>
+#include "cv_bridge/cv_bridge/cv_bridge.h"
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/highgui/highgui.hpp>
+
 
 // PCL header
 #include <pcl/point_types.h>
@@ -20,10 +24,14 @@
 #include <pcl/io/ply_io.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl_conversions/pcl_conversions.h>
-
 #include "chrono"
+
+// ROS header
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
+#include "sensor_msgs/msg/image.hpp"
+#include "sensor_msgs/image_encodings.hpp"
+#include "sensor_msgs/msg/camera_info.hpp"
 
 using namespace std::chrono_literals;
 
@@ -36,14 +44,21 @@ public:
 
 private:
     rclcpp::Node::SharedPtr nh_;
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr publisher_;
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr color_image_publisher_;
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr depth_image_publisher_;
+    rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr camera_info_publisher_;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pointcloud_publisher_;
     rclcpp::TimerBase::SharedPtr timer_;
+
+    uint width_;
+    uint height_;
 
     mjModel* mujoco_model_ = nullptr;
     mjData* mujoco_data_ = nullptr;
-    pcl::PointCloud<pcl::PointXYZRGB> color_cloud_;
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr color_cloud_;
     std::string name_;
-    size_t body_id_;
+    std::string body_name_;
+    rclcpp::Time stamp_;
 
     GLFWwindow* window_;
     mjvCamera rgbd_camera_;
@@ -52,19 +67,19 @@ private:
     mjvOption sensor_option_;
     mjvPerturb sensor_perturb_;
 
-    uchar* color_buffer;    // color buffer
-    float* depth_buffer;  // depth buffer
+    uchar* color_buffer_;    // color buffer
+    float* depth_buffer_;  // depth buffer
 
-    cv::Mat color_image;
-    cv::Mat depth_image;
+    cv::Mat color_image_;
+    cv::Mat depth_image_;
 
     // OpenGL render range
-    double extent;  // depth scale (m)
-    double z_near;  // near clipping plane depth
-    double z_far;   // far clipping plane depth
+    double extent_;  // depth scale (m)
+    double z_near_;  // near clipping plane depth
+    double z_far_;   // far clipping plane depth
     // camera intrinsics
-    double f;   // focal length
-    int cx, cy; // principal points
+    double f_;   // focal length
+    int cx_, cy_; // principal points
 
     std::thread update_thread_;
 
@@ -92,8 +107,8 @@ private:
     /// @brief free memory at the end of loop
     inline void release_buffer()
     {
-        free(color_buffer);
-        free(depth_buffer);
+        free(color_buffer_);
+        free(depth_buffer_);
     }
 
     /// @brief Generate monochrome pointcloud
@@ -104,15 +119,21 @@ private:
     /// @return colorful pointcloud
     pcl::PointCloud<pcl::PointXYZRGB> generate_color_pointcloud();
 
+
     inline cv::Mat get_color_image()
     {
-        return color_image;
+        return color_image_;
     }
 
     inline cv::Mat get_depth_image()
     {
-        return depth_image;
+        return depth_image_;
     }
+
+    void publish_point_cloud();
+    void publish_image();
+
+    void publish_camera_info();
 };
 }
 

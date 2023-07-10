@@ -33,6 +33,7 @@ find_package(realtime_tools REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(PCL REQUIRED)
 find_package(pcl_conversions REQUIRED)
+find_package(cv_bridge REQUIRED)
 
 ## Specify additional locations of header files
 add_definitions(
@@ -83,6 +84,7 @@ ament_target_dependencies(${PROJECT_NAME}
         glfw3
         realtime_tools
         OpenCV
+        cv_bridge
         PCL
         pcl_conversions
 )

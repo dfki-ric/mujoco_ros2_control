@@ -5,6 +5,11 @@
     <mujoco>
       <compiler meshdir="$(arg mujoco_meshdir)"/>
       <option integrator="implicitfast"/>
+
+        <reference name="camera_link">
+            <camera name="camera_link" mode="fixed" fovy="45"/>
+        </reference>
+
       <actuator>
         <motor name="${prefix}joint1_eff" joint="${prefix}joint1" gear="1"/>
         <motor name="${prefix}joint2_eff" joint="${prefix}joint2" gear="1"/>
