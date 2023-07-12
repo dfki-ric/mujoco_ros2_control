@@ -10,6 +10,7 @@
 #include "mujoco/mujoco.h"
 #include "GLFW/glfw3.h"
 #include "cstdio"
+#include "GL/gl.h"
 
 // OpenCV header
 #include <opencv2/opencv.hpp>
@@ -38,7 +39,8 @@ using namespace std::chrono_literals;
 namespace mujoco_sensors {
 class MujocoDepthCamera {
 public:
-    MujocoDepthCamera(rclcpp::Node::SharedPtr &node, mjModel_ *model, mjData_ *data, int id, int res_x, int res_y, double frequency, const std::string& name);
+    MujocoDepthCamera(rclcpp::Node::SharedPtr &node, mjModel_ *model, mjData_ *data, int id, int res_x, int res_y,
+                      double frequency, const std::string& name);
     ~MujocoDepthCamera();
     void update();
 
@@ -81,15 +83,12 @@ private:
     double f_;   // focal length
     int cx_, cy_; // principal points
 
-    std::thread update_thread_;
-
+    double frequency_;
 
     /// @brief Linearize depth buffer and convert depth to depth in meters
     /// @param depth OpenGL depth buffer (nonlinearized)
     /// @return depth image in meters
     cv::Mat linearize_depth(const cv::Mat& depth) const;
-
-    std::mutex mtx_;
 
     /// @brief This function sets the camera intrinsics. If the viewport size changes (e.g. you zoom the MuJoCo window), the camera intrinsics should be set again.
     /// @param model
@@ -111,28 +110,12 @@ private:
         free(depth_buffer_);
     }
 
-    /// @brief Generate monochrome pointcloud
-    /// @return monochrome pointcloud
-    pcl::PointCloud<pcl::PointXYZ> generate_pointcloud();
-
     /// @brief Generate colorful pointcloud
     /// @return colorful pointcloud
     pcl::PointCloud<pcl::PointXYZRGB> generate_color_pointcloud();
 
-
-    inline cv::Mat get_color_image()
-    {
-        return color_image_;
-    }
-
-    inline cv::Mat get_depth_image()
-    {
-        return depth_image_;
-    }
-
     void publish_point_cloud();
     void publish_image();
-
     void publish_camera_info();
 };
 }
