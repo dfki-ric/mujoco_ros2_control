@@ -2,7 +2,8 @@
 #include "../include/mujoco_ros2_control/mujoco_depth_camera.hpp"
 
 namespace mujoco_sensors {
-    MujocoDepthCamera::MujocoDepthCamera(rclcpp::Node::SharedPtr &node, mjModel_ *model, mjData_ *data, int id, int res_x, int res_y, double frequency, const std::string& name) {
+    MujocoDepthCamera::MujocoDepthCamera(rclcpp::Node::SharedPtr &node, mjModel_ *model, mjData_ *data, int id,
+                                         int res_x, int res_y, double frequency, const std::string& name, bool* stop_) {
         nh_ = node;
         mujoco_model_ = model;
         mujoco_data_ = data;
@@ -20,8 +21,10 @@ namespace mujoco_sensors {
         if (!glfwInit()) {
             RCLCPP_ERROR(nh_->get_logger(), "Could not initialize GLFW");
         }
+
         glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
         window_ = glfwCreateWindow(width_, height_, name_.c_str(), NULL, NULL);
+        //glfwSetWindowAttrib(window_, GLFW_VISIBLE, GLFW_FALSE);
         glfwSetWindowAttrib(window_, GLFW_RESIZABLE, GLFW_FALSE);
         glfwMakeContextCurrent(window_);
         glfwSwapInterval(1);
@@ -31,9 +34,9 @@ namespace mujoco_sensors {
         rgbd_camera_.fixedcamid = id;
 
         //mjv_defaultCamera(&rgbd_camera_);
+        mjr_defaultContext(&sensor_context_);
         mjv_defaultOption(&sensor_option_);
         mjv_defaultScene(&sensor_scene_);
-        mjr_defaultContext(&sensor_context_);
         mjv_defaultPerturb(&sensor_perturb_);
 
         // create scene and context
@@ -41,9 +44,10 @@ namespace mujoco_sensors {
         mjr_makeContext(mujoco_model_, &sensor_context_, mjFONTSCALE_150);
 
         mjr_setBuffer(mjFB_OFFSCREEN, &sensor_context_);
+        //mjr_setBuffer(mjFB_OFFSCREEN, &sensor_context_);
 
-        //color_cloud_ = std::make_shared<pcl::PointCloud<pcl::PointXYZRGB>>();
-        camera_info_publisher_ = nh_->create_publisher<sensor_msgs::msg::CameraInfo>("/" + name_ + "/color/camera_info", 10);
+        color_camera_info_publisher_ = nh_->create_publisher<sensor_msgs::msg::CameraInfo>("/" + name_ + "/color/camera_info", 10);
+        depth_camera_info_publisher_ = nh_->create_publisher<sensor_msgs::msg::CameraInfo>("/" + name_ + "/depth/camera_info", 10);
         color_image_publisher_ = nh_->create_publisher<sensor_msgs::msg::Image>("/" + name_ + "/color/image_raw", 10);
         depth_image_publisher_ = nh_->create_publisher<sensor_msgs::msg::Image>("/" + name_ + "/depth/image_rect_raw", 10);
         pointcloud_publisher_ = nh_->create_publisher<sensor_msgs::msg::PointCloud2>("/" + name_ + "/depth/color/points", 10);
@@ -57,22 +61,23 @@ namespace mujoco_sensors {
     void MujocoDepthCamera::update() {
         mjtNum last_update = mujoco_data_->time;
         while(rclcpp::ok()) {
-            // run until the next frame must be rendered
-            if( mujoco_data_->time - last_update >= 1.0/frequency_ ) {
+            if (mujoco_data_->time - last_update >= 1.0 / frequency_) {
+
                 last_update = mujoco_data_->time;
                 glfwMakeContextCurrent(window_);
 
                 // get framebuffer viewport
-                mjrRect viewport = {0,0,0,0};
-                set_camera_intrinsics(mujoco_model_, rgbd_camera_, viewport);
+                mjrRect viewport = {0, 0, 0, 0};
                 glfwGetFramebufferSize(window_, &viewport.width, &viewport.height);
-                mjv_updateScene(mujoco_model_, mujoco_data_, &sensor_option_, NULL, &rgbd_camera_, mjCAT_ALL, &sensor_scene_);
+                set_camera_intrinsics(mujoco_model_, rgbd_camera_, viewport);
+                mjv_updateScene(mujoco_model_, mujoco_data_, &sensor_option_, NULL, &rgbd_camera_, mjCAT_ALL,
+                                &sensor_scene_);
 
                 // update scene and render
                 mjr_render(viewport, &sensor_scene_, &sensor_context_);
+                //RCLCPP_INFO(nh_->get_logger(), "%u", glGetError());
                 get_RGBD_buffer(mujoco_model_, viewport, &sensor_context_);
                 stamp_ = nh_->now();
-
 
                 // Swap OpenGL buffers
                 glfwSwapBuffers(window_);
@@ -104,14 +109,15 @@ namespace mujoco_sensors {
 
     void MujocoDepthCamera::set_camera_intrinsics(const mjModel* model, const mjvCamera camera, const mjrRect viewport) {
         // vertical FOV
-        double fovy = model->cam_fovy[camera.fixedcamid] / 180 * M_PI / 2;
+        double fovy = model->cam_fovy[camera.fixedcamid] / 180 * M_PI;
+
 
         // focal length, fx = fy
-        f_ = (float) viewport.height / 2.0 / tan(fovy);
+        f_ = static_cast<double>(viewport.height) / 2.0 / tan(fovy);
 
         // principal points
-        cx_ = viewport.width / 2;
-        cy_ = viewport.height / 2;
+        cx_ = viewport.width / 2.0;
+        cy_ = viewport.height / 2.0;
     }
 
     void MujocoDepthCamera::get_RGBD_buffer(const mjModel* model, const mjrRect viewport, const mjrContext* context) {
@@ -125,9 +131,12 @@ namespace mujoco_sensors {
         z_far_ = model->vis.map.zfar;
 
         cv::Size img_size(viewport.width, viewport.height);
-        cv::Mat rgb(img_size, CV_8UC3, color_buffer_);
-        cv::flip(rgb, rgb, 0);
+        cv::Mat bgr(img_size, CV_8UC3, color_buffer_);
+        cv::flip(bgr, bgr, 0);
+        cv::Mat rgb;
+        cv::cvtColor(bgr, rgb, cv::COLOR_BGR2RGB);
         rgb.copyTo(color_image_);
+
 
         cv::Mat depth(img_size, CV_32FC1, depth_buffer_);
         cv::flip(depth, depth, 0);
@@ -135,7 +144,32 @@ namespace mujoco_sensors {
         depth_img_m.copyTo(depth_image_);
     }
 
-    pcl::PointCloud<pcl::PointXYZRGB> MujocoDepthCamera::generate_color_pointcloud() {
+    pcl::PointCloud<pcl::PointXYZ> MujocoDepthCamera::generate_point_cloud()
+    {
+        using namespace pcl;
+        PointCloud<PointXYZ> cloud;
+
+        for (int i = 0; i < depth_image_.rows; i++)
+        {
+            for (int j = 0; j < depth_image_.cols; j++)
+            {
+                double depth = *(depth_image_.ptr<float>(i,j));
+                // filter far points
+                if (depth < z_far_)
+                {
+                    PointXYZ point;
+                    point.x = static_cast<float>(double(j - cx_) * depth / f_);
+                    point.y = static_cast<float>(double(i - cy_) * depth / f_);
+                    point.z = static_cast<float>(depth);
+
+                    cloud.push_back(point);
+                }
+            }
+        }
+        return cloud;
+    }
+
+    pcl::PointCloud<pcl::PointXYZRGB> MujocoDepthCamera::generate_color_point_cloud() {
         using namespace pcl;
         // color image and depth image should have the same size and should be aligned
         assert(color_image_.size() == depth_image_.size());
@@ -169,7 +203,19 @@ namespace mujoco_sensors {
         camera_info.header.frame_id = body_name_;
         camera_info.height = height_;
         camera_info.width = width_;
-        camera_info_publisher_->publish(camera_info);
+        camera_info.distortion_model = "plumb_bob";
+        camera_info.k = {f_, 0.0, cx_,
+                         0.0, f_, cy_,
+                         0.0, 0.0, 1.0};
+
+        camera_info.d = {0.0, 0.0, 0.0, 0.0, 0.0};
+
+        camera_info.p = {f_, 0.0, cx_, 0,
+                         0.0, f_, cy_, 0,
+                         0.0, 0.0, 1.0, 0.0};
+
+        color_camera_info_publisher_->publish(camera_info);
+        depth_camera_info_publisher_->publish(camera_info);
     }
 
     void MujocoDepthCamera::publish_image() {
@@ -192,7 +238,7 @@ namespace mujoco_sensors {
 
     void MujocoDepthCamera::publish_point_cloud() {
         sensor_msgs::msg::PointCloud2 out_cloud;
-        pcl::toROSMsg(generate_color_pointcloud(), out_cloud);
+        pcl::toROSMsg(generate_color_point_cloud(), out_cloud);
         out_cloud.header.stamp = stamp_;
         out_cloud.header.frame_id = body_name_;
         pointcloud_publisher_->publish(out_cloud);

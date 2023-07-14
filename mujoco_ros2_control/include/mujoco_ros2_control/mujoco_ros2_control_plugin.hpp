@@ -64,6 +64,9 @@
 #include "hardware_interface/component_parser.hpp"
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
 
+// OpenGL
+#include <GLFW/glfw3.h>
+
 // msgs
 #include "std_msgs/msg/bool.hpp"
 #include "std_msgs/msg/float64_multi_array.hpp"

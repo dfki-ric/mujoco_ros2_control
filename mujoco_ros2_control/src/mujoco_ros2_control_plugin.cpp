@@ -78,9 +78,27 @@ namespace mujoco_ros2_control
         mujoco_start_time_ = mujoco_data_->time;
 
         clock_gettime(CLOCK_MONOTONIC, &startTime_);
-        if (show_gui_) {
-            mj_vis_.init(mujoco_model_, mujoco_data_);
-        }
+        mj_vis_.init(mujoco_model_, mujoco_data_, show_gui_);
+
+//        if (show_gui_) {
+//            mj_vis_.init(mujoco_model_, mujoco_data_, show_gui_);
+//        } else {
+//            if (!glfwInit()) {
+//                RCLCPP_ERROR(nh_->get_logger(), "Could not initialize GLFW");
+//            }
+//            mjrContext c;
+//            glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+//            GLFWwindow* window = glfwCreateWindow(1, 1, "", NULL, NULL);
+//            glfwSetWindowAttrib(window, GLFW_RESIZABLE, GLFW_FALSE);
+//            glfwMakeContextCurrent(window);
+//            glfwSwapInterval(1);
+//
+//            //mjv_defaultCamera(&rgbd_camera_);
+//            mjr_defaultContext(&c);
+//            //mjv_defaultOption(&sensor_option_);
+//            //mjv_defaultScene(&sensor_scene_);
+//            //mjv_defaultPerturb(&sensor_perturb_);
+//        }
         registerSensors();
         RCLCPP_INFO(nh_->get_logger(), "Sim environment setup complete");
     }
@@ -132,10 +150,11 @@ namespace mujoco_ros2_control
                 mj_step(mujoco_model_, mujoco_data_);
             }
         }
+        //camera_->update();
         // render the next frame is gui is enabled
-        if (show_gui_) {
-            mj_vis_.update();
-        }
+        //if (show_gui_) {
+        mj_vis_.update();
+        //}
     }
 
     void MujocoRos2Control::publish_sim_time() {
@@ -202,7 +221,6 @@ namespace mujoco_ros2_control
             RCLCPP_ERROR(nh_->get_logger(), "Error parsing URDF in mujoco_ros2_control plugin: %s",
                          ex.what());
             rclcpp::shutdown();
-
         }
         for (auto & hw_info : control_hardware) {
             const std::string hardware_type = hw_info.hardware_class_type;
@@ -252,7 +270,7 @@ namespace mujoco_ros2_control
                 std::string name = mj_id2name(mujoco_model_, mjOBJ_CAMERA, id);
                 // Hard coded to a resolution from 640*480 and a framerate of 25Hz
                 camera_node_ = rclcpp::Node::make_shared(name);
-                camera_.reset(new mujoco_sensors::MujocoDepthCamera(camera_node_, mujoco_model_, mujoco_data_, id, 640, 480, 25.0, name));
+                camera_.reset(new mujoco_sensors::MujocoDepthCamera(camera_node_, mujoco_model_, mujoco_data_, id, 640, 480, 25.0, name, &stop_));
                 camera_thread_ = std::thread([ObjectPtr = camera_] {ObjectPtr->update();});
 
                 //camera_nodes_.push_back(rclcpp::Node::make_shared(name));

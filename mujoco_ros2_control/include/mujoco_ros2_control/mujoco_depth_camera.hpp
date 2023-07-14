@@ -25,7 +25,10 @@
 #include <pcl/io/ply_io.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl_conversions/pcl_conversions.h>
+
 #include "chrono"
+
+
 
 // ROS header
 #include "rclcpp/rclcpp.hpp"
@@ -40,7 +43,7 @@ namespace mujoco_sensors {
 class MujocoDepthCamera {
 public:
     MujocoDepthCamera(rclcpp::Node::SharedPtr &node, mjModel_ *model, mjData_ *data, int id, int res_x, int res_y,
-                      double frequency, const std::string& name);
+                      double frequency, const std::string& name, bool *stop);
     ~MujocoDepthCamera();
     void update();
 
@@ -48,16 +51,16 @@ private:
     rclcpp::Node::SharedPtr nh_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr color_image_publisher_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr depth_image_publisher_;
-    rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr camera_info_publisher_;
+    rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr color_camera_info_publisher_;
+    rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr depth_camera_info_publisher_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pointcloud_publisher_;
     rclcpp::TimerBase::SharedPtr timer_;
 
-    uint width_;
-    uint height_;
+    int width_;
+    int height_;
 
     mjModel* mujoco_model_ = nullptr;
     mjData* mujoco_data_ = nullptr;
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr color_cloud_;
     std::string name_;
     std::string body_name_;
     rclcpp::Time stamp_;
@@ -81,7 +84,7 @@ private:
     double z_far_;   // far clipping plane depth
     // camera intrinsics
     double f_;   // focal length
-    int cx_, cy_; // principal points
+    double cx_, cy_; // principal points
 
     double frequency_;
 
@@ -112,11 +115,14 @@ private:
 
     /// @brief Generate colorful pointcloud
     /// @return colorful pointcloud
-    pcl::PointCloud<pcl::PointXYZRGB> generate_color_pointcloud();
+    pcl::PointCloud<pcl::PointXYZRGB> generate_color_point_cloud();
+
+    pcl::PointCloud<pcl::PointXYZ> generate_point_cloud();
 
     void publish_point_cloud();
     void publish_image();
     void publish_camera_info();
+
 };
 }
 
