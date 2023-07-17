@@ -30,6 +30,10 @@ find_package(mujoco REQUIRED)
 find_package(ament_lint_auto REQUIRED)
 find_package(glfw3 REQUIRED)
 find_package(realtime_tools REQUIRED)
+find_package(OpenCV REQUIRED)
+find_package(PCL REQUIRED)
+find_package(pcl_conversions REQUIRED)
+find_package(cv_bridge REQUIRED)
 
 ## Specify additional locations of header files
 add_definitions(
@@ -39,10 +43,14 @@ add_definitions(
 link_directories(
         ${rclcpp_LIBRARY_DIRS}
         ${ament_cmake_DIRS}
+        ${PCL_LIBRARY_DIRS}
 )
 include_directories(
         include
         ${rclcpp_INCLUDE_DIRS}
+        ${OpenCV_INCLUDE_DIRS}
+        ${PCL_INCLUDE_DIRS}
+        ${pcl_conversions_INCLUDE_DIRS}
 )
 
 ament_lint_auto_find_test_dependencies()
@@ -63,7 +71,9 @@ ament_target_dependencies(mujoco_visualization
         )
 
 
-add_executable(${PROJECT_NAME} src/mujoco_ros2_control_plugin.cpp
+add_executable(${PROJECT_NAME}
+        src/mujoco_ros2_control_plugin.cpp
+        src/mujoco_depth_camera.cpp
         )
 ament_target_dependencies(${PROJECT_NAME}
         controller_manager
@@ -73,12 +83,17 @@ ament_target_dependencies(${PROJECT_NAME}
         mujoco
         glfw3
         realtime_tools
-        )
+        OpenCV
+        cv_bridge
+        PCL
+        pcl_conversions
+)
 target_link_libraries(
         mujoco_ros2_control
         mujoco_visualization
         mujoco
         glfw
+        ${PCL_LIBRARIES}
 )
 
 ## Install

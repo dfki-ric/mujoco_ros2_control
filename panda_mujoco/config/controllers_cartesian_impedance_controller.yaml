@@ -15,6 +15,8 @@ controller_manager:
 arm_controller:
   ros__parameters:
     use_sim_time: true
+    update_frequency: 500.0
+    root_link: base_link
     joints:
       - panda_joint1
       - panda_joint2
@@ -23,12 +25,7 @@ arm_controller:
       - panda_joint5
       - panda_joint6
       - panda_joint7
-    command_interfaces:
-      - effort
-    state_interfaces:
-      - position
-      - velocity
-      - effort
+    use_robot_description_node: true
 
 
 gripper_controller:

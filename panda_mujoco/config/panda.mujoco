@@ -5,6 +5,12 @@
     <mujoco>
       <compiler meshdir="$(arg mujoco_meshdir)"/>
       <option integrator="implicitfast"/>
+
+        <reference name="camera_link">
+            <!-- quat must be set to 0.5 0.5 -0.5 -0.5 to show in +x direction instead of mujocos default -z -->
+            <camera name="camera" mode="fixed" fovy="45" quat="0.5 0.5 -0.5 -0.5"/>
+        </reference>
+
       <actuator>
         <motor name="${prefix}joint1_eff" joint="${prefix}joint1" gear="1"/>
         <motor name="${prefix}joint2_eff" joint="${prefix}joint2" gear="1"/>

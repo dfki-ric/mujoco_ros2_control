@@ -35,7 +35,7 @@
 
 namespace mujoco_visualization {
 
-    void MujocoVisualization::init(mjModel_* model, mjData_* data) {
+    void MujocoVisualization::init(mjModel_* model, mjData_* data, bool show_vis) {
         m = model;
         d = data;
         // init GLFW
@@ -44,7 +44,12 @@ namespace mujoco_visualization {
         }
 
         // create window, make OpenGL context current, request v-sync
-        window = glfwCreateWindow(1200, 900, "MuJoCo ROS2", NULL, NULL);
+        if (show_vis) {
+            window = glfwCreateWindow(720, 420, "MuJoCo ROS2", NULL, NULL);
+        } else {
+            glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+            window = glfwCreateWindow(1, 1, "MuJoCo ROS2", NULL, NULL);
+        }
         glfwMakeContextCurrent(window);
         glfwSwapInterval(1);
 
@@ -58,16 +63,24 @@ namespace mujoco_visualization {
         mjv_makeScene(m, &scn, 2000);
         mjr_makeContext(m, &con, mjFONTSCALE_150);
 
-        // install GLFW mouse and keyboard callbacks
-        glfwSetKeyCallback(window, &keyboard_cb);
-        glfwSetCursorPosCallback(window, &mouse_move_cb);
-        glfwSetMouseButtonCallback(window, &mouse_button_cb);
-        glfwSetScrollCallback(window, &scroll_cb);
+
+        if (show_vis) {
+            // install GLFW mouse and keyboard callbacks
+            glfwSetKeyCallback(window, &keyboard_cb);
+            glfwSetCursorPosCallback(window, &mouse_move_cb);
+            glfwSetMouseButtonCallback(window, &mouse_button_cb);
+            glfwSetScrollCallback(window, &scroll_cb);
+            mjr_setBuffer(mjFB_WINDOW, &con);
+        } else {
+            mjr_setBuffer(mjFB_OFFSCREEN, &con);
+        }
+
 
 
     }
 
     void MujocoVisualization::update() {
+        glfwMakeContextCurrent(window);
 
         // get framebuffer viewport
         mjrRect viewport = {0, 0, 0, 0};

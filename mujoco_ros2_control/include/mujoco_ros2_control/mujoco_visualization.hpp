@@ -63,7 +63,7 @@ namespace mujoco_visualization {
          * @param model Pointer to the MuJoCo model.
          * @param data Pointer to the MuJoCo data.
          */
-        void init(mjModel_ *model, mjData_ *data);
+        void init(mjModel_ *model, mjData_ *data, bool show_vis);
         /**
          * Update the MuJoCo visualization.
          * This method updates the scene and renders it on the window.

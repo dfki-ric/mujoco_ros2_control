@@ -78,26 +78,27 @@ namespace mujoco_ros2_control
         mujoco_start_time_ = mujoco_data_->time;
 
         clock_gettime(CLOCK_MONOTONIC, &startTime_);
-        if (show_gui_) {
-            mj_vis_.init(mujoco_model_, mujoco_data_);
-        }
+        mj_vis_.init(mujoco_model_, mujoco_data_, show_gui_);
+
+        registerSensors();
         RCLCPP_INFO(nh_->get_logger(), "Sim environment setup complete");
     }
 
     MujocoRos2Control::~MujocoRos2Control() 
     {
-        stop_ = true;
-        executor_->remove_node(controller_manager_);
-        executor_->cancel();
-        thread_executor_spin_.join();
+        stop_.store(true);
+        for (auto &thread : camera_threads_) {
+            thread.join();
+        }
+        controller_manager_executor_->remove_node(controller_manager_);
+        controller_manager_executor_->cancel();
+        controller_manager_thread_executor_spin_.join();
         // deallocate existing mjModel
         mj_deleteModel(mujoco_model_);
 
         // deallocate existing mjData
         mj_deleteData(mujoco_data_);
-        if(show_gui_) {
-            mj_vis_.terminate();
-        }
+        mj_vis_.terminate();
     }
 
     void MujocoRos2Control::update() {
@@ -127,10 +128,7 @@ namespace mujoco_ros2_control
                 mj_step(mujoco_model_, mujoco_data_);
             }
         }
-        // render the next frame is gui is enabled
-        if (show_gui_) {
-            mj_vis_.update();
-        }
+        mj_vis_.update();
     }
 
     void MujocoRos2Control::publish_sim_time() {
@@ -197,7 +195,6 @@ namespace mujoco_ros2_control
             RCLCPP_ERROR(nh_->get_logger(), "Error parsing URDF in mujoco_ros2_control plugin: %s",
                          ex.what());
             rclcpp::shutdown();
-
         }
         for (auto & hw_info : control_hardware) {
             const std::string hardware_type = hw_info.hardware_class_type;
@@ -206,8 +203,8 @@ namespace mujoco_ros2_control
             resource_manager_->import_component(std::move(system), hw_info);
             resource_manager_->activate_all_components();
         }
-        executor_ = std::make_shared<rclcpp::executors::MultiThreadedExecutor>();
-        controller_manager_.reset(new controller_manager::ControllerManager(std::move(resource_manager_), executor_));
+        controller_manager_executor_ = std::make_shared<rclcpp::executors::MultiThreadedExecutor>();
+        controller_manager_.reset(new controller_manager::ControllerManager(std::move(resource_manager_), controller_manager_executor_));
         if (!controller_manager_->has_parameter("update_rate")) {
             RCLCPP_ERROR(nh_->get_logger(), "controller manager doesn't have an update_rate parameter");
             return;
@@ -229,14 +226,29 @@ namespace mujoco_ros2_control
             }
         }
 
-        executor_->add_node(controller_manager_);
+        controller_manager_executor_->add_node(controller_manager_);
         auto spin = [this]() {
-            while(rclcpp::ok() && !stop_) {
-                executor_->spin_once();
+            while(rclcpp::ok() && !stop_.load()) {
+                controller_manager_executor_->spin_once();
             }
         };
-        thread_executor_spin_ = std::thread(spin);
+        controller_manager_thread_executor_spin_ = std::thread(spin);
     }
+
+
+    void MujocoRos2Control::registerSensors() {
+        if (mujoco_model_->ncam > 0) {
+            cameras_.resize(mujoco_model_->ncam);
+            for (int id = 0; id < mujoco_model_->ncam; id++) {
+                std::string name = mj_id2name(mujoco_model_, mjOBJ_CAMERA, id);
+                // Hard coded to a resolution from 640*480 and a framerate of 25Hz
+                auto node = camera_nodes_.emplace_back(rclcpp::Node::make_shared(name));
+                cameras_.at(id).reset(new mujoco_sensors::MujocoDepthCamera(node, mujoco_model_, mujoco_data_, id, 640, 480, 25.0, name, &stop_));
+                camera_threads_.emplace_back([ObjectPtr = cameras_.at(id)] {ObjectPtr->update();});
+            }
+        }
+    }
+
 }  // namespace mujoco_ros_control
 
 
