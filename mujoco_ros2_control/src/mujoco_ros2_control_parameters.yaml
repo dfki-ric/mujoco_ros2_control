@@ -1,0 +1,50 @@
+mujoco_ros2_control:
+  robot_description: {
+    type: string,
+    default_value: "",
+    read_only: true,
+    description: "URDF Model from the robot"
+  }
+
+  robot_model_path: {
+    type: string,
+    default_value: "",
+    read_only: true,
+    description: "Mujoco Model from the robot"
+  }
+
+  show_gui: {
+    type: bool,
+    default_value: true,
+    read_only: true,
+    description: "Show the MuJoCo Simulation in a window"
+  }
+
+  simulation_frequency: {
+    type: double,
+    default_value: 1000.0,
+    read_only: true,
+    description: "Frequency of the Simulation",
+    validation: {
+      gt_eq: [ 25.0 ]
+    }
+  }
+
+  clock_publisher_frequency: {
+    type: double,
+    default_value: 0.0,
+    read_only: true,
+    description: "Publish frequency of the Clock (use simulation_frequency when value is 0",
+    validation: {
+      gt_eq: [ 0.0 ]
+    }
+  }
+
+  real_time_factor: {
+    type: double,
+    default_value: 1.0,
+    description: "Real Time Factor of the Simulation",
+    validation: {
+      gt: [ 0.0 ]
+    }
+  }

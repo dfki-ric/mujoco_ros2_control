@@ -64,9 +64,6 @@
 #include "hardware_interface/component_parser.hpp"
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
 
-// OpenGL
-#include <GLFW/glfw3.h>
-
 // msgs
 #include "std_msgs/msg/bool.hpp"
 #include "std_msgs/msg/float64_multi_array.hpp"
@@ -80,7 +77,9 @@
 #include "mujoco_ros2_control/mujoco_visualization.hpp"
 #include "mujoco_ros2_control/mujoco_system.hpp"
 #include "mujoco_ros2_control/mujoco_system_interface.hpp"
-#include "mujoco_ros2_control/mujoco_depth_camera.hpp"
+#include "mujoco_rgbd_camera/mujoco_depth_camera.hpp"
+
+#include "mujoco_ros2_control_parameters.hpp"
 
 namespace mujoco_ros2_control
 {
@@ -185,6 +184,10 @@ private:
 
     std::shared_ptr<rclcpp::Node> nh_; ///< ROS2 node handle
 
+    // Parameters from ROS2 using generate_parameter_library
+    std::shared_ptr<ParamListener> param_listener_;
+    Params params_;
+
     // realtime_tools publisher for the clock message
     using ClockPublisher = realtime_tools::RealtimePublisher<rosgraph_msgs::msg::Clock>;
     using ClockPublisherPtr = std::unique_ptr<ClockPublisher>;
@@ -205,11 +208,11 @@ private:
 
     // Controller Manager
     std::unique_ptr<hardware_interface::ResourceManager> resource_manager_; ///< Resource manager for hardware interfaces
-    rclcpp::executors::MultiThreadedExecutor::SharedPtr controller_manager_executor_; ///< Executor for controller manager
+    rclcpp::executors::MultiThreadedExecutor::SharedPtr executor_; ///< Executor for created nodes
     std::shared_ptr<controller_manager::ControllerManager> controller_manager_; ///< Controller manager object
     rclcpp::Duration control_period_ = rclcpp::Duration(1, 0); ///< Control period of the controller manager
     std::atomic<bool> stop_ = false; ///< Flag to stop the execution of the controller manager
-    std::thread controller_manager_thread_executor_spin_; ///< Thread for the controller manager executor
+    std::thread thread_executor_spin_; ///< Thread for the controller manager executor
 
     // Visualization class
     mujoco_visualization::MujocoVisualization& mj_vis_ = mujoco_visualization::MujocoVisualization::getInstance(); ///< MuJoCo visualizer object
@@ -221,7 +224,7 @@ private:
     // Camera handling
     std::vector<std::thread> camera_threads_; ///< Threads for the cameras (one thread per camera)
     std::vector<rclcpp::Node::SharedPtr> camera_nodes_; ///< Nodes for the cameras (one Node per camera)
-    std::vector<std::shared_ptr<mujoco_sensors::MujocoDepthCamera>> cameras_; ///< Cameras Object vector
+    std::vector<std::shared_ptr<mujoco_rgbd_camera::MujocoDepthCamera>> cameras_; ///< Cameras Object vector
 };
 }  // namespace mujoco_ros2_control
 

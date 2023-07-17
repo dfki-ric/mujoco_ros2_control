@@ -1,0 +1,51 @@
+mujoco_rgbd_camera:
+  width: {
+    type: int,
+    default_value: 640,
+    read_only: true,
+    description: "x resolution of created cameras",
+    validation: {
+      gt: [ 0 ]
+    }
+  }
+
+  height: {
+    type: int,
+    default_value: 480,
+    read_only: true,
+    description: "y resolution of created cameras",
+    validation: {
+      gt: [ 0 ]
+    }
+  }
+
+  frequency: {
+    type: double,
+    default_value: 25.0,
+    read_only: true,
+    description: "publish frequency of the camera",
+    validation: {
+      gt: [ 0.0 ]
+    }
+  }
+
+  depth_image: {
+    type: bool,
+    default_value: true,
+    read_only: true,
+    description: "Publish depth image"
+  }
+
+  color_image: {
+    type: bool,
+    default_value: true,
+    read_only: true,
+    description: "Publish rgb image"
+  }
+
+  point_cloud: {
+    type: bool,
+    default_value: true,
+    read_only: true,
+    description: "Publish Point Cloud"
+  }

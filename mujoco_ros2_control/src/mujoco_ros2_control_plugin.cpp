@@ -39,13 +39,11 @@ namespace mujoco_ros2_control
 {
     MujocoRos2Control::MujocoRos2Control(rclcpp::Node::SharedPtr &node) : nh_(node)
     {
-        nh_->declare_parameter<std::string>("robot_description", std::string());
-        nh_->declare_parameter<std::string>("robot_model_path", std::string());
+        // set up the parameter listener
+        param_listener_ = std::make_shared<ParamListener>(nh_);
+        param_listener_->refresh_dynamic_parameters();
 
-        nh_->declare_parameter<bool>("show_gui", true);
-        nh_->declare_parameter<double>("simulation_frequency", 1000);
-        nh_->declare_parameter<double>("clock_publisher_frequency", 0.0);
-        nh_->declare_parameter<double>("real_time_factor", 1.0);
+        params_ = param_listener_->get_params();
 
         // Check that ROS has been initialized
         if (!rclcpp::ok())
@@ -59,9 +57,9 @@ namespace mujoco_ros2_control
         clock_publisher_ = std::make_unique<ClockPublisher>(publisher_);
 
         // mujoco related parameters
-        show_gui_ = nh_->get_parameter("show_gui").as_bool();
-        real_time_factor_ = nh_->get_parameter("real_time_factor").as_double();
-        pub_clock_frequency_ = nh_->get_parameter("clock_publisher_frequency").as_double();
+        show_gui_ = params_.show_gui;
+        real_time_factor_ = params_.real_time_factor;
+        pub_clock_frequency_ = params_.clock_publisher_frequency;
 
         init_mujoco();
 
@@ -90,9 +88,9 @@ namespace mujoco_ros2_control
         for (auto &thread : camera_threads_) {
             thread.join();
         }
-        controller_manager_executor_->remove_node(controller_manager_);
-        controller_manager_executor_->cancel();
-        controller_manager_thread_executor_spin_.join();
+        executor_->remove_node(controller_manager_);
+        executor_->cancel();
+        thread_executor_spin_.join();
         // deallocate existing mjModel
         mj_deleteModel(mujoco_model_);
 
@@ -104,11 +102,13 @@ namespace mujoco_ros2_control
     void MujocoRos2Control::update() {
         mjtNum simstart = mujoco_data_->time;
         timespec currentTime{};
+        param_listener_->refresh_dynamic_parameters();
+        params_ = param_listener_->get_params();
         // run until the next frame must be rendered with 60Hz
         while( mujoco_data_->time - simstart < 1.0/60.0 ) {
             // check that mujoco is not faster than the expected realtime factor
             clock_gettime(CLOCK_MONOTONIC, &currentTime);
-            if (double (currentTime.tv_sec-startTime_.tv_sec) + double (currentTime.tv_nsec-startTime_.tv_nsec) / 1e9 >= (mujoco_data_->time-mujoco_start_time_)*real_time_factor_) {
+            if (double (currentTime.tv_sec-startTime_.tv_sec) + double (currentTime.tv_nsec-startTime_.tv_nsec) / 1e9 >= (mujoco_data_->time-mujoco_start_time_)*params_.real_time_factor) {
                 publish_sim_time();
                 rclcpp::Time sim_time_ros = rclcpp::Time((int64_t) (mujoco_data_->time * 1e+9), RCL_ROS_TIME);
                 rclcpp::Duration sim_period = sim_time_ros - last_update_sim_time_ros_;
@@ -147,7 +147,8 @@ namespace mujoco_ros2_control
         char error[1000];
 
         // create mjModel
-        mujoco_model_ = mj_loadXML(nh_->get_parameter("robot_model_path").as_string().c_str(), NULL, error, 1000);
+        mujoco_model_ = mj_loadXML(params_.robot_model_path.c_str(), NULL, error, 1000);
+
         if (!mujoco_model_)
         {
             RCLCPP_FATAL(nh_->get_logger(), "Could not load mujoco model with error: %s.\n", error);
@@ -157,7 +158,7 @@ namespace mujoco_ros2_control
         }
 
         // Set simulation frequency
-        mujoco_model_->opt.timestep = 1.0 / nh_->get_parameter("simulation_frequency").as_double();
+        mujoco_model_->opt.timestep = 1.0 / params_.simulation_frequency;
 
         // create mjData corresponding to mjModel
         mujoco_data_ = mj_makeData(mujoco_model_);
@@ -188,7 +189,8 @@ namespace mujoco_ros2_control
         resource_manager_ = std::make_unique<hardware_interface::ResourceManager>();
 
         try {
-            urdf_string = nh_->get_parameter("robot_description").as_string();
+            urdf_string = params_.robot_description;
+
             urdf_model.initString(urdf_string);
             control_hardware = hardware_interface::parse_control_resources_from_urdf(urdf_string);
         } catch (const std::runtime_error & ex) {
@@ -203,8 +205,8 @@ namespace mujoco_ros2_control
             resource_manager_->import_component(std::move(system), hw_info);
             resource_manager_->activate_all_components();
         }
-        controller_manager_executor_ = std::make_shared<rclcpp::executors::MultiThreadedExecutor>();
-        controller_manager_.reset(new controller_manager::ControllerManager(std::move(resource_manager_), controller_manager_executor_));
+        executor_ = std::make_shared<rclcpp::executors::MultiThreadedExecutor>();
+        controller_manager_.reset(new controller_manager::ControllerManager(std::move(resource_manager_), executor_));
         if (!controller_manager_->has_parameter("update_rate")) {
             RCLCPP_ERROR(nh_->get_logger(), "controller manager doesn't have an update_rate parameter");
             return;
@@ -226,13 +228,13 @@ namespace mujoco_ros2_control
             }
         }
 
-        controller_manager_executor_->add_node(controller_manager_);
+        executor_->add_node(controller_manager_);
         auto spin = [this]() {
             while(rclcpp::ok() && !stop_.load()) {
-                controller_manager_executor_->spin_once();
+                executor_->spin_once();
             }
         };
-        controller_manager_thread_executor_spin_ = std::thread(spin);
+        thread_executor_spin_ = std::thread(spin);
     }
 
 
@@ -241,9 +243,10 @@ namespace mujoco_ros2_control
             cameras_.resize(mujoco_model_->ncam);
             for (int id = 0; id < mujoco_model_->ncam; id++) {
                 std::string name = mj_id2name(mujoco_model_, mjOBJ_CAMERA, id);
-                // Hard coded to a resolution from 640*480 and a framerate of 25Hz
                 auto node = camera_nodes_.emplace_back(rclcpp::Node::make_shared(name));
-                cameras_.at(id).reset(new mujoco_sensors::MujocoDepthCamera(node, mujoco_model_, mujoco_data_, id, 640, 480, 25.0, name, &stop_));
+                executor_->add_node(node);
+                cameras_.at(id).reset(new mujoco_rgbd_camera::MujocoDepthCamera(node, mujoco_model_, mujoco_data_, id,
+                                                                                name, &stop_));
                 camera_threads_.emplace_back([ObjectPtr = cameras_.at(id)] {ObjectPtr->update();});
             }
         }
@@ -260,7 +263,7 @@ namespace mujoco_ros2_control
  */
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
-    rclcpp::Node::SharedPtr node = rclcpp::Node::make_shared("mujoco_node");
+    rclcpp::Node::SharedPtr node = rclcpp::Node::make_shared("mujoco_ros2_control");
     // create the mujoco_ros2_control_plugin
     mujoco_ros2_control::MujocoRos2Control mujoco_ros2_control_plugin(node);
 

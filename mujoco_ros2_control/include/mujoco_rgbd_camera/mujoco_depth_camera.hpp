@@ -26,6 +26,8 @@
 #ifndef MUJOCO_ROS2_CONTROL_MUJOCO_DEPTH_CAMERA_HPP
 #define MUJOCO_ROS2_CONTROL_MUJOCO_DEPTH_CAMERA_HPP
 
+#include "chrono"
+
 // MuJoCo header file
 #include "mujoco/mujoco.h"
 #include "GLFW/glfw3.h"
@@ -38,7 +40,6 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
-
 // PCL header
 #include <pcl/point_types.h>
 #include <pcl/io/pcd_io.h>
@@ -47,10 +48,6 @@
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl/common/transforms.h>
 
-#include "chrono"
-
-
-
 // ROS header
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
@@ -58,9 +55,11 @@
 #include "sensor_msgs/image_encodings.hpp"
 #include "sensor_msgs/msg/camera_info.hpp"
 
+#include "mujoco_rgbd_camera_parameters.hpp"
+
 using namespace std::chrono_literals;
 
-namespace mujoco_sensors {
+namespace mujoco_rgbd_camera {
 /**
  * @class MujocoDepthCamera
  * @brief Represents a depth camera in a Mujoco simulation environment.
@@ -99,8 +98,8 @@ public:
      *       Creates and initializes the Mujoco scene and context for rendering.
      *       Creates ROS 2 publishers for camera information, color image, depth image, and point cloud data.
      */
-    MujocoDepthCamera(rclcpp::Node::SharedPtr &node, mjModel_ *model, mjData_ *data, int id, int res_x, int res_y,
-                      double frequency, const std::string& name, std::atomic<bool>* stop);
+    MujocoDepthCamera(rclcpp::Node::SharedPtr &node, mjModel_ *model, mjData_ *data, int id,
+                      const std::string& name, std::atomic<bool>* stop);
 
     /**
      * @brief Destroys the `MujocoDepthCamera` object.
@@ -132,6 +131,11 @@ public:
     void update();
 
 private:
+
+    // Parameters from ROS2 using generate_parameter_library
+    std::shared_ptr<ParamListener> param_listener_;
+    mujoco_rgbd_camera::Params params_;
+
     std::atomic<bool>* stop_; ///< Pointer to an atomic boolean flag indicating whether the camera should stop or continue.
 
     rclcpp::Node::SharedPtr nh_; ///< Shared pointer to the ROS 2 Node object used for communication and coordination.

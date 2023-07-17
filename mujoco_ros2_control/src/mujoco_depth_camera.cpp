@@ -23,22 +23,30 @@
  * https://github.com/gywhitel/mujoco_RGBD
  */
 
-#include "../include/mujoco_ros2_control/mujoco_depth_camera.hpp"
+#include "mujoco_rgbd_camera/mujoco_depth_camera.hpp"
 
-namespace mujoco_sensors {
+namespace mujoco_rgbd_camera {
     MujocoDepthCamera::MujocoDepthCamera(rclcpp::Node::SharedPtr &node, mjModel_ *model, mjData_ *data, int id,
-                                         int res_x, int res_y, double frequency, const std::string& name,
-                                         std::atomic<bool>* stop) {
+                                         const std::string& name, std::atomic<bool>* stop) {
         nh_ = node;
+
+        // set up the parameter listener
+        param_listener_ = std::make_shared<ParamListener>(nh_);
+        param_listener_->refresh_dynamic_parameters();
+
+        params_ = param_listener_->get_params();
+
         mujoco_model_ = model;
         mujoco_data_ = data;
 
-        width_ = res_x;
-        height_ = res_y;
+        width_ = params_.width;
+        height_ = params_.height;
+        frequency_ = params_.frequency;
+
 
         name_ = name;
         body_name_ = mj_id2name(mujoco_model_, mjOBJ_BODY, mujoco_model_->cam_bodyid[id]);
-        frequency_ = frequency;
+
         stop_ = stop;
 
         // init GLFW
@@ -66,11 +74,17 @@ namespace mujoco_sensors {
 
         mjr_setBuffer(mjFB_OFFSCREEN, &sensor_context_);
 
-        color_camera_info_publisher_ = nh_->create_publisher<sensor_msgs::msg::CameraInfo>("/" + name_ + "/color/camera_info", 10);
-        depth_camera_info_publisher_ = nh_->create_publisher<sensor_msgs::msg::CameraInfo>("/" + name_ + "/depth/camera_info", 10);
-        color_image_publisher_ = nh_->create_publisher<sensor_msgs::msg::Image>("/" + name_ + "/color/image_raw", 10);
-        depth_image_publisher_ = nh_->create_publisher<sensor_msgs::msg::Image>("/" + name_ + "/depth/image_rect_raw", 10);
-        pointcloud_publisher_ = nh_->create_publisher<sensor_msgs::msg::PointCloud2>("/" + name_ + "/depth/color/points", 10);
+        if (params_.color_image) {
+            color_camera_info_publisher_ = nh_->create_publisher<sensor_msgs::msg::CameraInfo>("/" + name_ + "/color/camera_info", 10);
+            color_image_publisher_ = nh_->create_publisher<sensor_msgs::msg::Image>("/" + name_ + "/color/image_raw", 10);
+        }
+        if (params_.depth_image) {
+            depth_camera_info_publisher_ = nh_->create_publisher<sensor_msgs::msg::CameraInfo>("/" + name_ + "/depth/camera_info", 10);
+            depth_image_publisher_ = nh_->create_publisher<sensor_msgs::msg::Image>("/" + name_ + "/depth/image_rect_raw", 10);
+        }
+        if (params_.point_cloud) {
+            pointcloud_publisher_ = nh_->create_publisher<sensor_msgs::msg::PointCloud2>("/" + name_ + "/depth/points", 10);
+        }
     }
 
     MujocoDepthCamera::~MujocoDepthCamera() {
@@ -81,8 +95,8 @@ namespace mujoco_sensors {
     void MujocoDepthCamera::update() {
         mjtNum last_update = mujoco_data_->time;
         while(rclcpp::ok() && !stop_->load()) {
+            // update dynamic parameters
             if (mujoco_data_->time - last_update >= 1.0 / frequency_) {
-
                 last_update = mujoco_data_->time;
                 glfwMakeContextCurrent(window_);
 
@@ -174,36 +188,32 @@ namespace mujoco_sensors {
         rgb_cloud.points.resize(rgb_cloud.height * rgb_cloud.width);
         rgb_cloud.header.frame_id = body_name_;
 
+        pcl::PointXYZRGB* point_ptr = rgb_cloud.data();
         for (int i = 0; i < color_image_.rows; i++) {
             for (int j = 0; j < color_image_.cols; j++) {
                 double depth = *(depth_image_.ptr<float>(i,j));
                 // filter far points
                 if (depth < z_far_) {
-                    rgb_cloud.at(j, i).x = static_cast<float>(double(j - cx_) * depth / f_);
-                    rgb_cloud.at(j, i).y = static_cast<float>(double(i - cy_) * depth / f_);
-                    rgb_cloud.at(j, i).z = static_cast<float>(depth);
+                    point_ptr->x = static_cast<float>(depth);
+                    point_ptr->y = static_cast<float>(double(j - cx_) * depth / f_);
+                    point_ptr->z = -static_cast<float>(double(i - cy_) * depth / f_);
 
                     const uchar* bgr_ptr = color_image_.ptr<uchar>(i,j);
-                    rgb_cloud.at(j, i).r = bgr_ptr[2];
-                    rgb_cloud.at(j, i).g = bgr_ptr[1];
-                    rgb_cloud.at(j, i).b = bgr_ptr[0];
+                    point_ptr->r = bgr_ptr[2];
+                    point_ptr->g = bgr_ptr[1];
+                    point_ptr->b = bgr_ptr[0];
                 }
+                point_ptr++;
             }
         }
 
-        Eigen::Matrix4f trans;
-        trans << 0.0, 0.0, 1.0, 0.0,
-                 -1.0, 0.0, 0.0, 0.0,
-                 0.0, -1.0, 0.0, 0.0,
-                 0.0, 0.0, 0.0, 1.0;
-
-        pcl::PointCloud<pcl::PointXYZRGB> transformed;
-        pcl::transformPointCloud(rgb_cloud, transformed, trans);
-
-        return transformed;
+        return rgb_cloud;
     }
 
     void MujocoDepthCamera::publish_camera_info() {
+        if (!params_.color_image && !params_.depth_image) {
+            return;
+        }
         sensor_msgs::msg::CameraInfo camera_info;
         camera_info.header.stamp = stamp_;
         camera_info.header.frame_id = body_name_;
@@ -220,32 +230,49 @@ namespace mujoco_sensors {
                          0.0, f_, cy_, 0,
                          0.0, 0.0, 1.0, 0.0};
 
-        color_camera_info_publisher_->publish(camera_info);
-        depth_camera_info_publisher_->publish(camera_info);
+        if (params_.color_image) {
+            color_camera_info_publisher_->publish(camera_info);
+        }
+
+        if (params_.depth_image) {
+            depth_camera_info_publisher_->publish(camera_info);
+        }
     }
 
     void MujocoDepthCamera::publish_images() {
-        cv_bridge::CvImagePtr cv_ptr = std::make_shared<cv_bridge::CvImage>();
-        cv_ptr->image = color_image_;
-        cv_ptr->encoding = "8UC3";
-        sensor_msgs::msg::Image out_image;
-        cv_ptr->toImageMsg(out_image);
-        out_image.header.stamp = stamp_;
-        out_image.header.frame_id = body_name_;
-        color_image_publisher_->publish(out_image);
+        if (!params_.color_image && !params_.depth_image) {
+            return;
+        }
 
-        cv_ptr->image = depth_image_;
-        cv_ptr->encoding = "32FC1";
-        cv_ptr->toImageMsg(out_image);
-        out_image.header.stamp = stamp_;
-        out_image.header.frame_id = body_name_;
-        depth_image_publisher_->publish(out_image);
+        cv_bridge::CvImagePtr cv_ptr = std::make_shared<cv_bridge::CvImage>();
+        sensor_msgs::msg::Image out_image;
+
+        if (params_.color_image) {
+            cv_ptr->image = color_image_;
+            cv_ptr->encoding = "8UC3";
+            cv_ptr->toImageMsg(out_image);
+            out_image.header.stamp = stamp_;
+            out_image.header.frame_id = body_name_;
+            color_image_publisher_->publish(out_image);
+        }
+
+        if (params_.depth_image) {
+            cv_ptr->image = depth_image_;
+            cv_ptr->encoding = "32FC1";
+            cv_ptr->toImageMsg(out_image);
+            out_image.header.stamp = stamp_;
+            out_image.header.frame_id = body_name_;
+            depth_image_publisher_->publish(out_image);
+        }
+
     }
 
     void MujocoDepthCamera::publish_point_cloud() {
-        sensor_msgs::msg::PointCloud2 out_cloud;
-        pcl::toROSMsg(generate_color_point_cloud(), out_cloud);
-        out_cloud.header.stamp = stamp_;
-        pointcloud_publisher_->publish(out_cloud);
+        if (params_.point_cloud) {
+            sensor_msgs::msg::PointCloud2 out_cloud;
+            pcl::toROSMsg(generate_color_point_cloud(), out_cloud);
+            out_cloud.header.stamp = stamp_;
+            pointcloud_publisher_->publish(out_cloud);
+        }
     }
 }

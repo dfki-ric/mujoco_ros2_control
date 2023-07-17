@@ -15,25 +15,48 @@ set(OpenGL_GL_PREFERENCE LEGACY)
 
 ## Find catkin macros and libraries
 ## is used, also find other catkin packages
-find_package(ament_cmake REQUIRED)
-find_package(rclcpp REQUIRED)
+#find_package(ament_cmake REQUIRED)
+#find_package(rclcpp REQUIRED)
+#
+#find_package(std_msgs REQUIRED)
+#find_package(geometry_msgs REQUIRED)
+#find_package(rosgraph_msgs REQUIRED)
+#
+#find_package(controller_manager REQUIRED)
+#find_package(hardware_interface REQUIRED)
+#
+#find_package(urdf REQUIRED)
+#find_package(mujoco REQUIRED)
+#find_package(ament_lint_auto REQUIRED)
+#find_package(glfw3 REQUIRED)
+#find_package(realtime_tools REQUIRED)
+#find_package(OpenCV REQUIRED)
+#find_package(PCL REQUIRED)
+#find_package(pcl_conversions REQUIRED)
+#find_package(cv_bridge REQUIRED)
 
-find_package(std_msgs REQUIRED)
-find_package(geometry_msgs REQUIRED)
-find_package(rosgraph_msgs REQUIRED)
-
-find_package(controller_manager REQUIRED)
-find_package(hardware_interface REQUIRED)
-
-find_package(urdf REQUIRED)
-find_package(mujoco REQUIRED)
-find_package(ament_lint_auto REQUIRED)
-find_package(glfw3 REQUIRED)
-find_package(realtime_tools REQUIRED)
-find_package(OpenCV REQUIRED)
-find_package(PCL REQUIRED)
-find_package(pcl_conversions REQUIRED)
-find_package(cv_bridge REQUIRED)
+set(THIS_PACKAGE_INCLUDE_DEPENDS
+        ament_cmake
+        rclcpp
+        std_msgs
+        geometry_msgs
+        rosgraph_msgs
+        controller_manager
+        hardware_interface
+        urdf
+        mujoco
+        ament_lint_auto
+        glfw3
+        OpenCV
+        PCL
+        pcl_conversions
+        cv_bridge
+        generate_parameter_library
+        Eigen3
+)
+foreach(Dependency IN ITEMS ${THIS_PACKAGE_INCLUDE_DEPENDS})
+  find_package(${Dependency} REQUIRED)
+endforeach()
 
 ## Specify additional locations of header files
 add_definitions(
@@ -52,6 +75,14 @@ include_directories(
         ${PCL_INCLUDE_DIRS}
         ${pcl_conversions_INCLUDE_DIRS}
 )
+
+generate_parameter_library(${PROJECT_NAME}_parameters
+        src/${PROJECT_NAME}_parameters.yaml
+        )
+
+generate_parameter_library(mujoco_rgbd_camera_parameters
+        src/mujoco_rgbd_camera_parameters.yaml
+        )
 
 ament_lint_auto_find_test_dependencies()
 
@@ -94,6 +125,8 @@ target_link_libraries(
         mujoco
         glfw
         ${PCL_LIBRARIES}
+        ${PROJECT_NAME}_parameters
+        mujoco_rgbd_camera_parameters
 )
 
 ## Install
