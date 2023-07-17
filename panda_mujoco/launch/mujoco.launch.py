@@ -80,10 +80,8 @@ def generate_launch_description():
     ros2_control_params_file = os.path.join(
         get_package_share_directory('panda_mujoco'),
         'config',
-        #'controllers_cartesian_impedance_controller.yaml'
-    #)
-        'controllers_joint_trajectory_controller.yaml')
-    # 'controllers_effort.yaml')
+        'controllers.yaml'
+    )
 
     mujoco = Node(
         package="mujoco_ros2_control",
@@ -119,7 +117,7 @@ def generate_launch_description():
 
     load_arm_controller = ExecuteProcess(
         cmd=['ros2', 'control', 'load_controller', '--set-state', 'active',
-             'arm_controller'],
+             'cartesian_impedance_controller'],
         output='screen'
     )
 

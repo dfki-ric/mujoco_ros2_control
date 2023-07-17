@@ -170,6 +170,19 @@ private:
      */
     void init_mujoco();
 
+    /**
+     * Initializes and configures camera objects based on the mujoco_model.
+     * If the mujoco_model contains cameras, it creates and configures the required number of camera objects.
+     *
+     * @note This method assumes that the MujocoModel (`mujoco_model_`) and MujocoData (`mujoco_data_`) are properly initialized.
+     *
+     * @post The `cameras_` vector will contain initialized camera objects based on the number of cameras in the `mujoco_model_`.
+     *       Each camera object is configured with a resolution of 640x480 pixels and a framerate of 25Hz.
+     *       Camera nodes are also created and stored in the `camera_nodes_` vector.
+     *       Camera threads are spawned to execute the `update()` function of each camera object.
+     */
+    void registerSensors();
+
     std::shared_ptr<rclcpp::Node> nh_; ///< ROS2 node handle
 
     // realtime_tools publisher for the clock message
@@ -195,7 +208,7 @@ private:
     rclcpp::executors::MultiThreadedExecutor::SharedPtr controller_manager_executor_; ///< Executor for controller manager
     std::shared_ptr<controller_manager::ControllerManager> controller_manager_; ///< Controller manager object
     rclcpp::Duration control_period_ = rclcpp::Duration(1, 0); ///< Control period of the controller manager
-    bool stop_{}; ///< Flag to stop the execution of the controller manager
+    std::atomic<bool> stop_ = false; ///< Flag to stop the execution of the controller manager
     std::thread controller_manager_thread_executor_spin_; ///< Thread for the controller manager executor
 
     // Visualization class
@@ -205,17 +218,10 @@ private:
     std::shared_ptr<pluginlib::ClassLoader<mujoco_ros2_control::MujocoSystemInterface> > robot_hw_sim_loader_; ///< Plugin loader for RobotHWSimInterface
     std::shared_ptr<mujoco_ros2_control::MujocoSystemInterface> robot_hw_sim_; ///< Robot hardware simulation interface
 
-    // Camera
-    std::thread camera_thread_;
-    rclcpp::Node::SharedPtr camera_node_;
-    std::shared_ptr<mujoco_sensors::MujocoDepthCamera> camera_;
-
-    std::vector<std::thread> camera_threads_;
-    std::vector<rclcpp::Node::SharedPtr> camera_nodes_;
-    std::vector<std::shared_ptr<mujoco_sensors::MujocoDepthCamera>> cameras_; ///< Cameras vector
-    void registerSensors();
-
-
+    // Camera handling
+    std::vector<std::thread> camera_threads_; ///< Threads for the cameras (one thread per camera)
+    std::vector<rclcpp::Node::SharedPtr> camera_nodes_; ///< Nodes for the cameras (one Node per camera)
+    std::vector<std::shared_ptr<mujoco_sensors::MujocoDepthCamera>> cameras_; ///< Cameras Object vector
 };
 }  // namespace mujoco_ros2_control
 

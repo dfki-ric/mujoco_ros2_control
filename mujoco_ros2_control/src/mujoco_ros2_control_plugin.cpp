@@ -80,36 +80,16 @@ namespace mujoco_ros2_control
         clock_gettime(CLOCK_MONOTONIC, &startTime_);
         mj_vis_.init(mujoco_model_, mujoco_data_, show_gui_);
 
-//        if (show_gui_) {
-//            mj_vis_.init(mujoco_model_, mujoco_data_, show_gui_);
-//        } else {
-//            if (!glfwInit()) {
-//                RCLCPP_ERROR(nh_->get_logger(), "Could not initialize GLFW");
-//            }
-//            mjrContext c;
-//            glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
-//            GLFWwindow* window = glfwCreateWindow(1, 1, "", NULL, NULL);
-//            glfwSetWindowAttrib(window, GLFW_RESIZABLE, GLFW_FALSE);
-//            glfwMakeContextCurrent(window);
-//            glfwSwapInterval(1);
-//
-//            //mjv_defaultCamera(&rgbd_camera_);
-//            mjr_defaultContext(&c);
-//            //mjv_defaultOption(&sensor_option_);
-//            //mjv_defaultScene(&sensor_scene_);
-//            //mjv_defaultPerturb(&sensor_perturb_);
-//        }
         registerSensors();
         RCLCPP_INFO(nh_->get_logger(), "Sim environment setup complete");
     }
 
     MujocoRos2Control::~MujocoRos2Control() 
     {
-        stop_ = true;
-        //for (auto &thread : camera_threads_) {
-        //    thread.join();
-        //}
-        camera_thread_.join();
+        stop_.store(true);
+        for (auto &thread : camera_threads_) {
+            thread.join();
+        }
         controller_manager_executor_->remove_node(controller_manager_);
         controller_manager_executor_->cancel();
         controller_manager_thread_executor_spin_.join();
@@ -118,9 +98,7 @@ namespace mujoco_ros2_control
 
         // deallocate existing mjData
         mj_deleteData(mujoco_data_);
-        if(show_gui_) {
-            mj_vis_.terminate();
-        }
+        mj_vis_.terminate();
     }
 
     void MujocoRos2Control::update() {
@@ -150,11 +128,7 @@ namespace mujoco_ros2_control
                 mj_step(mujoco_model_, mujoco_data_);
             }
         }
-        //camera_->update();
-        // render the next frame is gui is enabled
-        //if (show_gui_) {
         mj_vis_.update();
-        //}
     }
 
     void MujocoRos2Control::publish_sim_time() {
@@ -254,7 +228,7 @@ namespace mujoco_ros2_control
 
         controller_manager_executor_->add_node(controller_manager_);
         auto spin = [this]() {
-            while(rclcpp::ok() && !stop_) {
+            while(rclcpp::ok() && !stop_.load()) {
                 controller_manager_executor_->spin_once();
             }
         };
@@ -265,17 +239,12 @@ namespace mujoco_ros2_control
     void MujocoRos2Control::registerSensors() {
         if (mujoco_model_->ncam > 0) {
             cameras_.resize(mujoco_model_->ncam);
-
             for (int id = 0; id < mujoco_model_->ncam; id++) {
                 std::string name = mj_id2name(mujoco_model_, mjOBJ_CAMERA, id);
                 // Hard coded to a resolution from 640*480 and a framerate of 25Hz
-                camera_node_ = rclcpp::Node::make_shared(name);
-                camera_.reset(new mujoco_sensors::MujocoDepthCamera(camera_node_, mujoco_model_, mujoco_data_, id, 640, 480, 25.0, name, &stop_));
-                camera_thread_ = std::thread([ObjectPtr = camera_] {ObjectPtr->update();});
-
-                //camera_nodes_.push_back(rclcpp::Node::make_shared(name));
-                //cameras_.emplace_back(new mujoco_sensors::MujocoDepthCamera(camera_nodes_.at(id), mujoco_model_, mujoco_data_, id, 640, 480, 25.0, name));
-                //camera_threads_.emplace_back([ObjectPtr = cameras_.at(id)] {ObjectPtr->update();});
+                auto node = camera_nodes_.emplace_back(rclcpp::Node::make_shared(name));
+                cameras_.at(id).reset(new mujoco_sensors::MujocoDepthCamera(node, mujoco_model_, mujoco_data_, id, 640, 480, 25.0, name, &stop_));
+                camera_threads_.emplace_back([ObjectPtr = cameras_.at(id)] {ObjectPtr->update();});
             }
         }
     }
