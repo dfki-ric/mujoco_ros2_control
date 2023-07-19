@@ -200,33 +200,39 @@ class Xacro2Mjcf(Node):
             if parent_element is None:
                 self.get_logger().info("No Parent for " + str(element) + " found")
                 continue
+
             body = ET.Element('body')
             geom = ET.Element('geom')
             for key in element.attrib.keys():
-                if key == 'pos' or key == 'quat':
+                if key == 'pos' or key == 'quat' or key == 'name':
                     body.set(key, element.attrib[key])
+                    self.get_logger().info(element.attrib[key])
                 else:
                     geom.set(key, element.attrib[key])
-            potential_elements = self.get_elements(self.urdf_root, 'origin', 'xyz', body.attrib['pos'])
-            if len(potential_elements) == 0:
-                continue
-            name = None
-            for actual_element in potential_elements:
-                tmp_parent = None
-                tmp_parent = self.get_parent(self.urdf_root, actual_element, ['visual', 'collision'])
-                if tmp_parent is None:
-                    tmp_parent = self.get_parent(self.urdf_root, actual_element, ['joint'])
+
+            if "name" in element.attrib.keys():
+                name = element.attrib['name']
+            else:
+                potential_elements = self.get_elements(self.urdf_root, 'origin', 'xyz', body.attrib['pos'])
+                if len(potential_elements) == 0:
+                    continue
+                name = None
+                for actual_element in potential_elements:
+                    tmp_parent = None
+                    tmp_parent = self.get_parent(self.urdf_root, actual_element, ['visual', 'collision'])
                     if tmp_parent is None:
-                        continue
-                    name = tmp_parent.find("child").attrib['link']
+                        tmp_parent = self.get_parent(self.urdf_root, actual_element, ['joint'])
+                        if tmp_parent is None:
+                            continue
+                        name = tmp_parent.find("child").attrib['link']
+                        break
+                    else:
+                        tmp_parent = self.get_parent(self.urdf_root, tmp_parent, ['link'])
+                        name = tmp_parent.attrib['name']
+                        break
+                if name is None:
+                    self.get_logger().info(body.attrib['pos'])
                     break
-                else:
-                    tmp_parent = self.get_parent(self.urdf_root, tmp_parent, ['link'])
-                    name = tmp_parent.attrib['name']
-                    break
-            if name is None:
-                self.get_logger().info(body.attrib['pos'])
-                break
             parent_element.remove(element)
 
             body.set('name', name)
