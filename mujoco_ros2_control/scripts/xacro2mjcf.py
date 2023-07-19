@@ -206,7 +206,6 @@ class Xacro2Mjcf(Node):
             for key in element.attrib.keys():
                 if key == 'pos' or key == 'quat' or key == 'name':
                     body.set(key, element.attrib[key])
-                    self.get_logger().info(element.attrib[key])
                 else:
                     geom.set(key, element.attrib[key])
 
