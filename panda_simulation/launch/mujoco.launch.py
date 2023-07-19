@@ -30,7 +30,8 @@ def generate_launch_description():
         'origin_xyz': '0 0 0.875',
         'origin_rpy': '0 0 0',
         'world_name': 'base_link',
-        'generate_world_frame': 'false'
+        'generate_world_frame': 'false',
+        'ros2_control_plugin': 'mujoco_ros2_control/MujocoSystem'
     }).toxml()
 
     robot_description = {'robot_description': robot_description_string}

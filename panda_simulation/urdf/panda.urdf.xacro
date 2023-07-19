@@ -2,9 +2,9 @@
 <!-- URDF for Franka Emika Panda -->
 <robot xmlns:xacro="http://wiki.ros.org/xacro" name="$(arg name)">
 
-    <xacro:include filename="$(find panda_mujoco)/urdf/include/panda.urdf.xacro"/>
-    <xacro:include filename="$(find panda_mujoco)/urdf/include/panda_utils.xacro"/>
-    <xacro:include filename="$(find panda_mujoco)/urdf/table2.urdf"/>
+    <xacro:include filename="$(find panda_simulation)/urdf/include/panda.urdf.xacro"/>
+    <xacro:include filename="$(find panda_simulation)/urdf/include/panda_utils.xacro"/>
+    <xacro:include filename="$(find panda_simulation)/urdf/table.urdf"/>
 
     <!-- Flag to enable default gripper -->
     <xacro:arg name="gripper" default="true" />
@@ -36,9 +36,9 @@
     <!-- Flag to preserve fixed joints and prevent lumping when generating SDF for Gazebo -->
     <xacro:arg name="gazebo_preserve_fixed_joint" default="false"/>
 
-    <xacro:arg name="ros2_controller_parameters" default="$(find panda_mujoco)/config/controllers_$(arg ros2_control_command_interface).yaml"/>
+    <xacro:arg name="ros2_controller_parameters" default="$(find panda_simulation)/config/controllers_$(arg ros2_control_command_interface).yaml"/>
 
-    <xacro:arg name="mujoco_meshdir" default="$(find panda_mujoco)/meshes/mujoco/visual"/>
+    <xacro:arg name="mujoco_meshdir" default="$(find panda_simulation)/meshes/mujoco/visual"/>
 
 
     

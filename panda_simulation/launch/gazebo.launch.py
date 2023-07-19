@@ -29,7 +29,8 @@ def generate_launch_description():
         'origin_xyz': '0 0 0.875',
         'origin_rpy': '0 0 0',
         'world_name': 'base_link',
-        'generate_world_frame': 'false'
+        'generate_world_frame': 'false',
+        'ros2_control_plugin': 'ign'
     }).toxml()
 
     robot_description = {'robot_description': robot_description_string}
@@ -73,7 +74,7 @@ def generate_launch_description():
 
     load_arm_controller = ExecuteProcess(
         cmd=['ros2', 'control', 'load_controller', '--set-state', 'active',
-             'arm_controller'],
+             'cartesian_impedance_controller'],
         output='screen'
     )
 

@@ -5,7 +5,7 @@
   <!--            -->
   <!-- Properties -->
   <!--            -->
-  <xacro:property name="default_initial_positions_file" value="$(find panda_mujoco)/config/initial_joint_positions.yaml"/>
+  <xacro:property name="default_initial_positions_file" value="$(find panda_simulation)/config/initial_joint_positions.yaml"/>
 
 
   <!--       -->

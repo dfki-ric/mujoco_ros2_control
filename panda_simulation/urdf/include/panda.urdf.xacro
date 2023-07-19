@@ -6,11 +6,11 @@
   <!-- Imported elements -->
   <!--                   -->
   <xacro:macro name="panda" params="name origin_xyz:='0 0 0' origin_rpy:='0 0 0' base_parent:=$(arg world_name)">
-    <xacro:include filename="$(find panda_mujoco)/urdf/include/panda_arm.xacro"/>
-    <xacro:include filename="$(find panda_mujoco)/urdf/include/panda_gripper.xacro"/>
-    <xacro:include filename="$(find panda_mujoco)/urdf/include/panda_utils.xacro"/>
-    <xacro:include filename="$(find panda_mujoco)/config/panda.mujoco"/>
-    <xacro:include filename="$(find panda_mujoco)/config/panda.gazebo"/>
+    <xacro:include filename="$(find panda_simulation)/urdf/include/panda_arm.xacro"/>
+    <xacro:include filename="$(find panda_simulation)/urdf/include/panda_gripper.xacro"/>
+    <xacro:include filename="$(find panda_simulation)/urdf/include/panda_utils.xacro"/>
+    <xacro:include filename="$(find panda_simulation)/config/panda.mujoco"/>
+    <xacro:include filename="$(find panda_simulation)/config/panda.gazebo"/>
 
 
     <!--            -->

@@ -5,8 +5,8 @@
   <!--                   -->
   <!-- Imported elements -->
   <!--                   -->
-  <xacro:include filename="$(find panda_mujoco)/urdf/include/panda_utils.xacro"/>
-  <xacro:include filename="$(find panda_mujoco)/urdf/include/panda.ros2_control"/>
+  <xacro:include filename="$(find panda_simulation)/urdf/include/panda_utils.xacro"/>
+  <xacro:include filename="$(find panda_simulation)/urdf/include/panda.ros2_control"/>
 
 
   <!--            -->

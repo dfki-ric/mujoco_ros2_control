@@ -5,7 +5,7 @@
   <!--                   -->
   <!-- Imported elements -->
   <!--                   -->
-  <xacro:include filename="$(find panda_mujoco)/urdf/include/panda_inertial.xacro"/>
+  <xacro:include filename="$(find panda_simulation)/urdf/include/panda_inertial.xacro"/>
 
 
   <!--       -->
@@ -24,7 +24,7 @@
       <visual>
         <origin xyz="0 0 0" rpy="${mesh_offset_rpy}"/>
         <geometry>
-          <mesh filename="file://$(find panda_mujoco)/meshes/visual/${mesh}.dae"/>
+          <mesh filename="file://$(find panda_simulation)/meshes/visual/${mesh}.dae"/>
         </geometry>
       </visual>
 
@@ -32,7 +32,7 @@
         <collision>
           <origin xyz="0 0 0" rpy="${mesh_offset_rpy}"/>
           <geometry>
-            <mesh filename="$(find panda_mujoco)/meshes/collision/${mesh}.stl"/>
+            <mesh filename="$(find panda_simulation)/meshes/collision/${mesh}.stl"/>
           </geometry>
         </collision>
       </xacro:if>
