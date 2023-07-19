@@ -20,7 +20,7 @@ def generate_launch_description():
     command_interface = 'effort'
 
     robot_description_path = os.path.join(
-        get_package_share_directory('panda_mujoco'),
+        get_package_share_directory('panda_simulation'),
         'urdf',
         'panda.urdf.xacro')
 
@@ -39,18 +39,18 @@ def generate_launch_description():
     mujoco_model_file = mujoco_model_path + "/panda.xml"
 
     mujoco_scene_file = os.path.join(
-        get_package_share_directory('panda_mujoco'),
+        get_package_share_directory('panda_simulation'),
         'mjcf',
         'panda_scene.xml')
 
     # Add a free joint
     mujoco_box_file = os.path.join(
-        get_package_share_directory('panda_mujoco'),
+        get_package_share_directory('panda_simulation'),
         'urdf',
         'box.urdf')
 
     mujoco_table_file = os.path.join(
-        get_package_share_directory('panda_mujoco'),
+        get_package_share_directory('panda_simulation'),
         'urdf',
         'table.urdf')
 
@@ -78,7 +78,7 @@ def generate_launch_description():
     )
 
     ros2_control_params_file = os.path.join(
-        get_package_share_directory('panda_mujoco'),
+        get_package_share_directory('panda_simulation'),
         'config',
         'controllers.yaml'
     )
@@ -139,41 +139,10 @@ def generate_launch_description():
         )
     )
 
-    # RViz
-    rviz_config_file = (
-            get_package_share_directory("panda_mujoco") + "/rviz/panda.rviz"
-    )
-    rviz_node = launch_ros.actions.Node(
-        package="rviz2",
-        executable="rviz2",
-        name="rviz2",
-        # output="log",
-        arguments=["-d", rviz_config_file],
-        parameters=[]
-    )
-
-    rqt_joint_trajectory_controller = Node(
-        package="rqt_joint_trajectory_controller",
-        executable="rqt_joint_trajectory_controller",
-        namespace=namespace
-    )
-
-    start_rviz = RegisterEventHandler(
-        OnExecutionComplete(
-            target_action=load_joint_state_controller,
-            on_completion=[
-                LogInfo(msg='Created mujoco xml'),
-                rviz_node,
-                rqt_joint_trajectory_controller
-            ]
-        )
-    )
-
     return LaunchDescription(
         [
             start_mujoco,
             register_controllers,
-            #start_rviz,
             xacro2mjcf,
             robot_state_publisher
         ]

@@ -31,7 +31,7 @@ RUN echo source /ros2_ws/install/setup.bash > /root/.bashrc
 COPY mujoco_ros2_control /ros2_ws/src/mujoco_ros2_control
 RUN /bin/bash -c "source /opt/ros/$ROS_DISTRO/setup.sh && colcon build"
 
-COPY panda_mujoco /ros2_ws/src/panda_mujoco
+COPY panda_simulation /ros2_ws/src/panda_mujoco
 WORKDIR /ros2_ws
 RUN . /opt/ros/$ROS_DISTRO/setup.sh && colcon build
 

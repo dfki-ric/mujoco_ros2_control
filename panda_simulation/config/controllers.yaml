@@ -1,6 +1,6 @@
 controller_manager:
   ros__parameters:
-    update_rate: 1000
+    update_rate: 500
     use_sim_time: true
 
     joint_state_broadcaster:

@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>panda_mujoco</name>
+  <name>panda_simulation</name>
   <version>1.0.0</version>
-  <description>URDF description of the Kuka lbr robot</description>
+  <description>Panda simulation package for gazebo ignition and mujoco</description>
 
   <maintainer email="adrian.danzglock@dfki.de">Adrian Danzglock</maintainer>
 

@@ -10,20 +10,27 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
   <buildtool_depend>ament_cmake_python</buildtool_depend>
 
+  <depend>pluginlib</depend>
+  <depend>rclcpp</depend>
+  <depend>rclpy</depend>
+  <depend>realtime-tools</depend>
   <depend>controller_manager</depend>
   <depend>hardware_interface</depend>
+
+  <depend>urdf</depend>
 
   <depend>geometry_msgs</depend>
   <depend>std_msgs</depend>
   <depend>rosgraph_msgs</depend>
 
-  <depend>urdf</depend>
-
-  <depend>pluginlib</depend>
-  <depend>rclcpp</depend>
-  <depend>rclpy</depend>
   <depend>mujoco</depend>
-  <depend>realtime-tools</depend>
+  <depend>glfw3</depend>
+  <depend>OpenCV</depend>
+  <depend>PCL</depend>
+  <depend>pcl_conversions</depend>
+  <depend>cv_bridge</depend>
+  <depend>Eigen3</depend>
+
 
   <test_depend>ament_lint_common</test_depend>
   <test_depend>ament_lint_auto</test_depend>

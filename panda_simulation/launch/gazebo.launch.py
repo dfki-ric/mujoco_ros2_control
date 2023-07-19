@@ -11,7 +11,6 @@ from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 from launch.event_handlers import (OnExecutionComplete, OnProcessExit,
                                    OnProcessIO, OnProcessStart, OnShutdown)
-
 import xacro
 
 
@@ -20,14 +19,14 @@ def generate_launch_description():
     command_interface = 'effort'
 
     robot_description_path = os.path.join(
-        get_package_share_directory('panda_mujoco'),
+        get_package_share_directory('panda_simulation'),
         'urdf',
         'panda.urdf.xacro')
 
     robot_description_string = xacro.process_file(robot_description_path, mappings={
         'ros2_control_command_interface': command_interface,
         'name': 'panda',
-        'origin_xyz': '0 0 0',
+        'origin_xyz': '0 0 0.875',
         'origin_rpy': '0 0 0',
         'world_name': 'base_link',
         'generate_world_frame': 'false'
@@ -43,20 +42,21 @@ def generate_launch_description():
         parameters=[robot_description]
     )
 
-    ros2_control_params_file = os.path.join(
-        get_package_share_directory('panda_mujoco'),
-        'config',
-        'controllers_joint_trajectory_controller.yaml')
-    # 'controllers_effort.yaml')
+    bridge = Node(
+        package='ros_gz_bridge',
+        executable='parameter_bridge',
+        arguments=['/clock@rosgraph_msgs/msg/Clock[ignition.msgs.Clock'],
+        output='screen'
+    )
 
     # Gazebo Sim
     gazebo = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             [os.path.join(get_package_share_directory('ros_ign_gazebo'),
                           'launch', 'ign_gazebo.launch.py')]),
-        launch_arguments=[('gz_args', [' -r -v 3 empty.sdf'])])
+        launch_arguments=[('gz_args', [' -r -v 1 empty.sdf'])])
 
-    gz_spawn_entity = Node(
+    ignition_spawn_entity = Node(
         package='ros_gz_sim',
         executable='create',
         output='screen',
@@ -83,36 +83,27 @@ def generate_launch_description():
         output='screen'
     )
 
-    # RViz
-    #rviz_config_file = (
-    #        get_package_share_directory("panda_mujoco") + "/rviz/panda.rviz"
-    #)
-    #rviz_node = launch_ros.actions.Node(
-    #    package="rviz2",
-    #    executable="rviz2",
-    #    name="rviz2",
-    #    # output="log",
-    #    arguments=["-d", rviz_config_file],
-    #    parameters=[]
-    #)
-
-    #rqt_joint_trajectory_controller = Node(
-    #    package="rqt_joint_trajectory_controller",
-    #    executable="rqt_joint_trajectory_controller",
-    #    namespace=namespace
-    #)
-
     return LaunchDescription(
         [
             DeclareLaunchArgument(
                 'use_sim_time',
                 default_value="true",
                 description='If true, use simulated clock'),
+            bridge,
             gazebo,
+            RegisterEventHandler(
+                event_handler=OnProcessExit(
+                    target_action=ignition_spawn_entity,
+                    on_exit=[load_joint_state_controller],
+                )
+            ),
+            RegisterEventHandler(
+                event_handler=OnProcessExit(
+                    target_action=load_joint_state_controller,
+                    on_exit=[load_arm_controller, load_gripper_controller]
+                )
+            ),
             robot_state_publisher,
-            gz_spawn_entity,
-            load_joint_state_controller,
-            load_arm_controller,
-            load_gripper_controller
+            ignition_spawn_entity
         ]
     )
