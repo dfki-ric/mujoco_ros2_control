@@ -128,7 +128,8 @@ class Xacro2Mjcf(Node):
                     for element in mujoco:
                         if element.tag == 'reference':
                             body_name = element.attrib['name']
-                            mj_element = self.get_elements(self.mjcf_root, 'body', 'name', body_name)[0]
+                            mj_element = self.get_elements(self.mjcf_root, 'body', 'name', body_name)
+
                             if mj_element is not None:
                                 for child in element:
                                     mj_element.insert(0, child)
@@ -192,7 +193,8 @@ class Xacro2Mjcf(Node):
                 return parent
         return parent
 
-    def replace_geoms_with_bodys(self, input_elements):
+
+    def replace_geoms_with_bodys(self, input_elements, searched_names=None):
         elements = input_elements
 
         for element in input_elements:
@@ -232,11 +234,14 @@ class Xacro2Mjcf(Node):
                 if name is None:
                     self.get_logger().info(body.attrib['pos'])
                     break
-            parent_element.remove(element)
+            #element.set('name', name)
 
-            body.set('name', name)
-            body.append(geom)
-            parent_element.append(body)
+            potential_elements = self.get_elements(self.mjcf_root, "body", "name", name)
+            if len(potential_elements) == 0:
+                body.set('name', name)
+                body.append(geom)
+                parent_element.append(body)
+                parent_element.remove(element)
 
 
 
