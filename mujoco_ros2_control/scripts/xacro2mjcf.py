@@ -127,12 +127,15 @@ class Xacro2Mjcf(Node):
                 if mujoco is not None:
                     for element in mujoco:
                         if element.tag == 'reference':
+                            self.get_logger().error("test")
                             body_name = element.attrib['name']
-                            mj_element = self.get_elements(self.mjcf_root, 'body', 'name', body_name)
+                            mj_element = self.get_elements(self.mjcf_root, 'body', 'name', body_name)[0]
 
                             if mj_element is not None:
                                 for child in element:
                                     mj_element.insert(0, child)
+
+                                    self.get_logger().error(ET.tostring(child, 'utf-8'))
                             else:
                                 self.get_logger().error("Body " + body_name + " not found")
                                 rclpy.shutdown()
