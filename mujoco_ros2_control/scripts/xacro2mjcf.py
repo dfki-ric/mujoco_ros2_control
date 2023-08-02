@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import subprocess
 
 import rclpy
 from rclpy.node import Node
@@ -69,7 +70,7 @@ class Xacro2Mjcf(Node):
                 ('output_file', rclpy.Parameter.Type.STRING),
                 ('compile_executable', 'compile'),
                 ('robot_descriptions', rclpy.Parameter.Type.STRING_ARRAY),
-                ('mujoco_files_path', "/tmp/mujoco/")
+                ('mujoco_files_path', "/tmp/mujoco/"),
             ]
         )
 
@@ -93,8 +94,42 @@ class Xacro2Mjcf(Node):
         # Convert robot descriptions to URDF files
         for robot_description in robot_descriptions:
             name = str(uuid.uuid4())
-            with open(mujoco_files_path + '/' + name + '.urdf', 'w') as f:
-                f.write(str(robot_description))
+            # change fixed joints to revolute joints
+            tmp_urdf_tree = ET.ElementTree(ET.fromstring(robot_description))
+            tmp_urdf_root = tmp_urdf_tree.getroot()
+            for joint_element in self.get_elements(tmp_urdf_root, "joint", "type", "fixed"):
+                # Update the attribute
+                joint_element.set("type", "revolute")
+
+                # Add a new child element <new_child> with some content
+                limit = ET.Element('limit')
+                limit.attrib['effort'] = '0'
+                limit.attrib['lower'] = '0'
+                limit.attrib['upper'] = '0'
+                limit.attrib['velocity'] = '0'
+                joint_element.append(limit)
+            for link_element in self.get_elements(tmp_urdf_root, "link"):
+                # add inertial element with small values to the links of the fixed joints
+                if len(list(link_element)) == 0:
+                    inertial = ET.Element('inertial')
+                    mass = ET.Element('mass')
+                    mass.attrib['value'] = '1e-10'
+                    inertial.append(mass)
+                    origin = ET.Element('origin')
+                    origin.attrib['xyz'] = '0 0 0'
+                    inertial.append(origin)
+                    inertia = ET.Element('inertia')
+                    inertia.attrib['ixx'] = '1e-10'
+                    inertia.attrib['ixy'] = '0.0'
+                    inertia.attrib['ixz'] = '0.0'
+                    inertia.attrib['iyy'] = '1e-10'
+                    inertia.attrib['iyz'] = '0.0'
+                    inertia.attrib['izz'] = '1e-10'
+                    inertial.append(inertia)
+                    link_element.append(inertial)
+            output_tree = ET.ElementTree(tmp_urdf_root)
+            ET.indent(output_tree, space="\t", level=0)
+            output_tree.write(mujoco_files_path + '/' + name + '.urdf')
             input_files.append(mujoco_files_path + '/' + name + '.urdf')
 
         out_assets = ET.Element('asset')
@@ -104,6 +139,7 @@ class Xacro2Mjcf(Node):
             filename = input_file
             if filename.split('.')[-1] == 'xacro' or filename.split('.')[-1] == 'urdf':
                 name = filename.split('.')[-2].split('/')[-1]
+
                 if filename.split('.')[-1] == 'xacro':
                     # Convert Xacro to URDF
                     os.system('xacro ' + filename + ' > ' + mujoco_files_path + '/tmp_' + name + '.urdf')
@@ -119,23 +155,16 @@ class Xacro2Mjcf(Node):
                 mjcf_tree = ET.parse(mujoco_files_path + '/tmp_' + name + '.xml')
                 self.mjcf_root = mjcf_tree.getroot()
 
-                elements = self.get_elements(self.mjcf_root, 'geom', 'pos')
-                if len(elements) > 0:
-                    self.replace_geoms_with_bodys(elements)
                 # Insert elements into the MJCF file tree
                 mujoco = self.urdf_root.find('mujoco')
                 if mujoco is not None:
                     for element in mujoco:
                         if element.tag == 'reference':
-                            self.get_logger().error("test")
                             body_name = element.attrib['name']
                             mj_element = self.get_elements(self.mjcf_root, 'body', 'name', body_name)[0]
-
                             if mj_element is not None:
                                 for child in element:
                                     mj_element.insert(0, child)
-
-                                    self.get_logger().error(ET.tostring(child, 'utf-8'))
                             else:
                                 self.get_logger().error("Body " + body_name + " not found")
                                 rclpy.shutdown()
@@ -175,76 +204,15 @@ class Xacro2Mjcf(Node):
         self.destroy_node()
         exit(0)
 
-    def get_elements(self, parent, tag, attrib, value=None):
+    def get_elements(self, parent, tag, attrib=None, value=None):
         elements = []
         for child in parent:
             if child.tag == tag:
-                if attrib in child.attrib.keys():
-                    if child.attrib[attrib] == value or value is None:
+                if attrib is None or attrib in child.attrib.keys():
+                    if value is None or child.attrib[attrib] == value:
                         elements.append(child)
             elements += self.get_elements(child, tag, attrib, value)
         return elements
-
-    def get_parent(self, tree, element, tags=None):
-        parent = None
-        for child in tree:
-            if child == element:
-                if tags is None or tree.tag in tags:
-                    return tree
-            parent = self.get_parent(child, element, tags)
-            if parent is not None:
-                return parent
-        return parent
-
-
-    def replace_geoms_with_bodys(self, input_elements, searched_names=None):
-        elements = input_elements
-
-        for element in input_elements:
-            parent_element = self.get_parent(self.mjcf_root, element)
-            if parent_element is None:
-                self.get_logger().info("No Parent for " + str(element) + " found")
-                continue
-
-            body = ET.Element('body')
-            geom = ET.Element('geom')
-            for key in element.attrib.keys():
-                if key == 'pos' or key == 'quat' or key == 'name':
-                    body.set(key, element.attrib[key])
-                else:
-                    geom.set(key, element.attrib[key])
-
-            if "name" in element.attrib.keys():
-                name = element.attrib['name']
-            else:
-                potential_elements = self.get_elements(self.urdf_root, 'origin', 'xyz', body.attrib['pos'])
-                if len(potential_elements) == 0:
-                    continue
-                name = None
-                for actual_element in potential_elements:
-                    tmp_parent = None
-                    tmp_parent = self.get_parent(self.urdf_root, actual_element, ['visual', 'collision'])
-                    if tmp_parent is None:
-                        tmp_parent = self.get_parent(self.urdf_root, actual_element, ['joint'])
-                        if tmp_parent is None:
-                            continue
-                        name = tmp_parent.find("child").attrib['link']
-                        break
-                    else:
-                        tmp_parent = self.get_parent(self.urdf_root, tmp_parent, ['link'])
-                        name = tmp_parent.attrib['name']
-                        break
-                if name is None:
-                    self.get_logger().info(body.attrib['pos'])
-                    break
-            #element.set('name', name)
-
-            potential_elements = self.get_elements(self.mjcf_root, "body", "name", name)
-            if len(potential_elements) == 0:
-                body.set('name', name)
-                body.append(geom)
-                parent_element.append(body)
-                parent_element.remove(element)
 
 
 
@@ -260,3 +228,4 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
+
