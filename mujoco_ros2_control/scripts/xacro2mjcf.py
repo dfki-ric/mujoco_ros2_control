@@ -139,6 +139,8 @@ class Xacro2Mjcf(Node):
             filename = input_file
             if filename.split('.')[-1] == 'xacro' or filename.split('.')[-1] == 'urdf':
                 name = filename.split('.')[-2].split('/')[-1]
+                if name == 'urdf':
+                    name = filename.split('.')[-3].split('/')[-1]
 
                 if filename.split('.')[-1] == 'xacro':
                     # Convert Xacro to URDF
