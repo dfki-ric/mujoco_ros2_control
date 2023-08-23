@@ -31,7 +31,7 @@
  * limitations under the License.
  */
 
-#include "mujoco_ros2_control/mujoco_visualization.hpp"
+#include "mujoco_visualization/mujoco_visualization.hpp"
 
 namespace mujoco_visualization {
 
@@ -63,7 +63,6 @@ namespace mujoco_visualization {
         mjv_makeScene(m, &scn, 2000);
         mjr_makeContext(m, &con, mjFONTSCALE_150);
 
-
         if (show_vis) {
             // install GLFW mouse and keyboard callbacks
             glfwSetKeyCallback(window, &keyboard_cb);
@@ -74,9 +73,6 @@ namespace mujoco_visualization {
         } else {
             mjr_setBuffer(mjFB_OFFSCREEN, &con);
         }
-
-
-
     }
 
     void MujocoVisualization::update() {

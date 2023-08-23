@@ -50,9 +50,9 @@ def generate_launch_description():
     # Gazebo Sim
     gazebo = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-            [os.path.join(get_package_share_directory('ros_gz_sim'),
-                          'launch', 'gz_sim.launch.py')]),
-        launch_arguments=[('gz_args', [' -r -v 1 empty.sdf']), ('gz_version', ['7'])])
+            [os.path.join(get_package_share_directory('ros_ign_gazebo'),
+                          'launch', 'ign_gazebo.launch.py')]),
+        launch_arguments=[('gz_args', [' -r -v 1 empty.sdf'])])
 
     ignition_spawn_entity = Node(
         package='ros_gz_sim',
@@ -71,14 +71,22 @@ def generate_launch_description():
 
     load_arm_controller = ExecuteProcess(
         cmd=['ros2', 'control', 'load_controller', '--set-state', 'active',
-             'cartesian_impedance_controller'],
+             'panda_arm_controller'],
         output='screen'
     )
 
     load_gripper_controller = ExecuteProcess(
         cmd=['ros2', 'control', 'load_controller', '--set-state', 'active',
-             'gripper_controller'],
+             'panda_gripper_controller'],
         output='screen'
+    )
+
+    move_group = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(os.path.join(get_package_share_directory("panda_moveit"), "launch", "move_group.launch.py"))
+    )
+
+    moveit_rviz = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(os.path.join(get_package_share_directory("panda_moveit"), "launch", "moveit_rviz.launch.py"))
     )
 
     return LaunchDescription(
@@ -98,7 +106,10 @@ def generate_launch_description():
             RegisterEventHandler(
                 event_handler=OnProcessExit(
                     target_action=load_joint_state_controller,
-                    on_exit=[load_arm_controller, load_gripper_controller]
+                    on_exit=[load_arm_controller,
+                             load_gripper_controller,
+                             move_group,
+                             moveit_rviz]
                 )
             ),
             robot_state_publisher,

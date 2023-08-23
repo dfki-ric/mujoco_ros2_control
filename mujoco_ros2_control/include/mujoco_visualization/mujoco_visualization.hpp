@@ -31,8 +31,8 @@
  * limitations under the License.
  */
 
-#ifndef MUJOCO_ROS2_CONTROL_MUJOCO_VISUALIZATION_HPP
-#define MUJOCO_ROS2_CONTROL_MUJOCO_VISUALIZATION_HPP
+#ifndef MUJOCO_VISUALIZATION_MUJOCO_VISUALIZATION_HPP
+#define MUJOCO_VISUALIZATION_MUJOCO_VISUALIZATION_HPP
 
 #include <GLFW/glfw3.h>
 #include <mujoco/mujoco.h>
@@ -97,6 +97,7 @@ namespace mujoco_visualization {
          */
         MujocoVisualization(MujocoVisualization const&);
     protected:
+
         /**
          * @brief Pointer to the MuJoCo model.
          * Holds the reference to the MuJoCo model used for visualization.
@@ -132,6 +133,9 @@ namespace mujoco_visualization {
          * Holds the context for rendering the visualization using GPU.
          */
         mjrContext con;
+
+
+        mjvPerturb pert;
 
         /**
          * @brief Pointer to the GLFW window.
@@ -242,4 +246,4 @@ namespace mujoco_visualization {
 
 } // mujoco_visualization
 
-#endif //MUJOCO_ROS2_CONTROL_MUJOCO_VISUALIZATION_HPP
+#endif //MUJOCO_VISUALIZATION_MUJOCO_VISUALIZATION_HPP

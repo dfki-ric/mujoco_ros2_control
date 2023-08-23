@@ -5,6 +5,8 @@
     <xacro:include filename="$(find panda_simulation)/urdf/include/panda.urdf.xacro"/>
     <xacro:include filename="$(find panda_simulation)/urdf/include/panda_utils.xacro"/>
     <xacro:include filename="$(find panda_simulation)/urdf/table.urdf"/>
+    <xacro:include filename="$(find panda_simulation)/config/panda.mujoco"/>
+    <xacro:include filename="$(find panda_simulation)/config/panda.gazebo"/>
 
     <!-- Flag to enable default gripper -->
     <xacro:arg name="gripper" default="true" />
@@ -56,6 +58,9 @@
     </xacro:if>
 
     <xacro:panda name="$(arg name)" origin_xyz="$(arg origin_xyz)" origin_rpy="$(arg origin_rpy)" base_parent="$(arg world_name)"/>
+
+    <xacro:mujoco_ros2_control prefix="panda_"/>
+    <xacro:ign_ros2_control/>
 
 
 </robot>

@@ -175,6 +175,7 @@ namespace mujoco_ros2_control
     }
 
     void MujocoRos2Control::init_controller_manager() {
+        RCLCPP_INFO(nh_->get_logger(), "init controller manager");
         try {
             robot_hw_sim_loader_.reset(
                     new pluginlib::ClassLoader<mujoco_ros2_control::MujocoSystemInterface>
@@ -206,7 +207,7 @@ namespace mujoco_ros2_control
             resource_manager_->activate_all_components();
         }
         executor_ = std::make_shared<rclcpp::executors::MultiThreadedExecutor>();
-        controller_manager_.reset(new controller_manager::ControllerManager(std::move(resource_manager_), executor_));
+        controller_manager_.reset(new controller_manager::ControllerManager(std::move(resource_manager_), executor_, "controller_manager"));
         if (!controller_manager_->has_parameter("update_rate")) {
             RCLCPP_ERROR(nh_->get_logger(), "controller manager doesn't have an update_rate parameter");
             return;

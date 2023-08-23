@@ -1,0 +1,115 @@
+# This config file is used by ros2_control
+controller_manager:
+  ros__parameters:
+    update_rate: 100  # Hz
+
+    arm_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+
+
+    hand_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+
+
+    cartesian_impedance_controller:
+      type: cartesian_impedance_controller/CartesianImpedanceController
+
+    effort_controller:
+      type: effort_controllers/JointGroupEffortController
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+
+cartesian_impedance_controller:
+  ros__parameters:
+    use_sim_time: true
+    update_frequency: 500.0
+    root_link: base_link
+    joints:
+      - panda_joint1
+      - panda_joint2
+      - panda_joint3
+      - panda_joint4
+      - panda_joint5
+      - panda_joint6
+      - panda_joint7
+    use_robot_description_node: true
+
+effort_controller:
+  ros__parameters:
+    joints:
+      - panda_joint1
+      - panda_joint2
+      - panda_joint3
+      - panda_joint4
+      - panda_joint5
+      - panda_joint6
+      - panda_joint7
+    command_interfaces:
+      - effort
+    state_interfaces:
+      - position
+      - velocity
+    gains:
+      panda_joint1:
+        p: 4000.0
+        d: 10.0
+        i: 250.0
+        i_clamp: 15.0
+      panda_joint2:
+        p: 10000.0
+        d: 25.0
+        i: 600.0
+        i_clamp: 45.0
+      panda_joint3:
+        p: 8000.0
+        d: 20.0
+        i: 450.0
+        i_clamp: 30.0
+      panda_joint4:
+        p: 6000.0
+        d: 15.0
+        i: 300.0
+        i_clamp: 30.0
+      panda_joint5:
+        p: 3000.0
+        d: 5.0
+        i: 175.0
+        i_clamp: 7.0
+      panda_joint6:
+        p: 2500.0
+        d: 3.0
+        i: 150.0
+        i_clamp: 6.0
+      panda_joint7:
+        p: 2000.0
+        d: 2.0
+        i: 10.0
+        i_clamp: 5.0
+
+arm_controller:
+  ros__parameters:
+    joints:
+      - panda_joint1
+      - panda_joint2
+      - panda_joint3
+      - panda_joint4
+      - panda_joint5
+      - panda_joint6
+      - panda_joint7
+    command_interfaces:
+      - effort
+    state_interfaces:
+      - position
+      - velocity
+hand_controller:
+  ros__parameters:
+    joints:
+      - panda_finger_joint1
+      - panda_finger_joint2
+    command_interfaces:
+      - effort
+    state_interfaces:
+      - position
+      - velocity

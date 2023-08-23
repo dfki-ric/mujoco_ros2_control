@@ -19,15 +19,15 @@
             <material name="MidGrey"/>
         </visual>
         <collision>
-            <!--origin xyz="0 0 0" rpy="0 0 -1.570796327"/>
+            <origin xyz="0 0 0" rpy="0 0 -1.570796327"/>
             <geometry>
                 <mesh filename="file://$(find panda_simulation)/meshes/table.stl" scale="0.001 0.001 0.001"/>
-            </geometry-->
+            </geometry>
 
-            <origin xyz="0.012661 -0.005935 0.454" rpy="0 0 -1.570796327"/>
+            <!--origin xyz="0.012661 -0.005935 0.454" rpy="0 0 -1.570796327"/>
             <geometry>
                 <box size="0.758292 1.175997 0.8875"/>
-            </geometry>
+            </geometry-->
 
         </collision>
         <inertial>
@@ -67,4 +67,7 @@
         <origin xyz="0 0 1.5" rpy="0 0 0"/>
         <child link="camera_link"/>
     </joint>
+    <!--mujoco>
+        <compiler meshdir="/home/dfki.uni-bremen.de/adanzglock/mujoco_test_ws/src/mujoco_ros2_pkgs/panda_simulation/meshes"/>
+    </mujoco-->
 </robot>

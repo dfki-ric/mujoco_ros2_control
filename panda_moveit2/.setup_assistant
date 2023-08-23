@@ -1,0 +1,27 @@
+moveit_setup_assistant_config:
+  urdf:
+    package: panda_simulation
+    relative_path: urdf/d019f2fa-c8f5-4405-b707-f886d5ff2b55.urdf
+  srdf:
+    relative_path: config/panda.srdf
+  package_settings:
+    author_name: Adrian Danzglock
+    author_email: adrian.danzglock@dfki.de
+    generated_timestamp: 1692778471
+  control_xacro:
+    command:
+      - effort
+    state:
+      - position
+      - velocity
+      - effort
+  modified_urdf:
+    xacros:
+      - control_xacro
+  control_xacro:
+    command:
+      - effort
+    state:
+      - position
+      - velocity
+      - effort

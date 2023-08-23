@@ -9,8 +9,6 @@
     <xacro:include filename="$(find panda_simulation)/urdf/include/panda_arm.xacro"/>
     <xacro:include filename="$(find panda_simulation)/urdf/include/panda_gripper.xacro"/>
     <xacro:include filename="$(find panda_simulation)/urdf/include/panda_utils.xacro"/>
-    <xacro:include filename="$(find panda_simulation)/config/panda.mujoco"/>
-    <xacro:include filename="$(find panda_simulation)/config/panda.gazebo"/>
 
 
     <!--            -->
@@ -53,17 +51,6 @@
               ros2_control_command_interface="$(arg ros2_control_command_interface)"
               gazebo_preserve_fixed_joint="$(arg gazebo_preserve_fixed_joint)"
       />
-    </xacro:if>
-
-    <!-- Gazebo - ROS 2 control (Ignition) -->
-    <xacro:if value="$(arg ros2_control)">
-      <xacro:if value="${'mujoco' in '$(arg ros2_control_plugin)'}">
-        <xacro:mujoco_ros2_control prefix="${prefix}"/>
-      </xacro:if>
-
-      <xacro:if value="${'ign' in '$(arg ros2_control_plugin)'}">
-        <xacro:ign_ros2_control controller_parameters="$(arg ros2_controller_parameters)"/>
-      </xacro:if>
     </xacro:if>
   </xacro:macro>
 </robot>

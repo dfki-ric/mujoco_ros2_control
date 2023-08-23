@@ -74,7 +74,7 @@
 #include "urdf/urdf/model.h"
 
 // Package header
-#include "mujoco_ros2_control/mujoco_visualization.hpp"
+#include "mujoco_visualization/mujoco_visualization.hpp"
 #include "mujoco_ros2_control/mujoco_system.hpp"
 #include "mujoco_ros2_control/mujoco_system_interface.hpp"
 #include "mujoco_rgbd_camera/mujoco_depth_camera.hpp"

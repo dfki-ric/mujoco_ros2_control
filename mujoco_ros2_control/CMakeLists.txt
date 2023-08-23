@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.16)
 project(mujoco_ros2_control)
 
 # Default to C99
@@ -22,7 +22,6 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
         controller_manager
         hardware_interface
         urdf
-        mujoco
         ament_lint_auto
         glfw3
         realtime_tools
@@ -36,6 +35,8 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
 foreach(Dependency IN ITEMS ${THIS_PACKAGE_INCLUDE_DEPENDS})
   find_package(${Dependency} REQUIRED)
 endforeach()
+
+find_package(mujoco 2.3.5 REQUIRED)
 
 ## Specify additional locations of header files
 add_definitions(

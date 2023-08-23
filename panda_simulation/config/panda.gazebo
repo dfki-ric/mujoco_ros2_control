@@ -5,12 +5,10 @@
   <!--       -->
   <!-- Macro -->
   <!--       -->
-  <xacro:macro name="ign_ros2_control" params="
-   controller_parameters
-  ">
+  <xacro:macro name="ign_ros2_control">
     <gazebo>
       <plugin filename="ign_ros2_control-system" name="ign_ros2_control::IgnitionROS2ControlPlugin">
-        <parameters>$(find panda_simulation)/config/controllers.yaml</parameters>
+        <parameters>$(find panda_moveit2)/config/ros2_controllers.yaml</parameters>
       </plugin>
     </gazebo>
   </xacro:macro>
