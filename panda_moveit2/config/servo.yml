@@ -35,14 +35,14 @@ smoothing_filter_plugin_name: "online_signal_smoothing::ButterworthFilterPlugin"
 # which other nodes can use as a source for information about the planning environment.
 # NOTE: If a different node in your system is responsible for the "primary" planning scene instance (e.g. the MoveGroup node),
 # then is_primary_planning_scene_monitor needs to be set to false.
-is_primary_planning_scene_monitor: true
+is_primary_planning_scene_monitor: false
 
 ## MoveIt properties
-move_group_name:  panda_arm  # Often 'manipulator' or 'arm'
+move_group_name:  arm  # Often 'manipulator' or 'arm'
 planning_frame: base_link  # The MoveIt planning frame. Often 'base_link' or 'world'
 
 ## Other frames
-ee_frame_name: panda_link8  # The name of the end effector link, used to return the EE pose
+ee_frame_name: panda_hand  # The name of the end effector link, used to return the EE pose
 robot_link_command_frame:  base_link  # commands must be given in the frame of a robot link. Usually either the base or end effector
 
 ## Stopping behaviour

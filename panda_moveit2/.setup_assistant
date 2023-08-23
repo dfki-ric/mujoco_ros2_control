@@ -7,21 +7,4 @@ moveit_setup_assistant_config:
   package_settings:
     author_name: Adrian Danzglock
     author_email: adrian.danzglock@dfki.de
-    generated_timestamp: 1692778471
-  control_xacro:
-    command:
-      - effort
-    state:
-      - position
-      - velocity
-      - effort
-  modified_urdf:
-    xacros:
-      - control_xacro
-  control_xacro:
-    command:
-      - effort
-    state:
-      - position
-      - velocity
-      - effort
+    generated_timestamp: 1692786552

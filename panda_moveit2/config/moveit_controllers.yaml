@@ -20,16 +20,13 @@ moveit_simple_controller_manager:
       - panda_joint5
       - panda_joint6
       - panda_joint7
-
   hand_controller:
     type: GripperCommand
-    action_ns: follow_joint_trajectory
-    default: true
-    parallel: true
     joints:
       - panda_finger_joint1
       - panda_finger_joint2
-
+    action_ns: follow_joint_trajectory
+    default: true
   cartesian_impedance_controller:
     type: FollowJointTrajectory
     action_ns: follow_joint_trajectory

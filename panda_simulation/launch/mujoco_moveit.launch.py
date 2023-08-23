@@ -199,8 +199,6 @@ def generate_launch_description():
         "publish_transforms_updates": True,
     }
 
-    print(moveit_controllers)
-
     # START NODE -> MOVE GROUP:
     run_move_group_node = Node(
         package="moveit_ros_move_group",

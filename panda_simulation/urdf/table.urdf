@@ -37,36 +37,36 @@
         </inertial>
     </link>
 
-    <link name="camera_link">
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="1"/>
-            <inertia ixx="100"  ixy="0"  ixz="0" iyy="100" iyz="0" izz="100" />
-        </inertial>
+<!--    <link name="camera_link">-->
+<!--        <inertial>-->
+<!--            <origin xyz="0 0 0" rpy="0 0 0"/>-->
+<!--            <mass value="1"/>-->
+<!--            <inertia ixx="100"  ixy="0"  ixz="0" iyy="100" iyz="0" izz="100" />-->
+<!--        </inertial>-->
 
-        <visual>
-            <origin xyz="0 0 0" rpy="0 0 0" />
-            <geometry>
-                <box size="0.05 0.05 0.05" />
-            </geometry>
-            <material name="Cyan">
-                <color rgba="0 1.0 0.0 1.0"/>
-            </material>
-        </visual>
+<!--        <visual>-->
+<!--            <origin xyz="0 0 0" rpy="0 0 0" />-->
+<!--            <geometry>-->
+<!--                <box size="0.05 0.05 0.05" />-->
+<!--            </geometry>-->
+<!--            <material name="Cyan">-->
+<!--                <color rgba="0 1.0 0.0 1.0"/>-->
+<!--            </material>-->
+<!--        </visual>-->
 
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0" />
-            <geometry>
-                <box size="0.05 0.05 0.05" />
-            </geometry>
-        </collision>
-    </link>
+<!--        <collision>-->
+<!--            <origin xyz="0 0 0" rpy="0 0 0" />-->
+<!--            <geometry>-->
+<!--                <box size="0.05 0.05 0.05" />-->
+<!--            </geometry>-->
+<!--        </collision>-->
+<!--    </link>-->
 
-    <joint name="base_to_camera" type="fixed">
-        <parent link="base_link"/>
-        <origin xyz="0 0 1.5" rpy="0 0 0"/>
-        <child link="camera_link"/>
-    </joint>
+<!--    <joint name="base_to_camera" type="fixed">-->
+<!--        <parent link="base_link"/>-->
+<!--        <origin xyz="0 0 1.5" rpy="0 0 0"/>-->
+<!--        <child link="camera_link"/>-->
+<!--    </joint>-->
     <!--mujoco>
         <compiler meshdir="/home/dfki.uni-bremen.de/adanzglock/mujoco_test_ws/src/mujoco_ros2_pkgs/panda_simulation/meshes"/>
     </mujoco-->

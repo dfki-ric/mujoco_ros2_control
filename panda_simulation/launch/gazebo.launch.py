@@ -52,7 +52,35 @@ def generate_launch_description():
         PythonLaunchDescriptionSource(
             [os.path.join(get_package_share_directory('ros_gz_sim'),
                           'launch', 'gz_sim.launch.py')]),
-        launch_arguments=[('gz_args', [' -r -v 1 empty.sdf']), ('gz_version', ['7'])])
+        launch_arguments=[('gz_args', [' -r -v 6 empty.sdf --physics-engine ignition-physics-bullet-plugin']), ('gz_version', ['7']), ])
+
+    USB_Male = xacro.process_file(os.path.join(
+        get_package_share_directory('panda_simulation'),
+        'urdf',
+        'USB_Male.urdf.xacro')).toxml()
+
+    USB_Female = xacro.process_file(os.path.join(
+        get_package_share_directory('panda_simulation'),
+        'urdf',
+        'USB_Female.urdf.xacro')).toxml()
+
+    gz_spawn_entity_2 = Node(
+        package='ros_gz_sim',
+        executable='create',
+        output='screen',
+        arguments=['-string', USB_Male,
+                   '-name', 'USB_Male',
+                   '-allow_renaming', 'true']
+    )
+
+    gz_spawn_entity_3 = Node(
+        package='ros_gz_sim',
+        executable='create',
+        output='screen',
+        arguments=['-string', USB_Female,
+                   '-name', 'USB_Female',
+                   '-allow_renaming', 'true']
+    )
 
     ignition_spawn_entity = Node(
         package='ros_gz_sim',
@@ -102,6 +130,8 @@ def generate_launch_description():
                 )
             ),
             robot_state_publisher,
-            ignition_spawn_entity
+            ignition_spawn_entity,
+            gz_spawn_entity_2,
+            gz_spawn_entity_3
         ]
     )
