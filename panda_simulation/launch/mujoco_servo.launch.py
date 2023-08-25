@@ -66,7 +66,7 @@ def generate_launch_description():
     mujoco_scene_file = os.path.join(
         get_package_share_directory('panda_simulation'),
         'mjcf',
-        'panda_scene.xml')
+        'scene.xml')
 
     # Add a free joint
     usb_female_file = os.path.join(
@@ -149,7 +149,7 @@ def generate_launch_description():
 
     load_arm_controller = ExecuteProcess(
         cmd=['ros2', 'control', 'load_controller', '--set-state', 'active',
-             'cartesian_impedance_controller'],
+             'arm_controller'],
         output='screen'
     )
 
@@ -225,21 +225,21 @@ def generate_launch_description():
 
 
     # START NODE -> MOVE GROUP:
-    run_move_group_node = Node(
-        package="moveit_ros_move_group",
-        executable="move_group",
-        output="screen",
-        parameters=[
-            robot_description,
-            robot_description_semantic,
-            robot_description_kinematics,
-            ompl_planning_pipeline_config,
-            trajectory_execution,
-            moveit_simple_controllers_yaml,
-            planning_scene_monitor_parameters,
-            {"use_sim_time": True}
-        ],
-    )
+    # run_move_group_node = Node(
+    #     package="moveit_ros_move_group",
+    #     executable="move_group",
+    #     output="screen",
+    #     parameters=[
+    #         robot_description,
+    #         robot_description_semantic,
+    #         robot_description_kinematics,
+    #         ompl_planning_pipeline_config,
+    #         trajectory_execution,
+    #         moveit_simple_controllers_yaml,
+    #         planning_scene_monitor_parameters,
+    #         {"use_sim_time": True}
+    #     ],
+    # )
 
     # Launch a standalone Servo node.
     # As opposed to a node component, this may be necessary (for example) if Servo is running on a different PC
@@ -282,10 +282,9 @@ def generate_launch_description():
                 load_joint_state_controller,
                 load_arm_controller,
                 load_gripper_controller,
-                run_move_group_node,
                 container,
                 servo_node,
-                rviz_node_full
+                #rviz_node_full
             ]
         )
     )

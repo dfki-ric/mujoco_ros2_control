@@ -69,7 +69,7 @@ class Xacro2Mjcf(Node):
                 ('input_files', rclpy.Parameter.Type.STRING_ARRAY),
                 ('output_file', rclpy.Parameter.Type.STRING),
                 ('compile_executable', 'compile'),
-                ('robot_descriptions', rclpy.Parameter.Type.STRING_ARRAY),
+                ('robot_descriptions', []),
                 ('mujoco_files_path', "/tmp/mujoco/"),
             ]
         )

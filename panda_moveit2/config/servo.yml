@@ -35,14 +35,14 @@ smoothing_filter_plugin_name: "online_signal_smoothing::ButterworthFilterPlugin"
 # which other nodes can use as a source for information about the planning environment.
 # NOTE: If a different node in your system is responsible for the "primary" planning scene instance (e.g. the MoveGroup node),
 # then is_primary_planning_scene_monitor needs to be set to false.
-is_primary_planning_scene_monitor: false
+is_primary_planning_scene_monitor: true
 
 ## MoveIt properties
 move_group_name:  arm  # Often 'manipulator' or 'arm'
 planning_frame: base_link  # The MoveIt planning frame. Often 'base_link' or 'world'
 
 ## Other frames
-ee_frame_name: panda_hand  # The name of the end effector link, used to return the EE pose
+ee_frame_name: panda_link8  # The name of the end effector link, used to return the EE pose
 robot_link_command_frame:  base_link  # commands must be given in the frame of a robot link. Usually either the base or end effector
 
 ## Stopping behaviour
@@ -59,8 +59,8 @@ cartesian_command_in_topic: ~/delta_twist_cmds  # Topic for incoming Cartesian t
 joint_command_in_topic: ~/delta_joint_cmds # Topic for incoming joint angle commands
 joint_topic: /joint_states
 status_topic: ~/status # Publish status to this topic
-command_out_topic: /cartesian_impedance_controller/joint_trajectory # Publish outgoing commands here
-
+#command_out_topic: /cartesian_impedance_controller/joint_trajectory # Publish outgoing commands here
+command_out_topic: /arm_controller/joint_trajectory # Publish outgoing commands here
 ## Collision checking for the entire robot body
 check_collisions: true # Check collisions?
 collision_check_rate: 30.0 # [Hz] Collision-checking can easily bog down a CPU if done too often.

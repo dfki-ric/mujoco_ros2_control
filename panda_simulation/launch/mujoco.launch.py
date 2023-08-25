@@ -37,12 +37,17 @@ def generate_launch_description():
     robot_description = {'robot_description': robot_description_string}
 
     mujoco_model_path = "/tmp/mujoco"
-    mujoco_model_file = mujoco_model_path + "/panda.xml"
+    mujoco_model_file = mujoco_model_path + "/robot.xml"
 
     mujoco_scene_file = os.path.join(
         get_package_share_directory('panda_simulation'),
         'mjcf',
-        'panda_scene.xml')
+        'scene.xml')
+
+    mujoco_panda_file = os.path.join(
+        get_package_share_directory('panda_simulation'),
+        'mjcf',
+        'panda.xml')
 
     # Add a free joint
     mujoco_box_file = os.path.join(
@@ -53,17 +58,18 @@ def generate_launch_description():
     mujoco_table_file = os.path.join(
         get_package_share_directory('panda_simulation'),
         'urdf',
-        'table.urdf')
+        'table.urdf.xacro')
 
     xacro2mjcf = Node(
         package="mujoco_ros2_control",
         executable="xacro2mjcf.py",
-        parameters=[{'robot_descriptions': [robot_description_string]},
-                    # robot descriptions of ros robots (it is possible to load multiple robot descriptions, but ros use only one at time
+        parameters=[
+                    #{'robot_descriptions': ['']}, # robot descriptions of ros robots (it is possible to load multiple robot descriptions, but ros use only one at time
                     {'input_files': [  # Paths to all files that must be included, like free joints or scene files
                         mujoco_scene_file,
-                        mujoco_box_file,
-                        #mujoco_table_file
+                        #mujoco_box_file,
+                        #mujoco_table_file,
+                        mujoco_panda_file
                     ]},
                     {'output_file': mujoco_model_file},  # Path to the output file
                     {'mujoco_files_path': mujoco_model_path}]

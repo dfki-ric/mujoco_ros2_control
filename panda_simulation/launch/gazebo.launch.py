@@ -52,7 +52,7 @@ def generate_launch_description():
         PythonLaunchDescriptionSource(
             [os.path.join(get_package_share_directory('ros_gz_sim'),
                           'launch', 'gz_sim.launch.py')]),
-        launch_arguments=[('gz_args', [' -r -v 6 empty.sdf --physics-engine ignition-physics-bullet-plugin']), ('gz_version', ['7']), ])
+        launch_arguments=[('gz_args', [' -r -v 6 empty.sdf --physics-engine ignition-physics-dartsim-plugin']), ('gz_version', ['6']), ])
 
     USB_Male = xacro.process_file(os.path.join(
         get_package_share_directory('panda_simulation'),

@@ -3,7 +3,7 @@
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
   <xacro:macro name="mujoco_ros2_control" params="prefix">
     <mujoco>
-      <compiler meshdir="$(arg mujoco_meshdir)"/>
+      <!--compiler meshdir="$(arg mujoco_meshdir)"/-->
       <option integrator="implicitfast"/>
 
 

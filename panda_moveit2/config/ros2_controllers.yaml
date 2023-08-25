@@ -33,6 +33,50 @@ arm_controller:
     state_interfaces:
       - position
       - velocity
+    gains:
+      panda_joint1:
+        p: 4000.0
+        d: 10.0
+        i: 250.0
+        i_clamp: 15.0
+        #ff_velocity_scale: 1.0
+      panda_joint2:
+        p: 10000.0
+        d: 25.0
+        i: 600.0
+        i_clamp: 45.0
+        #ff_velocity_scale: 1.0
+      panda_joint3:
+        p: 8000.0
+        d: 20.0
+        i: 450.0
+        i_clamp: 30.0
+        #ff_velocity_scale: 1.0
+      panda_joint4:
+        p: 6000.0
+        d: 15.0
+        i: 300.0
+        i_clamp: 30.0
+        #ff_velocity_scale: 1.0
+      panda_joint5:
+        p: 3000.0
+        d: 5.0
+        i: 175.0
+        i_clamp: 7.0
+        #ff_velocity_scale: 1.0
+      panda_joint6:
+        p: 2500.0
+        d: 3.0
+        i: 150.0
+        i_clamp: 6.0
+        #ff_velocity_scale: 1.0
+      panda_joint7:
+        p: 2000.0
+        d: 2.0
+        i: 10.0
+        i_clamp: 5.0
+        #ff_velocity_scale: 1.0
+
 hand_controller:
   ros__parameters:
     joints:
@@ -60,9 +104,9 @@ cartesian_impedance_controller:
     filtering:
       tf_frames: false
       pose: 0.5
-    damping:
-      nullspace_damping: 0.5
-      update_damping_factors: true
-    stiffness:
-      nullspace_stiffness: 50.0
-      update_stiffness: true
+    #damping:
+    #  nullspace_damping: 0.5
+    #  update_damping_factors: true
+    #stiffness:
+    #  nullspace_stiffness: 50.0
+    #  update_stiffness: true

@@ -24,8 +24,7 @@ aluminum peripherial evaluation case.
   <!-- Includes -->
   <xacro:include filename="$(find panda_simulation)/urdf/realsense_d415/_materials.urdf.xacro" />
 
-
-  <xacro:macro name="sensor_d415" params="parent origin_xyz='0 0 0' origin_rpy='0 0 0'  name:=camera  use_nominal_extrinsics:=false use_mesh:=true use_mujoco:=false">
+  <xacro:macro name="sensor_d415" params="parent origin_xyz='0 0 0' origin_rpy='0 0 0'  name:=camera  use_nominal_extrinsics:=false use_mesh:=true">
     <xacro:property name="origin_xyz_list" value="${origin_xyz.split()}" />
     <xacro:property name="M_PI" value="3.1415926535897931" />
 
@@ -83,18 +82,10 @@ aluminum peripherial evaluation case.
           </xacro:unless>
         </visual>
         <collision>
-          <xacro:if value="${use_mujoco}">
-            <origin xyz="0 ${-d415_cam_depth_py} 0" rpy="0 0 0"/>
-            <geometry>
-              <box size="${d415_cam_depth} ${d415_cam_width} ${d415_cam_height}"/>
-            </geometry>
-          </xacro:if>
-          <xacro:unless value="${use_mujoco}">
-            <origin xyz="0 ${-d415_cam_depth_py} 0" rpy="0 0 0"/>
-            <geometry>
-              <box size="${d415_cam_depth} ${d415_cam_width} ${d415_cam_height}"/>
-            </geometry>
-          </xacro:unless>
+          <origin xyz="0 ${-d415_cam_depth_py} 0" rpy="0 0 0"/>
+          <geometry>
+            <box size="${d415_cam_depth} ${d415_cam_width} ${d415_cam_height}"/>
+          </geometry>
         </collision>
       <!--/xacro:unless-->
       <inertial>

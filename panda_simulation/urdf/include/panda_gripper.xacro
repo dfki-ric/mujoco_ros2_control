@@ -28,7 +28,7 @@
   <xacro:property name="joint_finger1_torque_limit" value="20"/>
   <xacro:property name="joint_finger1_damping" value="3.0"/>
   <xacro:property name="joint_finger1_friction" value="0.4"/>
-  <xacro:property name="link_finger1_name" value="leftfinger"/>
+  <xacro:property name="link_finger1_name" value="left_finger"/>
   <xacro:property name="link_finger1_mu" value="1.13"/>
   <xacro:property name="link_finger1_mesh_offset" value="0 0 0"/>
 
@@ -43,7 +43,7 @@
   <xacro:property name="joint_finger2_torque_limit" value="20"/>
   <xacro:property name="joint_finger2_damping" value="3.0"/>
   <xacro:property name="joint_finger2_friction" value="0.4"/>
-  <xacro:property name="link_finger2_name" value="rightfinger"/>
+  <xacro:property name="link_finger2_name" value="right_finger"/>
   <xacro:property name="link_finger2_mu" value="1.13"/>
   <xacro:property name="link_finger2_mesh_offset" value="0 0 ${pi}"/>
 
