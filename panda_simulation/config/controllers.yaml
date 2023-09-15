@@ -23,6 +23,8 @@ cartesian_impedance_controller:
     use_sim_time: true
     update_frequency: 500.0
     root_link: base_link
+    end_effector: panda_link_tcp
+    apply_wrench: false
     joints:
       - panda_joint1
       - panda_joint2
