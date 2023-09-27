@@ -69,7 +69,7 @@ class Xacro2Mjcf(Node):
                 ('input_files', rclpy.Parameter.Type.STRING_ARRAY),
                 ('output_file', rclpy.Parameter.Type.STRING),
                 ('compile_executable', 'compile'),
-                ('robot_descriptions', []),
+                ('robot_descriptions', rclpy.Parameter.Type.STRING_ARRAY),
                 ('mujoco_files_path', "/tmp/mujoco/"),
             ]
         )
@@ -105,7 +105,7 @@ class Xacro2Mjcf(Node):
                 limit = ET.Element('limit')
                 limit.attrib['effort'] = '0'
                 limit.attrib['lower'] = '0'
-                limit.attrib['upper'] = '0'
+                limit.attrib['upper'] = '1e-10'
                 limit.attrib['velocity'] = '0'
                 joint_element.append(limit)
             for link_element in self.get_elements(tmp_urdf_root, "link"):
