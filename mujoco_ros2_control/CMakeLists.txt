@@ -45,7 +45,7 @@ include_directories(
         ${rclcpp_INCLUDE_DIRS}
 )
 
-ament_lint_auto_find_test_dependencies()
+#ament_lint_auto_find_test_dependencies()
 
 add_library(mujoco_system_plugins SHARED
         src/mujoco_system.cpp)
