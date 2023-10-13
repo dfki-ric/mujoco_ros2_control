@@ -87,7 +87,7 @@ class Xacro2Mjcf(Node):
 
         # Create directory for Mujoco files
         os.system("rm -r " + mujoco_files_path)
-        os.system("mkdir " + mujoco_files_path)
+        os.system("mkdir -p " + mujoco_files_path + "/meshes")
 
         output_model_files = []
 
@@ -97,36 +97,54 @@ class Xacro2Mjcf(Node):
             # change fixed joints to revolute joints
             tmp_urdf_tree = ET.ElementTree(ET.fromstring(robot_description))
             tmp_urdf_root = tmp_urdf_tree.getroot()
-            for joint_element in self.get_elements(tmp_urdf_root, "joint", "type", "fixed"):
-                # Update the attribute
-                joint_element.set("type", "revolute")
 
-                # Add a new child element <new_child> with some content
-                limit = ET.Element('limit')
-                limit.attrib['effort'] = '0'
-                limit.attrib['lower'] = '0'
-                limit.attrib['upper'] = '1e-10'
-                limit.attrib['velocity'] = '0'
-                joint_element.append(limit)
+            # Create symlinks to used meshes in the tmp folder
+            for mesh in self.get_elements(tmp_urdf_root, "mesh"):
+                filename = mesh.get('filename')
+                if filename:
+                    source_file = filename[7:]
+                    target_file = mujoco_files_path + "/meshes/" + source_file.replace("/", "_")
+                    if source_file[-3:] == "stl" or source_file[-3:] == "STL":
+                        if not os.path.exists(target_file):
+                            os.symlink(source_file, target_file)
+                        mesh.attrib['filename'] = "file://" + target_file
+            mujoco = tmp_urdf_root.find('mujoco')
+            referenced_links = []
+            for reference in self.get_elements(mujoco, "reference"):
+                referenced_links.append(reference.get("name"))
+
+            for joint_element in self.get_elements(tmp_urdf_root, "joint", "type", "fixed"):
+                if joint_element.find('child').attrib['link'] in referenced_links:
+                    # Update the attribute
+                    joint_element.set("type", "revolute")
+
+                    # Add a new child element <new_child> with some content
+                    limit = ET.Element('limit')
+                    limit.attrib['effort'] = '0'
+                    limit.attrib['lower'] = '0'
+                    limit.attrib['upper'] = '1e-10'
+                    limit.attrib['velocity'] = '0'
+                    joint_element.append(limit)
             for link_element in self.get_elements(tmp_urdf_root, "link"):
                 # add inertial element with small values to the links of the fixed joints
                 if len(list(link_element)) == 0:
-                    inertial = ET.Element('inertial')
-                    mass = ET.Element('mass')
-                    mass.attrib['value'] = '1e-10'
-                    inertial.append(mass)
-                    origin = ET.Element('origin')
-                    origin.attrib['xyz'] = '0 0 0'
-                    inertial.append(origin)
-                    inertia = ET.Element('inertia')
-                    inertia.attrib['ixx'] = '1e-10'
-                    inertia.attrib['ixy'] = '0.0'
-                    inertia.attrib['ixz'] = '0.0'
-                    inertia.attrib['iyy'] = '1e-10'
-                    inertia.attrib['iyz'] = '0.0'
-                    inertia.attrib['izz'] = '1e-10'
-                    inertial.append(inertia)
-                    link_element.append(inertial)
+                    if link_element.attrib['name'] in referenced_links:
+                        inertial = ET.Element('inertial')
+                        mass = ET.Element('mass')
+                        mass.attrib['value'] = '1e-10'
+                        inertial.append(mass)
+                        origin = ET.Element('origin')
+                        origin.attrib['xyz'] = '0 0 0'
+                        inertial.append(origin)
+                        inertia = ET.Element('inertia')
+                        inertia.attrib['ixx'] = '1e-10'
+                        inertia.attrib['ixy'] = '0.0'
+                        inertia.attrib['ixz'] = '0.0'
+                        inertia.attrib['iyy'] = '1e-10'
+                        inertia.attrib['iyz'] = '0.0'
+                        inertia.attrib['izz'] = '1e-10'
+                        inertial.append(inertia)
+                        link_element.append(inertial)
             output_tree = ET.ElementTree(tmp_urdf_root)
             ET.indent(output_tree, space="\t", level=0)
             output_tree.write(mujoco_files_path + '/' + name + '.urdf')
