@@ -36,7 +36,7 @@ foreach(Dependency IN ITEMS ${THIS_PACKAGE_INCLUDE_DEPENDS})
   find_package(${Dependency} REQUIRED)
 endforeach()
 
-find_package(mujoco 2.3.5 REQUIRED)
+find_package(mujoco REQUIRED)
 
 ## Specify additional locations of header files
 add_definitions(
@@ -121,6 +121,8 @@ install(TARGETS
         LIBRARY DESTINATION lib
         RUNTIME DESTINATION bin
         )
+        
+install(DIRECTORY mjcf DESTINATION share/${PROJECT_NAME}/)
 
 ament_python_install_package(scripts)
 

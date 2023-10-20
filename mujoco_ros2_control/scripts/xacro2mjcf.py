@@ -108,49 +108,65 @@ class Xacro2Mjcf(Node):
                         if not os.path.exists(target_file):
                             os.symlink(source_file, target_file)
                         mesh.attrib['filename'] = "file://" + target_file
-            mujoco = tmp_urdf_root.find('mujoco')
-            referenced_links = []
-            for reference in self.get_elements(mujoco, "reference"):
-                referenced_links.append(reference.get("name"))
+            # Merge mujoco elements
+            mujoco_elements = self.get_elements(tmp_urdf_root, "mujoco")
+            if mujoco_elements:
+                if len(mujoco_elements) > 1:
+                    for mujoco_element in self.get_elements(tmp_urdf_root, "mujoco")[1:]:
+                        for element in mujoco_element:
+                            self.get_logger().info(str(element))
+                            mujoco_elements[0].append(element)
+                        tmp_urdf_root.remove(mujoco_element)
 
-            for joint_element in self.get_elements(tmp_urdf_root, "joint", "type", "fixed"):
-                if joint_element.find('child').attrib['link'] in referenced_links:
-                    # Update the attribute
-                    joint_element.set("type", "revolute")
+                mujoco = mujoco_elements[0]
+                referenced_links = []
+                reference_elements = self.get_elements(mujoco, "reference")
+                if reference_elements is not None:
+                    for reference in reference_elements:
+                        self.get_logger().info(str(reference.get("name")))
+                        referenced_links.append(reference.get("name"))
 
-                    # Add a new child element <new_child> with some content
-                    limit = ET.Element('limit')
-                    limit.attrib['effort'] = '0'
-                    limit.attrib['lower'] = '0'
-                    limit.attrib['upper'] = '1e-10'
-                    limit.attrib['velocity'] = '0'
-                    joint_element.append(limit)
-            for link_element in self.get_elements(tmp_urdf_root, "link"):
-                # add inertial element with small values to the links of the fixed joints
-                if len(list(link_element)) == 0:
-                    if link_element.attrib['name'] in referenced_links:
-                        inertial = ET.Element('inertial')
-                        mass = ET.Element('mass')
-                        mass.attrib['value'] = '1e-10'
-                        inertial.append(mass)
-                        origin = ET.Element('origin')
-                        origin.attrib['xyz'] = '0 0 0'
-                        inertial.append(origin)
-                        inertia = ET.Element('inertia')
-                        inertia.attrib['ixx'] = '1e-10'
-                        inertia.attrib['ixy'] = '0.0'
-                        inertia.attrib['ixz'] = '0.0'
-                        inertia.attrib['iyy'] = '1e-10'
-                        inertia.attrib['iyz'] = '0.0'
-                        inertia.attrib['izz'] = '1e-10'
-                        inertial.append(inertia)
-                        link_element.append(inertial)
+                for joint_element in self.get_elements(tmp_urdf_root, "joint", "type", "fixed"):
+                    if joint_element.find('child').attrib['link'] in referenced_links:
+                        # Update the attribute
+                        joint_element.set("type", "revolute")
+
+                        # Add a new child element <new_child> with some content
+                        limit = ET.Element('limit')
+                        limit.attrib['effort'] = '0'
+                        limit.attrib['lower'] = '0'
+                        limit.attrib['upper'] = '1e-10'
+                        limit.attrib['velocity'] = '0'
+                        joint_element.append(limit)
+                for link_element in self.get_elements(tmp_urdf_root, "link"):
+                    # add inertial element with small values to the links of the fixed joints
+                    if len(list(link_element)) == 0:
+                        if link_element.attrib['name'] in referenced_links:
+                            inertial = ET.Element('inertial')
+                            mass = ET.Element('mass')
+                            mass.attrib['value'] = '1e-10'
+                            inertial.append(mass)
+                            origin = ET.Element('origin')
+                            origin.attrib['xyz'] = '0 0 0'
+                            inertial.append(origin)
+                            inertia = ET.Element('inertia')
+                            inertia.attrib['ixx'] = '1e-10'
+                            inertia.attrib['ixy'] = '0.0'
+                            inertia.attrib['ixz'] = '0.0'
+                            inertia.attrib['iyy'] = '1e-10'
+                            inertia.attrib['iyz'] = '0.0'
+                            inertia.attrib['izz'] = '1e-10'
+                            inertial.append(inertia)
+                            link_element.append(inertial)
+
+            	
             output_tree = ET.ElementTree(tmp_urdf_root)
             ET.indent(output_tree, space="\t", level=0)
             output_tree.write(mujoco_files_path + '/' + name + '.urdf')
             input_files.append(mujoco_files_path + '/' + name + '.urdf')
 
         out_assets = ET.Element('asset')
+        
 
         # Process input files
         for i, input_file in enumerate(input_files):
@@ -181,13 +197,25 @@ class Xacro2Mjcf(Node):
                     for element in mujoco:
                         if element.tag == 'reference':
                             body_name = element.attrib['name']
-                            mj_element = self.get_elements(self.mjcf_root, 'body', 'name', body_name)[0]
-                            if mj_element is not None:
+                            mj_elements = self.get_elements(self.mjcf_root, 'body', 'name', body_name)
+                            if mj_elements:
                                 for child in element:
-                                    mj_element.insert(0, child)
+                                    if 'body' in child.tag:
+                                        for attrib in child.attrib:
+                                            mj_elements[0].set(attrib, child.attrib[attrib])
+                                            self.get_logger().info("added attrib " + str(child.tag))
+                                    else:
+                                        tag_elements = self.get_elements(mj_elements[0], child.tag)
+                                        if tag_elements:
+                                            for attrib in child.attrib:
+                                                for tag_element in tag_elements:
+                                                    tag_element.set(attrib, child.attrib['attrib'])
+                                                    self.get_logger().info("added attrib to " + str(joint.tag))
+                                        else:
+                                            mj_elements[0].insert(0, child)
                             else:
                                 self.get_logger().error("Body " + body_name + " not found")
-                                rclpy.shutdown()
+                                #rclpy.shutdown()
                         elif element.tag != 'compiler':
                             self.mjcf_root.insert(len(self.mjcf_root), element)
 
@@ -226,7 +254,11 @@ class Xacro2Mjcf(Node):
 
     def get_elements(self, parent, tag, attrib=None, value=None):
         elements = []
+        if parent is None:
+            return None
         for child in parent:
+            if child is None:
+                return None
             if child.tag == tag:
                 if attrib is None or attrib in child.attrib.keys():
                     if value is None or child.attrib[attrib] == value:
