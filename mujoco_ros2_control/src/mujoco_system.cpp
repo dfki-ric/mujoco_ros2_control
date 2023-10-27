@@ -260,11 +260,9 @@ namespace mujoco_ros2_control {
                 if (actuators.find(POSITION) != actuators.end()) {
                     // write to actuator ctrl
                     mujoco_data_->ctrl[actuators[POSITION]] = position;
-                    mujoco_data_->qvel[joint.mujoco_dofadr] = joint.velocity_limit;
                 } else {
                     // write to position and velocity address from the joint
                     mujoco_data_->qpos[joint.mujoco_qpos_addr] = position;
-                    mujoco_data_->qvel[joint.mujoco_dofadr] = joint.velocity_limit;
                 }
             }
             // write velocity command to mujoco

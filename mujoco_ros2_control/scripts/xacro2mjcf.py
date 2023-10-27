@@ -193,6 +193,7 @@ class Xacro2Mjcf(Node):
 
                 # Insert elements into the MJCF file tree
                 mujoco = self.urdf_root.find('mujoco')
+                parent_map = {c: p for p in mjcf_tree.iter() for c in p}
                 if mujoco is not None:
                     for element in mujoco:
                         if element.tag == 'reference':
@@ -209,7 +210,8 @@ class Xacro2Mjcf(Node):
                                         if tag_elements:
                                             for attrib in child.attrib:
                                                 for tag_element in tag_elements:
-                                                    tag_element.set(attrib, child.attrib[attrib])
+                                                    if parent_map.get(tag_element) == mj_elements[0]:
+                                                        tag_element.set(attrib, child.attrib[attrib])
                                                     #self.get_logger().info("added attrib to " + str(joint.tag))
                                         else:
                                             mj_elements[0].insert(0, child)
