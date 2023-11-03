@@ -191,6 +191,11 @@ class Xacro2Mjcf(Node):
                 mjcf_tree = ET.parse(mujoco_files_path + '/tmp_' + name + '.xml')
                 self.mjcf_root = mjcf_tree.getroot()
 
+                # Add limited=true to all joints with range (limits)
+                joints = self.get_elements(self.mjcf_root, 'joint', 'range')
+                for joint in joints:
+                    joint.set("limited", "true")
+
                 # Insert elements into the MJCF file tree
                 mujoco = self.urdf_root.find('mujoco')
                 parent_map = {c: p for p in mjcf_tree.iter() for c in p}

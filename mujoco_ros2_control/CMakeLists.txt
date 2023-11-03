@@ -11,6 +11,8 @@ if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 17)
 endif()
 
+add_compile_options(-g)
+
 set(OpenGL_GL_PREFERENCE LEGACY)
 
 set(THIS_PACKAGE_INCLUDE_DEPENDS
@@ -36,7 +38,7 @@ foreach(Dependency IN ITEMS ${THIS_PACKAGE_INCLUDE_DEPENDS})
   find_package(${Dependency} REQUIRED)
 endforeach()
 
-find_package(mujoco REQUIRED)
+find_package(mujoco 3.0.0 REQUIRED)
 
 ## Specify additional locations of header files
 add_definitions(
