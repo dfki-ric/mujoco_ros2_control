@@ -5,6 +5,6 @@ git clone https://github.com/deepmind/mujoco
 mkdir mujoco/build
 cd mujoco/build
 cmake ..
-cmake --build ..
-cmake --install ..
+cmake --build .
+cmake --install .
 ```
