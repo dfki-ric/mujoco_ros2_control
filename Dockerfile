@@ -9,7 +9,11 @@ RUN apt-get update && apt-get install -y \
     ros-humble-rviz2 \
     ros-humble-ros2-control \
     ros-humble-ros2-controllers \
-    ros-humble-controller-manager
+    ros-humble-controller-manager \
+    libopencv-dev \
+    ros-humble-pcl-conversions \
+    ros-humble-cv-bridge \
+    libpcl-dev
     
 RUN mkdir /git
 WORKDIR /git
