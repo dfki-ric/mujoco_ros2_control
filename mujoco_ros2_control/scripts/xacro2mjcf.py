@@ -94,20 +94,9 @@ class Xacro2Mjcf(Node):
         # Convert robot descriptions to URDF files
         for robot_description in robot_descriptions:
             name = str(uuid.uuid4())
-            # change fixed joints to revolute joints
             tmp_urdf_tree = ET.ElementTree(ET.fromstring(robot_description))
             tmp_urdf_root = tmp_urdf_tree.getroot()
 
-            # Create symlinks to used meshes in the tmp folder
-            for mesh in self.get_elements(tmp_urdf_root, "mesh"):
-                filename = mesh.get('filename')
-                if filename:
-                    source_file = filename[7:]
-                    target_file = mujoco_files_path + "/meshes/" + source_file.replace("/", "_")
-                    if source_file[-3:] == "stl" or source_file[-3:] == "STL":
-                        if not os.path.exists(target_file):
-                            os.symlink(source_file, target_file)
-                        mesh.attrib['filename'] = "file://" + target_file
             # Merge mujoco elements
             mujoco_elements = self.get_elements(tmp_urdf_root, "mujoco")
             if mujoco_elements:
@@ -126,38 +115,38 @@ class Xacro2Mjcf(Node):
                         self.get_logger().info(str(reference.get("name")))
                         referenced_links.append(reference.get("name"))
 
-                for joint_element in self.get_elements(tmp_urdf_root, "joint", "type", "fixed"):
-                    if joint_element.find('child').attrib['link'] in referenced_links:
-                        # Update the attribute
-                        joint_element.set("type", "revolute")
+            for joint_element in self.get_elements(tmp_urdf_root, "joint", "type", "fixed"):
+                if joint_element.find('child').attrib['link'] in referenced_links:
+                    # Update the attribute
+                    joint_element.set("type", "revolute")
 
-                        # Add a new child element <new_child> with some content
-                        limit = ET.Element('limit')
-                        limit.attrib['effort'] = '0'
-                        limit.attrib['lower'] = '0'
-                        limit.attrib['upper'] = '1e-10'
-                        limit.attrib['velocity'] = '0'
-                        joint_element.append(limit)
-                for link_element in self.get_elements(tmp_urdf_root, "link"):
-                    # add inertial element with small values to the links of the fixed joints
-                    if len(list(link_element)) == 0:
-                        if link_element.attrib['name'] in referenced_links:
-                            inertial = ET.Element('inertial')
-                            mass = ET.Element('mass')
-                            mass.attrib['value'] = '1e-10'
-                            inertial.append(mass)
-                            origin = ET.Element('origin')
-                            origin.attrib['xyz'] = '0 0 0'
-                            inertial.append(origin)
-                            inertia = ET.Element('inertia')
-                            inertia.attrib['ixx'] = '1e-10'
-                            inertia.attrib['ixy'] = '0.0'
-                            inertia.attrib['ixz'] = '0.0'
-                            inertia.attrib['iyy'] = '1e-10'
-                            inertia.attrib['iyz'] = '0.0'
-                            inertia.attrib['izz'] = '1e-10'
-                            inertial.append(inertia)
-                            link_element.append(inertial)
+                    # Add a new child element <new_child> with some content
+                    limit = ET.Element('limit')
+                    limit.attrib['effort'] = '0'
+                    limit.attrib['lower'] = '0'
+                    limit.attrib['upper'] = '1e-10'
+                    limit.attrib['velocity'] = '0'
+                    joint_element.append(limit)
+            for link_element in self.get_elements(tmp_urdf_root, "link"):
+                # add inertial element with small values to the links of the fixed joints
+                if len(list(link_element)) == 0:
+                    if link_element.attrib['name'] in referenced_links:
+                        inertial = ET.Element('inertial')
+                        mass = ET.Element('mass')
+                        mass.attrib['value'] = '1e-10'
+                        inertial.append(mass)
+                        origin = ET.Element('origin')
+                        origin.attrib['xyz'] = '0 0 0'
+                        inertial.append(origin)
+                        inertia = ET.Element('inertia')
+                        inertia.attrib['ixx'] = '1e-10'
+                        inertia.attrib['ixy'] = '0.0'
+                        inertia.attrib['ixz'] = '0.0'
+                        inertia.attrib['iyy'] = '1e-10'
+                        inertia.attrib['iyz'] = '0.0'
+                        inertia.attrib['izz'] = '1e-10'
+                        inertial.append(inertia)
+                        link_element.append(inertial)
 
             	
             output_tree = ET.ElementTree(tmp_urdf_root)
@@ -166,6 +155,8 @@ class Xacro2Mjcf(Node):
             input_files.append(mujoco_files_path + '/' + name + '.urdf')
 
         out_assets = ET.Element('asset')
+        out_compiler = ET.Element('compiler')
+        out_option = ET.Element('option')
         
 
         # Process input files
@@ -179,16 +170,30 @@ class Xacro2Mjcf(Node):
                 if filename.split('.')[-1] == 'xacro':
                     # Convert Xacro to URDF
                     os.system('xacro ' + filename + ' > ' + mujoco_files_path + '/tmp_' + name + '.urdf')
+                    urdf_tree = ET.parse(mujoco_files_path + '/tmp_' + name + '.urdf')
+                    tmp_urdf_root = urdf_tree.getroot()
+                    self.create_symlinks(tmp_urdf_root, mujoco_files_path)
+                    # TODO: Write tmp urdf out
+                    output_tree = ET.ElementTree(tmp_urdf_root)
+                    ET.indent(output_tree, space="\t", level=0)
+                    output_tree.write(mujoco_files_path + '/tmp_' + name + '.urdf')
+
                     os.system(
                         compile_executable + ' ' + mujoco_files_path + '/tmp_' + name + '.urdf ' +
                         mujoco_files_path + '/tmp_' + name + '.xml')
-                    urdf_tree = ET.parse(mujoco_files_path + '/tmp_' + name + '.urdf')
                 else:
-                    os.system(compile_executable + ' ' + filename + ' ' + mujoco_files_path + '/tmp_' + name + '.xml')
                     urdf_tree = ET.parse(filename)
+                    tmp_urdf_root = urdf_tree.getroot()
+                    self.create_symlinks(tmp_urdf_root, mujoco_files_path)
+                    output_tree = ET.ElementTree(tmp_urdf_root)
+                    ET.indent(output_tree, space="\t", level=0)
+                    output_tree.write(mujoco_files_path + '/tmp_' + filename.split('/')[-1])
+                    os.system(compile_executable + ' ' + mujoco_files_path + '/tmp_' + filename.split('/')[-1] + ' ' + mujoco_files_path + '/tmp_' + name + '.xml')
+
 
                 self.urdf_root = urdf_tree.getroot()
                 mjcf_tree = ET.parse(mujoco_files_path + '/tmp_' + name + '.xml')
+                
                 self.mjcf_root = mjcf_tree.getroot()
 
                 # Add limited=true to all joints with range (limits)
@@ -226,6 +231,18 @@ class Xacro2Mjcf(Node):
                         elif element.tag != 'compiler':
                             self.mjcf_root.insert(len(self.mjcf_root), element)
 
+                compiler_elements = self.get_elements(self.mjcf_root, "compiler")
+                if compiler_elements:
+                    for element in compiler_elements:
+                        out_compiler.attrib.update(element.attrib)
+                        self.mjcf_root.remove(element)
+
+                option_elements = self.get_elements(self.mjcf_root, "option")
+                if option_elements:
+                    for element in option_elements:
+                        out_option.attrib.update(element.attrib)
+                        self.mjcf_root.remove(element)
+
                 if mjcf_tree.find('asset') is not None:
                     for element in mjcf_tree.find('asset'):
                         exist = False
@@ -234,9 +251,11 @@ class Xacro2Mjcf(Node):
                                 exist = True
                         if not exist:
                             out_assets.append(element)
-
                     self.mjcf_root.remove(mjcf_tree.find('asset'))
+
                 # Write the resulting xml tree to the destination file
+
+                ET.indent(mjcf_tree, space="\t", level=0)
                 mjcf_tree.write(mujoco_files_path + '/' + name + '.xml')
                 output_model_files.append(name + '.xml')
             elif input_file.split('.')[-1] == 'xml':
@@ -250,9 +269,12 @@ class Xacro2Mjcf(Node):
 
         output_xml = ET.Element('mujoco')
         output_xml.append(out_assets)
+        output_xml.append(out_compiler)
+        output_xml.append(out_option)
         for filename in output_model_files:
             output_xml.append(ET.Element('include', {'file': filename}))
         output_tree = ET.ElementTree(output_xml)
+        ET.indent(output_tree, space="\t", level=0)
         output_tree.write(output_file)
 
         self.get_logger().info("Saved mjcf xml file under " + output_file)
@@ -272,6 +294,30 @@ class Xacro2Mjcf(Node):
                         elements.append(child)
             elements += self.get_elements(child, tag, attrib, value)
         return elements
+
+    def create_symlinks(self, urdf_root, mujoco_files_path):
+        # Create symlinks to used meshes in the tmp folder
+        for mesh in self.get_elements(urdf_root, "mesh"):
+            filename = mesh.get('filename')
+            if filename:
+                source_file = filename[7:]
+                target_file = mujoco_files_path + "/meshes/" + source_file.replace("/", "_")
+                if source_file[-3:] == "stl" or source_file[-3:] == "STL":
+                    if not os.path.exists(target_file):
+                        os.symlink(source_file, target_file)
+                    mesh.attrib['filename'] = "file://" + target_file
+    
+    # Removes element from mjcf file and add it to the top level file
+    def move_assets_to_root_xml(self, name, output_element, mjcf_tree):
+        if mjcf_tree.find(name) is not None:
+            for element in mjcf_tree.find(name):
+                exist = False
+                for e in output_element:
+                    if e.attrib == element.attrib:
+                        exist = True
+                if not exist:
+                    output_element.append(element)
+            self.mjcf_root.remove(mjcf_tree.find(name))
 
 
 
