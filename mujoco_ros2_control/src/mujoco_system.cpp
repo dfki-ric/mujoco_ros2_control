@@ -64,15 +64,30 @@ namespace mujoco_ros2_control {
             // Create struct for joint with joint related datas
             JointData& joint = joints_.at(joint_info.name);
             joint.name = joint_info.name;
+            if (!joints.at(joint.name)) {
+                RCLCPP_WARN(rclcpp::get_logger("mujoco_system"),
+                            "Joint %s was not found in the URDF, registration of joint failed", joint.name.c_str());
+                continue;
+            }
             joint.mujoco_joint_id = mj_name2id(mujoco_model_, mjOBJ_JOINT, joint.name.c_str());
             joint.mujoco_qpos_addr = mujoco_model_->jnt_qposadr[joint.mujoco_joint_id];
             joint.mujoco_dofadr = mujoco_model_->jnt_dofadr[joint.mujoco_joint_id];
 
-            // Get the limits from the urdf
-            joint.upper_limit = joints.at(joint.name)->limits->upper;
-            joint.lower_limit = joints.at(joint.name)->limits->lower;
-            joint.velocity_limit = joints.at(joint.name)->limits->velocity;
-            joint.effort_limit = joints.at(joint.name)->limits->effort;
+            joint.type = joints.at(joint.name)->type;
+            // Get the limits from the urdf (except for continuous joints)
+            if (joint.type == urdf::Joint::REVOLUTE || joint.type == urdf::Joint::PRISMATIC) {
+                joint.upper_limit = joints.at(joint.name)->limits->upper;
+                joint.lower_limit = joints.at(joint.name)->limits->lower;
+            }
+
+            if (joint.type == urdf::Joint::REVOLUTE || joint.type == urdf::Joint::PRISMATIC ||
+                joint.type == urdf::Joint::CONTINUOUS || joint.type == urdf::Joint::FLOATING ||
+                joint.type == urdf::Joint::PLANAR) {
+                if (joints.at(joint.name)->limits != nullptr) {
+                    joint.velocity_limit = joints.at(joint.name)->limits->velocity;
+                    joint.effort_limit = joints.at(joint.name)->limits->effort;
+                }
+            }
 
             RCLCPP_DEBUG(rclcpp::get_logger("register joints"),
                         "%s: upper_limit: %f, lower_limit: %f, velocity_limit: %f, effort_limit: %f",

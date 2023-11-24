@@ -223,10 +223,10 @@ namespace mujoco_ros2_control {
          */
         struct JointData {
             std::string name;  ///< Name of the joint.
-            double lower_limit = 0.0;  ///< Lower limit of the joint position.
-            double upper_limit = 0.0;  ///< Upper limit of the joint position.
-            double velocity_limit = 2.0;  ///< Limit on the joint velocity.
-            double effort_limit = 0.0;  ///< Limit on the joint effort.
+            double lower_limit = std::numeric_limits<double>::min();  ///< Lower limit of the joint position.
+            double upper_limit = std::numeric_limits<double>::max();  ///< Upper limit of the joint position.
+            double velocity_limit = std::numeric_limits<double>::max();  ///< Limit on the joint velocity.
+            double effort_limit = std::numeric_limits<double>::max();  ///< Limit on the joint effort.
             std::vector<ControlMethod> control_methods;  ///< Available control methods for the joint.
             double position;  ///< Current position of the joint.
             double velocity;  ///< Current velocity of the joint.
@@ -240,6 +240,7 @@ namespace mujoco_ros2_control {
             int mujoco_joint_id;  ///< ID of the joint in the Mujoco simulation.
             int mujoco_qpos_addr;  ///< Address of the joint position in the Mujoco data structure.
             int mujoco_dofadr;  ///< Degree-of-freedom (DOF) address of the joint in the Mujoco data structure.
+            int type; ///< Type of the joint
         };
 
         /**
