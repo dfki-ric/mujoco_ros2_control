@@ -60,20 +60,22 @@ namespace mujoco_ros2_control {
         };
 
         for (auto& joint_info : hardware_info.joints) {
+            if (joints.find(joint_info.name) == joints.end()) {
+                RCLCPP_WARN(rclcpp::get_logger("mujoco_system"),
+                            "Joint %s was not found in the URDF, registration of joint failed", joint_info.name.c_str());
+                continue;
+            }
             joints_.insert(std::pair<std::string, JointData>(joint_info.name, JointData()));
             // Create struct for joint with joint related datas
             JointData& joint = joints_.at(joint_info.name);
             joint.name = joint_info.name;
-            if (!joints.at(joint.name)) {
-                RCLCPP_WARN(rclcpp::get_logger("mujoco_system"),
-                            "Joint %s was not found in the URDF, registration of joint failed", joint.name.c_str());
-                continue;
-            }
+
             joint.mujoco_joint_id = mj_name2id(mujoco_model_, mjOBJ_JOINT, joint.name.c_str());
             joint.mujoco_qpos_addr = mujoco_model_->jnt_qposadr[joint.mujoco_joint_id];
             joint.mujoco_dofadr = mujoco_model_->jnt_dofadr[joint.mujoco_joint_id];
 
             joint.type = joints.at(joint.name)->type;
+
             // Get the limits from the urdf (except for continuous joints)
             if (joint.type == urdf::Joint::REVOLUTE || joint.type == urdf::Joint::PRISMATIC) {
                 joint.upper_limit = joints.at(joint.name)->limits->upper;
@@ -86,8 +88,36 @@ namespace mujoco_ros2_control {
                 if (joints.at(joint.name)->limits != nullptr) {
                     joint.velocity_limit = joints.at(joint.name)->limits->velocity;
                     joint.effort_limit = joints.at(joint.name)->limits->effort;
+                    if (joint.effort_limit != 0.0) {
+                        mujoco_model_->jnt_actfrclimited[joint.mujoco_dofadr] = 1;
+                        mujoco_model_->jnt_actfrcrange[joint.mujoco_dofadr*2+1] = joint.effort_limit;
+                    }
                 }
             }
+            if (joints.at(joint.name)->mimic != nullptr) {
+                if (joints.find(joints.at(joint.name)->mimic->joint_name) == joints.end()) {
+                    RCLCPP_WARN(rclcpp::get_logger("mujoco_system"),
+                                "Mimiced Joint %s was not found in the URDF, registration of mimic failed", joint_info.name.c_str());
+                } else if (joints.at(joints.at(joint.name)->mimic->joint_name)->type == joints.at(joint.name)->type) {
+                    MimicJoint mj;
+                    mj.joint = joint.name;
+                    mj.mimiced_joint = joints.at(joint.name)->mimic->joint_name;
+                    mj.mimic_multiplier = joints.at(joint.name)->mimic->multiplier;
+                    mj.mimic_offset = joints.at(joint.name)->mimic->offset;
+                    mimiced_joints_.push_back(mj);
+                    RCLCPP_INFO(rclcpp::get_logger("mujoco_system"), "Joint %s mimic Joint %s", mj.joint.c_str(), mj.mimiced_joint.c_str());
+                } else {
+                    RCLCPP_WARN(rclcpp::get_logger("mujoco_system"), "Mimic joints must be from the same joint type");
+                }
+            }
+
+            RCLCPP_DEBUG(rclcpp::get_logger("register joints"),
+                         "%s: jnt_limited: %hhu, jnt_range: [%f,%f], jnt_actfrclimited: %hhu, jnt_actfrcrange: [%f, %f]",
+                         joint.name.c_str(),
+                         mujoco_model_->jnt_limited[joint.mujoco_dofadr],
+                         mujoco_model_->jnt_range[joint.mujoco_dofadr*2], mujoco_model_->jnt_range[joint.mujoco_dofadr*2+1],
+                         mujoco_model_->jnt_actfrclimited[joint.mujoco_dofadr],
+                         mujoco_model_->jnt_actfrcrange[joint.mujoco_dofadr*2], mujoco_model_->jnt_actfrcrange[joint.mujoco_dofadr*2+1]);
 
             RCLCPP_DEBUG(rclcpp::get_logger("register joints"),
                         "%s: upper_limit: %f, lower_limit: %f, velocity_limit: %f, effort_limit: %f",
@@ -150,6 +180,26 @@ namespace mujoco_ros2_control {
                     joint.effort_command = string_to_double(command_interface.initial_value);
                 }
             }
+
+            if (joints.at(joint.name)->mimic != nullptr) {
+                if (joints.find(joints.at(joint.name)->mimic->joint_name) == joints.end()) {
+                    RCLCPP_WARN(rclcpp::get_logger("mujoco_system"),
+                                "Mimiced Joint %s was not found in the URDF, registration of mimic failed", joint_info.name.c_str());
+                    continue;
+                }
+                if (joints.at(joints.at(joint.name)->mimic->joint_name)->type == joints.at(joint.name)->type) {
+                    MimicJoint mj;
+                    mj.joint = joint.name;
+                    mj.mimiced_joint = joints.at(joint.name)->mimic->joint_name;
+                    mj.mimic_multiplier = joints.at(joint.name)->mimic->multiplier;
+                    mj.mimic_offset = joints.at(joint.name)->mimic->offset;
+                    mimiced_joints_.push_back(mj);
+                    RCLCPP_INFO(rclcpp::get_logger("mujoco_system"), "Joint %s mimic Joint %s", mj.joint.c_str(), mj.mimiced_joint.c_str());
+                } else {
+                    RCLCPP_WARN(rclcpp::get_logger("mujoco_system"), "Mimic joints must be from the same joint type");
+                }
+            }
+
             mj_forward(mujoco_model_, mujoco_data_);
         }
 
@@ -179,6 +229,21 @@ namespace mujoco_ros2_control {
                       biasprm[0] == 0 && biasprm[1] == 0) {
                 joints_[joint_name].actuators.insert(std::pair<ControlMethod, int>(VELOCITY, mujoco_actuator_id));
                 RCLCPP_INFO(rclcpp::get_logger(actuator_name), "added velocity actuator for joint: %s", joints_[joint_name].name.c_str());
+            }
+        }
+
+        std::vector<uint> indices;  // Indices from invalid mimiced joints
+        for (size_t i = 0; i < mimiced_joints_.size(); i++) {
+            const auto &mj = mimiced_joints_[i];
+            if (joints_.find(mj.mimiced_joint) == joints_.end()) {
+                indices.insert(indices.begin(), i);
+                RCLCPP_WARN(rclcpp::get_logger("mujoco_system"),
+                            "%s: Mimiced Joint %s was not found in the registered joints, registration of mimic failed", mj.joint.c_str(), mj.mimiced_joint.c_str());
+            }
+        }
+        for(const auto& index: indices) {
+            if (index < mimiced_joints_.size()) {
+                mimiced_joints_.erase(mimiced_joints_.begin() + index);
             }
         }
     }
@@ -230,9 +295,11 @@ namespace mujoco_ros2_control {
             }
             for (const std::string &interface_name : start_interfaces) {
                 if (interface_name == joint.first + "/" + hardware_interface::HW_IF_POSITION) {
+                    control_methods.erase(std::find(control_methods.begin(), control_methods.end(), POSITION));
                     control_methods.push_back(POSITION);
                     RCLCPP_DEBUG(rclcpp::get_logger("mujoco_system"), "command_mode_start_position for: %s", interface_name.c_str());
                 } else if (interface_name == joint.first + "/" + hardware_interface::HW_IF_VELOCITY) {
+                    control_methods.erase(std::find(control_methods.begin(), control_methods.end(), VELOCITY));
                     control_methods.push_back(VELOCITY);
                     RCLCPP_DEBUG(rclcpp::get_logger("mujoco_system"), "command_mode_start_velocity for: %s", interface_name.c_str());
                 } else if (interface_name == joint.first + "/" + hardware_interface::HW_IF_EFFORT) {
@@ -242,6 +309,7 @@ namespace mujoco_ros2_control {
                 }
             }
         }
+
         return hardware_interface::return_type::OK;
     }
 
@@ -251,9 +319,9 @@ namespace mujoco_ros2_control {
         // read the joint states
         for (auto& joint_item : joints_) {
             JointData& joint = joint_item.second;
-            joint.effort = mujoco_data_->qfrc_applied[joint.mujoco_dofadr];
-            joint.velocity = mujoco_data_->qvel[joint.mujoco_dofadr];
             joint.position = mujoco_data_->qpos[joint.mujoco_qpos_addr];
+            joint.velocity = mujoco_data_->qvel[joint.mujoco_dofadr];
+            joint.effort = mujoco_data_->qfrc_applied[joint.mujoco_dofadr];
         }
         return hardware_interface::return_type::OK;
     }
@@ -261,6 +329,13 @@ namespace mujoco_ros2_control {
     hardware_interface::return_type MujocoSystem::write(
             const rclcpp::Time &time,
             const rclcpp::Duration &period) {
+        for (const auto &mj : mimiced_joints_) {
+            joints_.at(mj.joint).control_methods = joints_.at(mj.mimiced_joint).control_methods;
+            joints_.at(mj.joint).position_command = joints_.at(mj.mimiced_joint).position_command * mj.mimic_multiplier + mj.mimic_offset;
+            joints_.at(mj.joint).velocity_command = joints_.at(mj.mimiced_joint).velocity_command * mj.mimic_multiplier + mj.mimic_offset;
+            joints_.at(mj.joint).effort_command = joints_.at(mj.mimiced_joint).effort_command * mj.mimic_multiplier + mj.mimic_offset;
+        }
+
         for (auto &joint_data: joints_) {
             auto &joint = joint_data.second;
             auto & actuators = joint.actuators;
@@ -271,6 +346,7 @@ namespace mujoco_ros2_control {
                 double position = std::clamp(joint.position_command,
                                              joint.lower_limit,
                                              joint.upper_limit);
+                double position_error = position - mujoco_data_->qpos[joint.mujoco_qpos_addr];
                 // check if an actuator is available
                 if (actuators.find(POSITION) != actuators.end()) {
                     // write to actuator ctrl
@@ -279,6 +355,15 @@ namespace mujoco_ros2_control {
                     // write to position and velocity address from the joint
                     mujoco_data_->qpos[joint.mujoco_qpos_addr] = position;
                 }
+                // Check and respect the velocity limits
+                double desired_velocity = position_error / period.seconds();
+                // get velocity command inside the limits
+                double velocity = std::clamp(desired_velocity,
+                                             -joint.velocity_limit,
+                                             joint.velocity_limit);
+                // write to velocity address from the joint
+                mujoco_data_->qvel[joint.mujoco_dofadr] = velocity;
+
             }
             // write velocity command to mujoco
             if (std::find(control_methods.begin(), control_methods.end(), VELOCITY) != control_methods.end()) {

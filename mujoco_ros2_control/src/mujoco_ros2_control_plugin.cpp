@@ -35,10 +35,8 @@
 
 #include "mujoco_ros2_control/mujoco_ros2_control_plugin.hpp"
 
-namespace mujoco_ros2_control
-{
-    MujocoRos2Control::MujocoRos2Control(rclcpp::Node::SharedPtr &node) : nh_(node)
-    {
+namespace mujoco_ros2_control {
+    MujocoRos2Control::MujocoRos2Control(rclcpp::Node::SharedPtr &node) : nh_(node) {
         // set up the parameter listener
         param_listener_ = std::make_shared<ParamListener>(nh_);
         param_listener_->refresh_dynamic_parameters();
@@ -117,10 +115,10 @@ namespace mujoco_ros2_control
                 if (sim_period >= control_period_) {
                     // store simulation time
                     last_update_sim_time_ros_ = sim_time_ros;
-                    // compute the controller commands
-                    controller_manager_->update(sim_time_ros, sim_period);
                     // update the robot simulation with the state of the mujoco model
                     controller_manager_->read(sim_time_ros, sim_period);
+                    // compute the controller commands
+                    controller_manager_->update(sim_time_ros, sim_period);
                     // update the mujoco model with the result of the controller
                     controller_manager_->write(sim_time_ros, sim_period);
                 }

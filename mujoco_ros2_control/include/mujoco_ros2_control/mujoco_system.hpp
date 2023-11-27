@@ -243,6 +243,14 @@ namespace mujoco_ros2_control {
             int type; ///< Type of the joint
         };
 
+        struct MimicJoint {
+            std::string joint;
+            std::string mimiced_joint;
+            double mimic_multiplier = 0.0;
+            double mimic_offset = 0.0;
+
+        };
+
         /**
          * @brief Last update simulation time in ROS.
          *
@@ -272,6 +280,7 @@ namespace mujoco_ros2_control {
 
     protected:
         std::map<std::string, JointData> joints_; ///< Map of joint names to JointData structs.
+        std::vector<MimicJoint> mimiced_joints_; ///!< Mimiced Joints
     };
 
 }  // namespace mujoco_ros2_control
