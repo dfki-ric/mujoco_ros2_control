@@ -39,7 +39,7 @@ foreach(Dependency IN ITEMS ${THIS_PACKAGE_INCLUDE_DEPENDS})
 endforeach()
 
 find_package(mujoco 3.0.0 REQUIRED)
-
+add_subdirectory(${CMAKE_SOURCE_DIR}/libsimulate)
 ## Specify additional locations of header files
 add_definitions(
         ${rclcpp_DEFINITIONS}
@@ -82,12 +82,16 @@ ament_target_dependencies(mujoco_visualization
         rclcpp
         glfw3
         )
+#target_link_libraries(mujoco_visualization
+#        mujoco::libsimulate
+#        )
 
 
 add_executable(${PROJECT_NAME}
         src/mujoco_ros2_control_plugin.cpp
         src/mujoco_depth_camera.cpp
-        )
+        src/pose_sensor.cpp src/mujoco_ros2_sensors.cpp
+        src/simulate_gui.cpp)
 ament_target_dependencies(${PROJECT_NAME}
         controller_manager
         hardware_interface
@@ -109,6 +113,7 @@ target_link_libraries(
         ${PCL_LIBRARIES}
         ${PROJECT_NAME}_parameters
         mujoco_rgbd_camera_parameters
+        mujoco::libsimulate
 )
 
 ## Install
@@ -123,6 +128,11 @@ install(TARGETS
         LIBRARY DESTINATION lib
         RUNTIME DESTINATION bin
         )
+
+#install(TARGETS
+#        mujoco_visualization
+#        DESTINATION lib
+#        )
         
 install(DIRECTORY mjcf DESTINATION share/${PROJECT_NAME}/)
 

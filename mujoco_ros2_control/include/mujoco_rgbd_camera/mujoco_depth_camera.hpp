@@ -144,7 +144,6 @@ private:
     rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr color_camera_info_publisher_; ///< Shared pointer to the ROS 2 publisher for color camera information.
     rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr depth_camera_info_publisher_; ///< Shared pointer to the ROS 2 publisher for depth camera information.
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pointcloud_publisher_; ///< Shared pointer to the ROS 2 publisher for point cloud data.
-    rclcpp::TimerBase::SharedPtr timer_; ///< Shared pointer to the ROS 2 timer object used for scheduling periodic updates.
 
     int width_; ///< Width of the camera image in pixels.
     int height_; ///< Height of the camera image in pixels.

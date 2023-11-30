@@ -57,6 +57,8 @@
 #include "mujoco/mjdata.h"
 #include "mujoco/mjmodel.h"
 
+#include "mujoco_visualization/simulate_gui.hpp"
+
 // ros_control
 #include "controller_manager/controller_manager.hpp"
 #include "hardware_interface/hardware_info.hpp"
@@ -78,6 +80,10 @@
 #include "mujoco_ros2_control/mujoco_system.hpp"
 #include "mujoco_ros2_control/mujoco_system_interface.hpp"
 #include "mujoco_rgbd_camera/mujoco_depth_camera.hpp"
+
+#include "mujoco_ros2_sensors/mujoco_ros2_sensors.hpp"
+
+#include "mujoco_visualization/simulate_gui.hpp"
 
 #include "mujoco_ros2_control_parameters.hpp"
 
@@ -216,6 +222,7 @@ private:
 
     // Visualization class
     mujoco_visualization::MujocoVisualization& mj_vis_ = mujoco_visualization::MujocoVisualization::getInstance(); ///< MuJoCo visualizer object
+    //mujoco_simulate_gui::MujocoSimulateGui& mj_vis_ = mujoco_simulate_gui::MujocoSimulateGui::getInstance(); ///< MuJoCo visualizer object
 
     // interface loader
     std::shared_ptr<pluginlib::ClassLoader<mujoco_ros2_control::MujocoSystemInterface> > robot_hw_sim_loader_; ///< Plugin loader for RobotHWSimInterface
@@ -225,6 +232,8 @@ private:
     std::vector<std::thread> camera_threads_; ///< Threads for the cameras (one thread per camera)
     std::vector<rclcpp::Node::SharedPtr> camera_nodes_; ///< Nodes for the cameras (one Node per camera)
     std::vector<std::shared_ptr<mujoco_rgbd_camera::MujocoDepthCamera>> cameras_; ///< Cameras Object vector
+
+    std::shared_ptr<mujoco_ros2_sensors::MujocoRos2Sensors> mujoco_ros2_sensors_;
 };
 }  // namespace mujoco_ros2_control
 

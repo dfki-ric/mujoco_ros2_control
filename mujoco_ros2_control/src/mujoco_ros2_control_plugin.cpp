@@ -238,6 +238,32 @@ namespace mujoco_ros2_control {
 
 
     void MujocoRos2Control::registerSensors() {
+        // Add sensors
+        if (mujoco_model_->nsensor > 0) {
+            std::map<std::string, mujoco_ros2_sensors::MujocoRos2Sensors::Sensors> sensors;
+            for (int id = 0; id < mujoco_model_->nsensor; id++) {
+                mujoco_ros2_sensors::MujocoRos2Sensors::Sensors sensor;
+                int obj_id = mujoco_model_->sensor_objid[id];
+                int obj_type = mujoco_model_->sensor_objtype[id];
+                std::string obj_name = mj_id2name(mujoco_model_, obj_type, obj_id);
+                int sensor_type = mujoco_model_->sensor_type[id];
+                std::string sensor_name = mj_id2name(mujoco_model_, mjOBJ_SENSOR, id);
+                int sensor_adr = mujoco_model_->sensor_adr[id];
+                int sensor_dim = mujoco_model_->sensor_dim[id];
+                if (sensors.find(obj_name) == sensors.end()) {
+                    sensors.insert(std::make_pair(obj_name, sensor));
+                    sensors.at(obj_name).obj_type = obj_type;
+                }
+                sensors.at(obj_name).sensor_ids.push_back(id);
+                sensors.at(obj_name).sensor_types.push_back(sensor_type);
+                sensors.at(obj_name).sensor_names.push_back(sensor_name);
+                sensors.at(obj_name).sensor_addresses.push_back(sensor_adr);
+                sensors.at(obj_name).sensor_dimensions.push_back(sensor_dim);
+            }
+            mujoco_ros2_sensors_ = std::make_shared<mujoco_ros2_sensors::MujocoRos2Sensors>(executor_, mujoco_model_, mujoco_data_, sensors);
+        }
+
+        // Add cameras
         if (mujoco_model_->ncam > 0) {
             cameras_.resize(mujoco_model_->ncam);
             for (int id = 0; id < mujoco_model_->ncam; id++) {
