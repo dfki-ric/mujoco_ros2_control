@@ -4,11 +4,7 @@ namespace mujoco_ros2_sensors {
     PoseSensor::PoseSensor(rclcpp::Node::SharedPtr &node, mjModel_ *model, mjData_ *data,
                            const PoseSensorStruct &sensor, std::atomic<bool>* stop, double frequency) {
         this->nh_ = node;
-        this->mujoco_model_ = model;
         this->mujoco_data_ = data;
-
-        this->frequency_ = frequency;
-        this->stop_ = stop;
         this->sensor_ = sensor;
 
         this->publisher_ = nh_->create_publisher<geometry_msgs::msg::PoseStamped>("~/position", rclcpp::SystemDefaultsQoS());
@@ -20,29 +16,23 @@ namespace mujoco_ros2_sensors {
     }
 
     void PoseSensor::update() {
-        //mjtNum last_update = mujoco_data_->time;
-        //while(rclcpp::ok() && !stop_->load()) {
-            // update dynamic parameters
-            //if (mujoco_data_->time - last_update >= 1.0 / frequency_) {
-                if (pose_stamped_publisher_->trylock()) {
-                    pose_stamped_publisher_->msg_.header.stamp = nh_->now();
-                    pose_stamped_publisher_->msg_.header.frame_id = sensor_.frame_id;
-                    if (sensor_.position) {
-                        pose_stamped_publisher_->msg_.pose.position.x = mujoco_data_->sensordata[sensor_.position_sensor_adr];
-                        pose_stamped_publisher_->msg_.pose.position.y = mujoco_data_->sensordata[sensor_.position_sensor_adr + 1];
-                        pose_stamped_publisher_->msg_.pose.position.z = mujoco_data_->sensordata[sensor_.position_sensor_adr + 2];
-                    }
+        if (pose_stamped_publisher_->trylock()) {
+            pose_stamped_publisher_->msg_.header.stamp = nh_->now();
+            pose_stamped_publisher_->msg_.header.frame_id = sensor_.frame_id;
+            if (sensor_.position) {
+                pose_stamped_publisher_->msg_.pose.position.x = mujoco_data_->sensordata[sensor_.position_sensor_adr];
+                pose_stamped_publisher_->msg_.pose.position.y = mujoco_data_->sensordata[sensor_.position_sensor_adr + 1];
+                pose_stamped_publisher_->msg_.pose.position.z = mujoco_data_->sensordata[sensor_.position_sensor_adr + 2];
+            }
 
-                    if (sensor_.orientation) {
-                        pose_stamped_publisher_->msg_.pose.orientation.w = mujoco_data_->sensordata[sensor_.orientation_sensor_adr];
-                        pose_stamped_publisher_->msg_.pose.orientation.x = mujoco_data_->sensordata[sensor_.orientation_sensor_adr + 1];
-                        pose_stamped_publisher_->msg_.pose.orientation.y = mujoco_data_->sensordata[sensor_.orientation_sensor_adr + 2];
-                        pose_stamped_publisher_->msg_.pose.orientation.z = mujoco_data_->sensordata[sensor_.orientation_sensor_adr + 3];
-                    }
+            if (sensor_.orientation) {
+                pose_stamped_publisher_->msg_.pose.orientation.w = mujoco_data_->sensordata[sensor_.orientation_sensor_adr];
+                pose_stamped_publisher_->msg_.pose.orientation.x = mujoco_data_->sensordata[sensor_.orientation_sensor_adr + 1];
+                pose_stamped_publisher_->msg_.pose.orientation.y = mujoco_data_->sensordata[sensor_.orientation_sensor_adr + 2];
+                pose_stamped_publisher_->msg_.pose.orientation.z = mujoco_data_->sensordata[sensor_.orientation_sensor_adr + 3];
+            }
 
-                    pose_stamped_publisher_->unlockAndPublish();
-                }
-            //}
-        //}
+            pose_stamped_publisher_->unlockAndPublish();
+        }
     }
 }

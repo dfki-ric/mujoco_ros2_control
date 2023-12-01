@@ -18,8 +18,8 @@ namespace mujoco_ros2_sensors {
         std::string frame_id;
         int position_sensor_adr;
         int orientation_sensor_adr;
-        bool position;
-        bool orientation;
+        bool position{false};
+        bool orientation{false};
 
         bool isValid() const {
             return position && orientation;
@@ -46,9 +46,6 @@ namespace mujoco_ros2_sensors {
         rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr publisher_;
         PoseStampedPublisherPtr pose_stamped_publisher_;
 
-        double frequency_; ///< Frame rate of the camera in Hz.
-
-        mjModel* mujoco_model_ = nullptr; ///< Pointer to the Mujoco model object used for rendering and simulation.
         mjData* mujoco_data_ = nullptr; ///< Pointer to the Mujoco data object representing the current state of the simulation.
 
         PoseSensorStruct sensor_;

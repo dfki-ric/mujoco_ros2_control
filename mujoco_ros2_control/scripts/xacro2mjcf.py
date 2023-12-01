@@ -92,18 +92,20 @@ class Xacro2Mjcf(Node):
         output_model_files = []
 
         # Convert robot descriptions to URDF files
-        for robot_description in robot_descriptions:
-            name = str(uuid.uuid4())
+        for i, robot_description in enumerate(robot_descriptions):
             tmp_urdf_tree = ET.ElementTree(ET.fromstring(robot_description))
             tmp_urdf_root = tmp_urdf_tree.getroot()
+            name = tmp_urdf_root.attrib["name"]
+            if not name:
+                name = str(uuid.uuid4())
 
-            self.convert_camera_links(tmp_urdf_root)
-            self.create_symlinks(tmp_urdf_root, mujoco_files_path)
+            # self.convert_camera_links(tmp_urdf_root)
+            # self.create_symlinks(tmp_urdf_root, mujoco_files_path)
 
             output_tree = ET.ElementTree(tmp_urdf_root)
             ET.indent(output_tree, space="\t", level=0)
             output_tree.write(mujoco_files_path + '/' + name + '.urdf')
-            input_files.append(mujoco_files_path + '/' + name + '.urdf')
+            input_files.insert(i, mujoco_files_path + '/' + name + '.urdf')
 
         out_assets = ET.Element('asset')
         out_compiler = ET.Element('compiler')
@@ -144,8 +146,8 @@ class Xacro2Mjcf(Node):
                     output_tree = ET.ElementTree(tmp_urdf_root)
                     ET.indent(output_tree, space="\t", level=0)
                     output_tree.write(mujoco_files_path + '/tmp_' + filename.split('/')[-1])
-                    os.system(compile_executable + ' ' + mujoco_files_path + '/tmp_' + filename.split('/')[-1] + ' ' + mujoco_files_path + '/tmp_' + name + '.xml')
-
+                    os.system(compile_executable + ' ' + mujoco_files_path + '/tmp_' + filename.split('/')[-1] + ' ' +
+                              mujoco_files_path + '/tmp_' + name + '.xml')
 
                 self.urdf_root = urdf_tree.getroot()
                 mjcf_tree = ET.parse(mujoco_files_path + '/tmp_' + name + '.xml')
@@ -263,6 +265,23 @@ class Xacro2Mjcf(Node):
                         os.symlink(source_file, target_file)
                     mesh.attrib['filename'] = "file://" + target_file
 
+        compiler_elements = self.get_elements(urdf_root, "compiler")
+        if compiler_elements:
+            compiler_element = compiler_elements[0]
+            compiler_element.attrib['meshdir'] = mujoco_files_path + "/meshes"
+        else:
+            compiler_element = ET.Element('compiler')
+            compiler_element.set("meshdir", mujoco_files_path + "/meshes")
+
+            mujoco_elements = self.get_elements(urdf_root, "mujoco")
+            if mujoco_elements:
+                mujoco_element = mujoco_elements[0]
+                mujoco_element.append(compiler_element)
+            else:
+                mujoco_element = ET.Element('mujoco')
+                mujoco_element.append(compiler_element)
+                urdf_root.append(mujoco_element)
+
     # Removes element from mjcf file and add it to the top level file
     def move_assets_to_root_xml(self, name, output_element, mjcf_tree):
         if mjcf_tree.find(name) is not None:
@@ -295,38 +314,39 @@ class Xacro2Mjcf(Node):
                     if reference.find("camera") is not None:
                         camera_links.append(reference.get("name"))
 
-        for joint_element in self.get_elements(tmp_urdf_root, "joint", "type", "fixed"):
-            if joint_element.find('child').attrib['link'] in camera_links:
-                # Update the attribute
-                joint_element.set("type", "revolute")
+            for joint_element in self.get_elements(tmp_urdf_root, "joint", "type", "fixed"):
+                if joint_element.find('child').attrib['link'] in camera_links:
+                    # Update the attribute
+                    joint_element.set("type", "revolute")
 
-                # Add a new child element <new_child> with some content
-                limit = ET.Element('limit')
-                limit.attrib['effort'] = '0'
-                limit.attrib['lower'] = '0'
-                limit.attrib['upper'] = '1e-10'
-                limit.attrib['velocity'] = '0'
-                joint_element.append(limit)
-        for link_element in self.get_elements(tmp_urdf_root, "link"):
-            # add inertial element with small values to the links of the fixed joints
-            if len(list(link_element)) == 0:
-                if link_element.attrib['name'] in camera_links:
-                    inertial = ET.Element('inertial')
-                    mass = ET.Element('mass')
-                    mass.attrib['value'] = '1e-10'
-                    inertial.append(mass)
-                    origin = ET.Element('origin')
-                    origin.attrib['xyz'] = '0 0 0'
-                    inertial.append(origin)
-                    inertia = ET.Element('inertia')
-                    inertia.attrib['ixx'] = '1e-10'
-                    inertia.attrib['ixy'] = '0.0'
-                    inertia.attrib['ixz'] = '0.0'
-                    inertia.attrib['iyy'] = '1e-10'
-                    inertia.attrib['iyz'] = '0.0'
-                    inertia.attrib['izz'] = '1e-10'
-                    inertial.append(inertia)
-                    link_element.append(inertial)
+                    # Add a new child element <new_child> with some content
+                    limit = ET.Element('limit')
+                    limit.attrib['effort'] = '0'
+                    limit.attrib['lower'] = '0'
+                    limit.attrib['upper'] = '1e-10'
+                    limit.attrib['velocity'] = '0'
+                    joint_element.append(limit)
+
+            for link_element in self.get_elements(tmp_urdf_root, "link"):
+                # add inertial element with small values to the links of the fixed joints
+                if len(list(link_element)) == 0:
+                    if link_element.attrib['name'] in camera_links:
+                        inertial = ET.Element('inertial')
+                        mass = ET.Element('mass')
+                        mass.attrib['value'] = '1e-10'
+                        inertial.append(mass)
+                        origin = ET.Element('origin')
+                        origin.attrib['xyz'] = '0 0 0'
+                        inertial.append(origin)
+                        inertia = ET.Element('inertia')
+                        inertia.attrib['ixx'] = '1e-10'
+                        inertia.attrib['ixy'] = '0.0'
+                        inertia.attrib['ixz'] = '0.0'
+                        inertia.attrib['iyy'] = '1e-10'
+                        inertia.attrib['iyz'] = '0.0'
+                        inertia.attrib['izz'] = '1e-10'
+                        inertial.append(inertia)
+                        link_element.append(inertial)
 
 
 ## @brief Main function to initialize and run the Xacro2Mjcf node.
