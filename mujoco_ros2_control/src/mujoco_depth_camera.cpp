@@ -164,14 +164,14 @@ namespace mujoco_rgbd_camera {
 
         cv::Size img_size(viewport.width, viewport.height);
         cv::Mat bgr(img_size, CV_8UC3, color_buffer_);
-        cv::flip(bgr, bgr, 0);
+        cv::flip(bgr, bgr, -1);
         cv::Mat rgb;
         cv::cvtColor(bgr, rgb, cv::COLOR_BGR2RGB);
         rgb.copyTo(color_image_);
 
 
         cv::Mat depth(img_size, CV_32FC1, depth_buffer_);
-        cv::flip(depth, depth, 0);
+        cv::flip(depth, depth, -1);
         cv::Mat depth_img_m = linearize_depth(depth);
         depth_img_m.copyTo(depth_image_);
     }
@@ -229,6 +229,10 @@ namespace mujoco_rgbd_camera {
         camera_info.p = {f_, 0.0, cx_, 0,
                          0.0, f_, cy_, 0,
                          0.0, 0.0, 1.0, 0.0};
+
+//        camera_info.r = {1.0, 0.0, 0.0,
+//                         0.0, -1.0, 0.0,
+//                         0.0, 0.0, -1.0};
 
         if (params_.color_image) {
             color_camera_info_publisher_->publish(camera_info);
