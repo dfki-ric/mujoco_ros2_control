@@ -6,6 +6,7 @@ from rclpy.node import Node
 import xml.etree.ElementTree as ET
 import os
 import uuid
+import collections
 
 
 ## @file xacro2mjcf.py
@@ -173,6 +174,7 @@ class Xacro2Mjcf(Node):
                                         for attrib in child.attrib:
                                             mj_elements[0].set(attrib, child.attrib[attrib])
                                             self.get_logger().info("added attrib " + str(child.tag))
+
                                     else:
                                         tag_elements = self.get_elements(mj_elements[0], child.tag)
                                         if tag_elements:
@@ -180,6 +182,7 @@ class Xacro2Mjcf(Node):
                                                 for tag_element in tag_elements:
                                                     if parent_map.get(tag_element) == mj_elements[0]:
                                                         tag_element.set(attrib, child.attrib[attrib])
+                                                        self.get_logger().info("added attrib " + str(child.attrib) + " to " + str(child.tag))
                                         else:
                                             mj_elements[0].insert(0, child)
                             else:
@@ -199,6 +202,13 @@ class Xacro2Mjcf(Node):
                     for element in option_elements:
                         out_option.attrib.update(element.attrib)
                         self.mjcf_root.remove(element)
+                        for child in element:
+                            # Check if a similar child element exists in the second element
+                            matching_child2 = next((child2 for child2 in out_option if child2.tag == child.tag), None)
+                            if matching_child2 is None:
+                                # If the child element doesn't exist in the second element, add it to the second element
+                                out_option.append(child)
+
 
                 if mjcf_tree.find('asset') is not None:
                     for element in mjcf_tree.find('asset'):
@@ -224,6 +234,15 @@ class Xacro2Mjcf(Node):
                 self.destroy_node()
                 rclpy.shutdown()
 
+        self.get_logger().info(str([item for item, count in collections.Counter(out_assets).items() if count > 1]))
+        # mesh_names = []
+        # assets = []
+        # for mesh in out_assets:
+        #     if mesh.attrib['name'] is not in mesh_names:
+        #         mesh_names.append(mesh.attrib['name'])
+        #         assets
+        #     else:
+        #         out_assets.
         output_xml = ET.Element('mujoco')
         output_xml.append(out_assets)
         output_xml.append(out_compiler)
