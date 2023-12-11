@@ -352,7 +352,7 @@ class Xacro2Mjcf(Node):
                     if link_element.attrib['name'] in camera_links:
                         inertial = ET.Element('inertial')
                         mass = ET.Element('mass')
-                        mass.attrib['value'] = '1e-10'
+                        mass.attrib['value'] = '1'
                         inertial.append(mass)
                         origin = ET.Element('origin')
                         origin.attrib['xyz'] = '0 0 0'
