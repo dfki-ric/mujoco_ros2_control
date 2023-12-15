@@ -128,6 +128,7 @@ class Xacro2Mjcf(Node):
                     tmp_urdf_root = urdf_tree.getroot()
 
                     self.convert_camera_links(tmp_urdf_root)
+                    self.correct_visual_mesh(tmp_urdf_root)
                     self.create_symlinks(tmp_urdf_root, mujoco_files_path)
 
                     output_tree = ET.ElementTree(tmp_urdf_root)
@@ -142,6 +143,7 @@ class Xacro2Mjcf(Node):
                     tmp_urdf_root = urdf_tree.getroot()
 
                     self.convert_camera_links(tmp_urdf_root)
+                    self.correct_visual_mesh(tmp_urdf_root)
                     self.create_symlinks(tmp_urdf_root, mujoco_files_path)
 
                     output_tree = ET.ElementTree(tmp_urdf_root)
@@ -166,8 +168,8 @@ class Xacro2Mjcf(Node):
                 if mujoco is not None:
                     for element in mujoco:
                         if element.tag == 'reference':
-                            body_name = element.attrib['name']
-                            mj_elements = self.get_elements(self.mjcf_root, 'body', 'name', body_name)
+                            reference_name = element.attrib['name']
+                            mj_elements = self.get_elements(self.mjcf_root, 'body', 'name', reference_name)
                             if mj_elements:
                                 for child in element:
                                     if 'body' in child.tag:
@@ -176,7 +178,10 @@ class Xacro2Mjcf(Node):
                                             self.get_logger().info("added attrib " + str(child.tag))
 
                                     else:
-                                        tag_elements = self.get_elements(mj_elements[0], child.tag)
+                                        if 'name' in child.attrib:
+                                            tag_elements = self.get_elements(mj_elements[0], child.tag, 'name', child.attrib['name'])
+                                        else:
+                                            tag_elements = self.get_elements(mj_elements[0], child.tag)
                                         if tag_elements:
                                             for attrib in child.attrib:
                                                 for tag_element in tag_elements:
@@ -186,7 +191,7 @@ class Xacro2Mjcf(Node):
                                         else:
                                             mj_elements[0].insert(0, child)
                             else:
-                                self.get_logger().error("Body " + body_name + " not found")
+                                self.get_logger().error("Body " + reference_name + " not found")
                                 #rclpy.shutdown()
                         elif element.tag != 'compiler':
                             self.mjcf_root.insert(len(self.mjcf_root), element)
@@ -366,6 +371,24 @@ class Xacro2Mjcf(Node):
                         inertia.attrib['izz'] = '1e-10'
                         inertial.append(inertia)
                         link_element.append(inertial)
+
+    def correct_visual_mesh(self, urdf_root):
+        for link in self.get_elements(urdf_root, "link"):
+            visual = link.find('visual')
+            collision = link.find('collision')
+            if visual is not None:
+                visual_geom = visual.find('geometry')
+                if visual_geom:
+                    visual_mesh = visual_geom.find('mesh')
+                    if visual_mesh is not None and visual_mesh.attrib['filename'][-3:] == "dae":
+                        link.remove(visual)
+                        if collision is not None:
+                            new_visual = ET.Element('visual')
+                            for element in collision:
+                                new_visual.append(element)
+                            link.append(new_visual)
+
+
 
 
 ## @brief Main function to initialize and run the Xacro2Mjcf node.
