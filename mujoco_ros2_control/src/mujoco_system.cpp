@@ -208,7 +208,13 @@ namespace mujoco_ros2_control {
             if (joints_[joint_name].name.empty()) {
                 continue;
             }
-            std::string actuator_name = mj_id2name(mujoco_model_, mjOBJ_ACTUATOR, mujoco_actuator_id);
+            std::string actuator_name;
+            const char* act_name = mj_id2name(mujoco_model_, mjOBJ_ACTUATOR, mujoco_actuator_id);
+            if(act_name) {
+                actuator_name = act_name;
+            } else {
+                actuator_name = "actuator" + std::to_string(mujoco_actuator_id);
+            }
 
             double *dynprm = &mujoco_model_->actuator_dynprm[mujoco_actuator_id * mjNDYN];
             double *gainprm = &mujoco_model_->actuator_gainprm[mujoco_actuator_id * mjNGAIN];
@@ -283,27 +289,39 @@ namespace mujoco_ros2_control {
             std::vector<ControlMethod> & control_methods = joint.second.control_methods;
             for (const std::string &interface_name : stop_interfaces) {
                 if (interface_name == joint.first + "/" + hardware_interface::HW_IF_POSITION) {
-                    control_methods.erase(std::find(control_methods.begin(), control_methods.end(), POSITION));
+                    if (!control_methods.empty()) {
+                        control_methods.erase(std::find(control_methods.begin(), control_methods.end(), POSITION));
+                    }
                     RCLCPP_DEBUG(rclcpp::get_logger("mujoco_system"), "command_mode_stop_position");
                 } else if (interface_name == joint.first + "/" + hardware_interface::HW_IF_VELOCITY) {
-                    control_methods.erase(std::find(control_methods.begin(), control_methods.end(), VELOCITY));
+                    if (!control_methods.empty()) {
+                        control_methods.erase(std::find(control_methods.begin(), control_methods.end(), VELOCITY));
+                    }
                     RCLCPP_DEBUG(rclcpp::get_logger("mujoco_system"), "command_mode_stop_velocity");
                 } else if (interface_name == joint.first + "/" + hardware_interface::HW_IF_EFFORT) {
-                    control_methods.erase(std::find(control_methods.begin(), control_methods.end(), EFFORT));
+                    if (!control_methods.empty()) {
+                        control_methods.erase(std::find(control_methods.begin(), control_methods.end(), EFFORT));
+                    }
                     RCLCPP_DEBUG(rclcpp::get_logger("mujoco_system"), "command_mode_stop_effort");
                 }
             }
             for (const std::string &interface_name : start_interfaces) {
                 if (interface_name == joint.first + "/" + hardware_interface::HW_IF_POSITION) {
-                    control_methods.erase(std::find(control_methods.begin(), control_methods.end(), POSITION));
+                    if (!control_methods.empty()) {
+                        control_methods.erase(std::find(control_methods.begin(), control_methods.end(), POSITION));
+                    }
                     control_methods.push_back(POSITION);
                     RCLCPP_DEBUG(rclcpp::get_logger("mujoco_system"), "command_mode_start_position for: %s", interface_name.c_str());
                 } else if (interface_name == joint.first + "/" + hardware_interface::HW_IF_VELOCITY) {
-                    control_methods.erase(std::find(control_methods.begin(), control_methods.end(), VELOCITY));
+                    if (!control_methods.empty()) {
+                        control_methods.erase(std::find(control_methods.begin(), control_methods.end(), VELOCITY));
+                    }
                     control_methods.push_back(VELOCITY);
                     RCLCPP_DEBUG(rclcpp::get_logger("mujoco_system"), "command_mode_start_velocity for: %s", interface_name.c_str());
                 } else if (interface_name == joint.first + "/" + hardware_interface::HW_IF_EFFORT) {
-                    control_methods.clear();
+                    if (!control_methods.empty()) {
+                        control_methods.clear();
+                    }
                     control_methods.push_back(EFFORT);
                     RCLCPP_DEBUG(rclcpp::get_logger("mujoco_system"), "command_mode_start_effort for: %s", interface_name.c_str());
                 }

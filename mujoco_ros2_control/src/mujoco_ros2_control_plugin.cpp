@@ -74,7 +74,8 @@ namespace mujoco_ros2_control {
         mujoco_start_time_ = mujoco_data_->time;
 
         clock_gettime(CLOCK_MONOTONIC, &startTime_);
-        mj_vis_.init(mujoco_model_, mujoco_data_, show_gui_);
+        //mj_vis_.init(mujoco_model_, mujoco_data_, show_gui_);
+        mj_vis_.init(mujoco_model_, mujoco_data_);
 
         registerSensors();
         RCLCPP_INFO(nh_->get_logger(), "Sim environment setup complete");

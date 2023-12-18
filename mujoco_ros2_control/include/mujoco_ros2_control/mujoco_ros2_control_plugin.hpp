@@ -83,8 +83,6 @@
 
 #include "mujoco_ros2_sensors/mujoco_ros2_sensors.hpp"
 
-#include "mujoco_visualization/simulate_gui.hpp"
-
 #include "mujoco_ros2_control_parameters.hpp"
 
 namespace mujoco_ros2_control
@@ -221,8 +219,8 @@ private:
     std::thread thread_executor_spin_; ///< Thread for the controller manager executor
 
     // Visualization class
-    mujoco_visualization::MujocoVisualization& mj_vis_ = mujoco_visualization::MujocoVisualization::getInstance(); ///< MuJoCo visualizer object
-    //mujoco_simulate_gui::MujocoSimulateGui& mj_vis_ = mujoco_simulate_gui::MujocoSimulateGui::getInstance(); ///< MuJoCo visualizer object
+    //mujoco_visualization::MujocoVisualization& mj_vis_ = mujoco_visualization::MujocoVisualization::getInstance(); ///< MuJoCo visualizer object
+    mujoco_simulate_gui::MujocoSimulateGui& mj_vis_ = mujoco_simulate_gui::MujocoSimulateGui::getInstance(); ///< MuJoCo visualizer object
 
     // interface loader
     std::shared_ptr<pluginlib::ClassLoader<mujoco_ros2_control::MujocoSystemInterface> > robot_hw_sim_loader_; ///< Plugin loader for RobotHWSimInterface

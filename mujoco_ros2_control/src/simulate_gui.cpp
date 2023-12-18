@@ -1,11 +1,13 @@
 #include "mujoco_visualization/simulate_gui.hpp"
+#include "simulate.cc"
+
 
 namespace mujoco_simulate_gui {
     void MujocoSimulateGui::init(mjModel_ *model, mjData_ *data) {
         m = model;
         d = data;
         // scan for libraries in the plugin directory to load additional plugins
-        scanPluginLibraries();
+        //scanPluginLibraries();
 
         mjv_defaultCamera(&cam);
 
@@ -16,96 +18,90 @@ namespace mujoco_simulate_gui {
         // simulate object encapsulates the UI
         sim = std::make_unique<mj::Simulate>(
                 std::make_unique<mj::GlfwAdapter>(),
-                &cam, &opt, &pert, /* is_passive = */ true
+                &cam, &opt, &pert, /* is_passive = */ false
         );
 
-        sim->Load(m, d, "Mujoco ROS2 Control");
-        sim->RenderLoop();
+        //sim->Load(m, d, "Mujoco ros2 control");
+        sim->mnew_ = m;
+        sim->dnew_ = d;
+        mju::strcpy_arr(sim->filename, "Mujoco ros2 control");
+
+        InitializeProfiler(sim.get());
+        InitializeSensor(sim.get());
+
+        if (!sim->is_passive_) {
+            mjv_defaultScene(&sim->scn);
+            mjv_makeScene(nullptr, &sim->scn, sim->kMaxGeom);
+        }
+
+        if (!sim->platform_ui->IsGPUAccelerated()) {
+            sim->scn.flags[mjRND_SHADOW] = 0;
+            sim->scn.flags[mjRND_REFLECTION] = 0;
+        }
+
+        // select default font
+        int fontscale = ComputeFontScale(*sim->platform_ui);
+        sim->font = fontscale/50 - 1;
+
+        // make empty context
+        sim->platform_ui->RefreshMjrContext(sim->m_, fontscale);
+
+        // init state and uis
+        std::memset(&sim->uistate, 0, sizeof(mjuiState));
+        std::memset(&sim->ui0, 0, sizeof(mjUI));
+        std::memset(&sim->ui1, 0, sizeof(mjUI));
+
+        auto [buf_width, buf_height] = sim->platform_ui->GetFramebufferSize();
+        sim->uistate.nrect = 1;
+        sim->uistate.rect[0].width = buf_width;
+        sim->uistate.rect[0].height = buf_height;
+
+        sim->ui0.spacing = mjui_themeSpacing(sim->spacing);
+        sim->ui0.color = mjui_themeColor(sim->color);
+        sim->ui0.predicate = UiPredicate;
+        sim->ui0.rectid = 1;
+        sim->ui0.auxid = 0;
+
+        sim->ui1.spacing = mjui_themeSpacing(sim->spacing);
+        sim->ui1.color = mjui_themeColor(sim->color);
+        sim->ui1.predicate = UiPredicate;
+        sim->ui1.rectid = 2;
+        sim->ui1.auxid = 1;
+
+        // set GUI adapter callbacks
+        sim->uistate.userdata = sim.get();
+        sim->platform_ui->SetEventCallback(UiEvent);
+        sim->platform_ui->SetLayoutCallback(UiLayout);
+
+        // populate uis with standard sections
+        sim->ui0.userdata = sim.get();
+        sim->ui1.userdata = sim.get();
+        mjui_add(&sim->ui0, defFile);
+        mjui_add(&sim->ui0, sim->def_option);
+        mjui_add(&sim->ui0, sim->def_simulation);
+        mjui_add(&sim->ui0, sim->def_watch);
+        UiModify(&sim->ui0, &sim->uistate, &sim->platform_ui->mjr_context());
+        UiModify(&sim->ui1, &sim->uistate, &sim->platform_ui->mjr_context());
+
+        // set VSync to initial value
+        sim->platform_ui->SetVSync(sim->vsync);
+
+        sim->LoadOnRenderThread();
+
+        // lock the sim mutex
+        //const std::unique_lock<std::recursive_mutex> lock(sim->mtx);
     }
 
     void MujocoSimulateGui::terminate() {
         sim.reset();
     }
 
-    std::string MujocoSimulateGui::getExecutableDir() {
-        constexpr char kPathSep = '/';
-        const char* path = "/proc/self/exe";
-        std::string realpath = [&]() -> std::string {
-            std::unique_ptr<char[]> realpath(nullptr);
-            std::uint32_t buf_size = 128;
-            bool success = false;
-            while (!success) {
-                realpath.reset(new(std::nothrow) char[buf_size]);
-                if (!realpath) {
-                    std::cerr << "cannot allocate memory to store executable path\n";
-                    return "";
-                }
-
-                std::size_t written = readlink(path, realpath.get(), buf_size);
-                if (written < buf_size) {
-                    realpath.get()[written] = '\0';
-                    success = true;
-                } else if (written == -1) {
-                    if (errno == EINVAL) {
-                        // path is already not a symlink, just use it
-                        return path;
-                    }
-
-                    std::cerr << "error while resolving executable path: " << strerror(errno) << '\n';
-                    return "";
-                } else {
-                    // realpath is too small, grow and retry
-                    buf_size *= 2;
-                }
-            }
-            return realpath.get();
-        }();
-
-        if (realpath.empty()) {
-            return "";
-        }
-
-        for (std::size_t i = realpath.size() - 1; i > 0; --i) {
-            if (realpath.c_str()[i] == kPathSep) {
-                return realpath.substr(0, i);
-            }
-        }
-
-        // don't scan through the entire file system's root
-        return "";
-    }
-
-    void MujocoSimulateGui::scanPluginLibraries() {
-        // check and print plugins that are linked directly into the executable
-        int nplugin = mjp_pluginCount();
-        if (nplugin) {
-            std::printf("Built-in plugins:\n");
-            for (int i = 0; i < nplugin; ++i) {
-                std::printf("    %s\n", mjp_getPluginAtSlot(i)->name);
-            }
-        }
-
-        // define platform-specific strings
-        const std::string sep = "/";
-
-        // try to open the ${EXECDIR}/plugin directory
-        // ${EXECDIR} is the directory containing the simulate binary itself
-        const std::string executable_dir = getExecutableDir();
-        if (executable_dir.empty()) {
-            return;
-        }
-
-        const std::string plugin_dir = getExecutableDir() + sep + MUJOCO_PLUGIN_DIR;
-        mj_loadAllPluginLibraries(
-                plugin_dir.c_str(), +[](const char *filename, int first, int count) {
-                    std::printf("Plugins registered by library '%s':\n", filename);
-                    for (int i = first; i < first + count; ++i) {
-                        std::printf("    %s\n", mjp_getPluginAtSlot(i)->name);
-                    }
-                });
-    }
-
     void MujocoSimulateGui::update() {
+        sim->platform_ui->PollEvents();
+
+        //mjv_updateSceneState(sim->m_, sim->d_, &sim->opt, &sim->scnstate_);
+        //sim->scnstate_.data.warning[mjWARN_VGEOMFULL].number += mjv_updateSceneFromState(
+        //        &sim->scnstate_, &sim->opt, &sim->pert, &sim->cam, mjCAT_ALL, &sim->scn);
         sim->Sync();
         sim->Render();
     }

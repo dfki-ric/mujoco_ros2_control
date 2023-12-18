@@ -12,6 +12,8 @@ if(NOT CMAKE_CXX_STANDARD)
 endif()
 
 add_compile_options(-g)
+set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0")
 
 set(OpenGL_GL_PREFERENCE LEGACY)
 
@@ -129,10 +131,10 @@ install(TARGETS
         RUNTIME DESTINATION bin
         )
 
-#install(TARGETS
-#        mujoco_visualization
-#        DESTINATION lib
-#        )
+install(TARGETS
+        mujoco_visualization
+        DESTINATION lib
+        )
         
 install(DIRECTORY mjcf DESTINATION share/${PROJECT_NAME}/)
 

@@ -182,13 +182,14 @@ class Xacro2Mjcf(Node):
                                             tag_elements = self.get_elements(mj_elements[0], child.tag, 'name', child.attrib['name'])
                                         else:
                                             tag_elements = self.get_elements(mj_elements[0], child.tag)
+
                                         if tag_elements:
                                             for attrib in child.attrib:
                                                 for tag_element in tag_elements:
                                                     if parent_map.get(tag_element) == mj_elements[0]:
                                                         tag_element.set(attrib, child.attrib[attrib])
                                                         self.get_logger().info("added attrib " + str(child.attrib) + " to " + str(child.tag))
-                                        else:
+                                        elif not 'name' in child.attrib:
                                             mj_elements[0].insert(0, child)
                             else:
                                 self.get_logger().error("Body " + reference_name + " not found")
