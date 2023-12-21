@@ -94,6 +94,20 @@ namespace mujoco_ros2_control {
                     }
                 }
             }
+
+            for (auto& param : joint_info.parameters) {
+                if (param.first == "p") {
+                    joint.pid.kp = string_to_double(param.second);
+                } else if (param.first == "i") {
+                    joint.pid.ki = string_to_double(param.second);
+                } else if (param.first == "d") {
+                    joint.pid.kd = string_to_double(param.second);
+                } else if (param.first == "f") {
+                    joint.pid.kf = string_to_double(param.second);
+                }
+            }
+
+            // TODO: add support for tendon
             if (joints.at(joint.name)->mimic != nullptr) {
                 if (joints.find(joints.at(joint.name)->mimic->joint_name) == joints.end()) {
                     RCLCPP_WARN(rclcpp::get_logger("mujoco_system"),
@@ -347,6 +361,7 @@ namespace mujoco_ros2_control {
     hardware_interface::return_type MujocoSystem::write(
             const rclcpp::Time &time,
             const rclcpp::Duration &period) {
+        // TODO: Check for tendon actuator when joint is mimicked
         for (const auto &mj : mimiced_joints_) {
             joints_.at(mj.joint).control_methods = joints_.at(mj.mimiced_joint).control_methods;
             joints_.at(mj.joint).position_command = joints_.at(mj.mimiced_joint).position_command * mj.mimic_multiplier + mj.mimic_offset;
@@ -364,23 +379,45 @@ namespace mujoco_ros2_control {
                 double position = std::clamp(joint.position_command,
                                              joint.lower_limit,
                                              joint.upper_limit);
-                double position_error = position - mujoco_data_->qpos[joint.mujoco_qpos_addr];
                 // check if an actuator is available
                 if (actuators.find(POSITION) != actuators.end()) {
                     // write to actuator ctrl
-                    mujoco_data_->ctrl[actuators[POSITION]] = position;
+                    if (position != joint.last_command) {
+                        joint.last_command = position;
+                        mujoco_data_->ctrl[actuators[POSITION]] = position;
+                    }
                 } else {
-                    // write to position and velocity address from the joint
-                    mujoco_data_->qpos[joint.mujoco_qpos_addr] = position;
+                    auto &pid = joint.pid;
+                    double position_error = position - mujoco_data_->qpos[joint.mujoco_qpos_addr];
+                    if (joint.last_command != position) {
+                        joint.last_command = position;
+                        pid.integral = position_error;
+                    } else {
+                        pid.integral += position_error;
+                    }
+                    double derivative = (position_error - pid.prev_error) / period.seconds();
+                    double tau = pid.kp * position_error + pid.ki * pid.integral + pid.kd * derivative;
+
+                    double tau_cmd = std::clamp(tau, -joint.effort_limit, joint.effort_limit);
+                    if (tau_cmd > 1) {
+                        RCLCPP_INFO(rclcpp::get_logger("position_control"), "[%s] tau: %f", joint.name.c_str(), tau_cmd);
+                    }
+                    pid.prev_error = position_error;
+
+                    // write to effort address from the joint
+                    mujoco_data_->qfrc_applied[joint.mujoco_dofadr] = tau_cmd;
+//                    // write to position and velocity address from the joint
+//                    mujoco_data_->qpos[joint.mujoco_qpos_addr] = position;
+//
+//                    // Check and respect the velocity limits
+//                    double desired_velocity = position_error / period.seconds();
+//                    // get velocity command inside the limits
+//                    double velocity = std::clamp(desired_velocity,
+//                                                 -joint.velocity_limit,
+//                                                 joint.velocity_limit);
+//                    // write to velocity address from the joint
+//                    mujoco_data_->qvel[joint.mujoco_dofadr] = velocity;
                 }
-                // Check and respect the velocity limits
-                double desired_velocity = position_error / period.seconds();
-                // get velocity command inside the limits
-                double velocity = std::clamp(desired_velocity,
-                                             -joint.velocity_limit,
-                                             joint.velocity_limit);
-                // write to velocity address from the joint
-                mujoco_data_->qvel[joint.mujoco_dofadr] = velocity;
 
             }
             // write velocity command to mujoco
@@ -392,10 +429,31 @@ namespace mujoco_ros2_control {
                 // check if an actuator is available
                 if (actuators.find(VELOCITY) != actuators.end()) {
                     // write to actuator ctrl
-                    mujoco_data_->ctrl[actuators[VELOCITY]] = velocity;
+                    if (velocity != joint.last_command) {
+                        mujoco_data_->ctrl[actuators[VELOCITY]] = velocity;
+                    }
                 } else {
+                    auto &pid = joint.pid;
+                    double velocity_error = velocity - mujoco_data_->qvel[joint.mujoco_dofadr];
+                    if (joint.last_command != velocity) {
+                        joint.last_command = velocity;
+                        pid.integral = velocity_error;
+                    } else {
+                        pid.integral += velocity_error;
+                    }
+                    double derivative = (velocity_error - pid.prev_error) / period.seconds();
+                    double tau = pid.kp * velocity_error + pid.ki * pid.integral + pid.kd * derivative;
+
+                    double tau_cmd = std::clamp(tau, -joint.effort_limit, joint.effort_limit);
+                    if (tau_cmd > 1) {
+                        RCLCPP_INFO(rclcpp::get_logger("position_control"), "[%s] tau: %f", joint.name.c_str(), tau_cmd);
+                    }
+                    pid.prev_error = velocity_error;
+
+                    // write to effort address from the joint
+                    mujoco_data_->qfrc_applied[joint.mujoco_dofadr] = tau_cmd;
                     // write to velocity address from the joint
-                    mujoco_data_->qvel[joint.mujoco_dofadr] = velocity;
+                    //mujoco_data_->qvel[joint.mujoco_dofadr] = velocity;
                 }
             }
             // write effort command to mujoco

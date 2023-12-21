@@ -215,6 +215,15 @@ namespace mujoco_ros2_control {
         };
 
         // Structs
+        struct PID {
+            double kp{0.0};
+            double ki{0.0};
+            double kd{0.0};
+            double kf{0.0};
+            double integral{0.0};
+            double prev_error{0.0};
+        };
+
         /**
          * @brief Struct representing joint data.
          *
@@ -234,6 +243,7 @@ namespace mujoco_ros2_control {
             double effort_command;  ///< Commanded effort to be applied to the joint.
             double position_command;  ///< Commanded position for the joint.
             double velocity_command;  ///< Commanded velocity for the joint.
+            double last_command; ///< Last command;
             std::map<ControlMethod, int> actuators;  ///< Mapping of control methods to actuator IDs.
             std::vector<hardware_interface::CommandInterface *> command_interfaces;  ///< Command interfaces associated with the joint.
             std::vector<hardware_interface::StateInterface *> state_interfaces;  ///< State interfaces associated with the joint.
@@ -241,6 +251,7 @@ namespace mujoco_ros2_control {
             int mujoco_qpos_addr;  ///< Address of the joint position in the Mujoco data structure.
             int mujoco_dofadr;  ///< Degree-of-freedom (DOF) address of the joint in the Mujoco data structure.
             int type; ///< Type of the joint
+            PID pid; ///< Gains for pid control when input command is position or velocity
         };
 
         struct MimicJoint {
