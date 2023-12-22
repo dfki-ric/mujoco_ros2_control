@@ -211,17 +211,24 @@ namespace mujoco_ros2_control {
         enum ControlMethod {
             EFFORT,  ///< Effort control method.
             POSITION,  ///< Position control method.
-            VELOCITY  ///< Velocity control method.
+            VELOCITY,  ///< Velocity control method.
+            ACCELERATION ///< Acceleration control method.
         };
 
         // Structs
-        struct PID {
-            double kp{0.0};
-            double ki{0.0};
-            double kd{0.0};
-            double kf{0.0};
-            double integral{0.0};
-            double prev_error{0.0};
+        /**
+         * @brief Struct representing the data for a pid controller of a joint
+         */
+        struct PIDConfig {
+            double kp{0.0}; ///< Proportional Gain
+            double ki{0.0}; ///< Integral Gain
+            double kd{0.0}; ///< Derivative Gain
+            double kvff{0.0};  ///< Velocity Feedforward Gain
+            double kaff{0.0};  ///< Acceleration Feedforward Gain
+            double integral{0.0}; ///< Actual integral value
+            double prev_error{0.0}; ///< Previous error
+            bool position{false}; ///< Was tau calculated for position command
+            bool velocity{false}; ///< Was tau calculated for velocity command
         };
 
         /**
@@ -235,14 +242,17 @@ namespace mujoco_ros2_control {
             double lower_limit = std::numeric_limits<double>::min();  ///< Lower limit of the joint position.
             double upper_limit = std::numeric_limits<double>::max();  ///< Upper limit of the joint position.
             double velocity_limit = std::numeric_limits<double>::max();  ///< Limit on the joint velocity.
+            double acceleration_limit = std::numeric_limits<double>::max();  ///< Limit on the joint acceleration.
             double effort_limit = std::numeric_limits<double>::max();  ///< Limit on the joint effort.
             std::vector<ControlMethod> control_methods;  ///< Available control methods for the joint.
             double position;  ///< Current position of the joint.
             double velocity;  ///< Current velocity of the joint.
+            double acceleration;  ///< Current effort applied to the joint.
             double effort;  ///< Current effort applied to the joint.
-            double effort_command;  ///< Commanded effort to be applied to the joint.
             double position_command;  ///< Commanded position for the joint.
             double velocity_command;  ///< Commanded velocity for the joint.
+            double acceleration_command;  ///< Commanded acceleration for the joint.
+            double effort_command;  ///< Commanded effort to be applied to the joint.
             double last_command; ///< Last command;
             std::map<ControlMethod, int> actuators;  ///< Mapping of control methods to actuator IDs.
             std::vector<hardware_interface::CommandInterface *> command_interfaces;  ///< Command interfaces associated with the joint.
@@ -251,9 +261,12 @@ namespace mujoco_ros2_control {
             int mujoco_qpos_addr;  ///< Address of the joint position in the Mujoco data structure.
             int mujoco_dofadr;  ///< Degree-of-freedom (DOF) address of the joint in the Mujoco data structure.
             int type; ///< Type of the joint
-            PID pid; ///< Gains for pid control when input command is position or velocity
+            PIDConfig pid; ///< Gains for pid control when input command is position or velocity
         };
 
+        /**
+         * @brief This struct holds information about mimic joints
+         */
         struct MimicJoint {
             std::string joint;
             std::string mimiced_joint;
@@ -288,6 +301,8 @@ namespace mujoco_ros2_control {
          * or modules to control the joint's behavior.
          */
         std::vector<hardware_interface::CommandInterface> command_interfaces_;
+
+        double pid_control(double kp, double ki, double kd, double error, double last_error, double dt);
 
     protected:
         std::map<std::string, JointData> joints_; ///< Map of joint names to JointData structs.
