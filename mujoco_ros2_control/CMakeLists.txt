@@ -3,16 +3,15 @@ project(mujoco_ros2_control)
 
 # Default to C99
 if(NOT CMAKE_C_STANDARD)
-  set(CMAKE_C_STANDARD 99)
+    set(CMAKE_C_STANDARD 99)
 endif()
 
 # Default to C++14
 if(NOT CMAKE_CXX_STANDARD)
-  set(CMAKE_CXX_STANDARD 17)
+    set(CMAKE_CXX_STANDARD 17)
 endif()
 
 add_compile_options(-g)
-
 set(CMAKE_BUILD_TYPE Debug)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0")
 
@@ -36,23 +35,13 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
         cv_bridge
         generate_parameter_library
         Eigen3
-)
+        )
 foreach(Dependency IN ITEMS ${THIS_PACKAGE_INCLUDE_DEPENDS})
-  find_package(${Dependency} REQUIRED)
+    find_package(${Dependency} REQUIRED)
 endforeach()
 
 find_package(mujoco 3.0.0 REQUIRED)
-
-find_package(mujoco_ros2_control_simulate_gui QUIET)
-
-if(mujoco_ros2_control_simulate_gui_FOUND)
-  set(USE_LIBSIMULATE ON CACHE BOOL "Use LibSimulate" FORCE)
-  message("Setting USE_LIBSIMULATE to: ${USE_LIBSIMULATE}")
-endif()
-
-# Configure the header file with CMake variables
-configure_file(cmake/config.h.in ${CMAKE_BINARY_DIR}/config.h)
-
+add_subdirectory(${CMAKE_SOURCE_DIR}/libsimulate)
 ## Specify additional locations of header files
 add_definitions(
         ${rclcpp_DEFINITIONS}
@@ -89,11 +78,22 @@ ament_target_dependencies(mujoco_system_plugins
         urdf
         )
 
+
+add_library(mujoco_visualization src/mujoco_visualization.cpp)
+ament_target_dependencies(mujoco_visualization
+        rclcpp
+        glfw3
+        )
+#target_link_libraries(mujoco_visualization
+#        mujoco::libsimulate
+#        )
+
+
 add_executable(${PROJECT_NAME}
         src/mujoco_ros2_control_plugin.cpp
         src/mujoco_depth_camera.cpp
         src/pose_sensor.cpp src/mujoco_ros2_sensors.cpp
-        )
+        src/simulate_gui.cpp)
 ament_target_dependencies(${PROJECT_NAME}
         controller_manager
         hardware_interface
@@ -106,39 +106,17 @@ ament_target_dependencies(${PROJECT_NAME}
         cv_bridge
         PCL
         pcl_conversions
-)
-
-target_link_libraries(${PROJECT_NAME}
+        )
+target_link_libraries(
+        mujoco_ros2_control
+        mujoco_visualization
         mujoco
         glfw
         ${PCL_LIBRARIES}
         ${PROJECT_NAME}_parameters
         mujoco_rgbd_camera_parameters
+        mujoco::libsimulate
 )
-
-if(mujoco_ros2_control_simulate_gui_FOUND)
-  set(USE_LIBSIMULATE ON)
-  target_link_libraries(${PROJECT_NAME}
-          mujoco_ros2_control_simulate_gui_FOUND
-          )
-else()
-  add_library(mujoco_visualization
-          src/mujoco_visualization.cpp)
-  ament_target_dependencies(mujoco_visualization
-          rclcpp
-          glfw3
-          )
-  target_link_libraries(${PROJECT_NAME}
-          mujoco_visualization
-  )
-
-  install(TARGETS
-          mujoco_visualization
-          DESTINATION lib
-          )
-endif()
-
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR})
 
 ## Install
 install(TARGETS
@@ -152,7 +130,12 @@ install(TARGETS
         LIBRARY DESTINATION lib
         RUNTIME DESTINATION bin
         )
-        
+
+install(TARGETS
+        mujoco_visualization
+        DESTINATION lib
+        )
+
 install(DIRECTORY mjcf DESTINATION share/${PROJECT_NAME}/)
 
 ament_python_install_package(scripts)
