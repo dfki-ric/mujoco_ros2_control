@@ -1,0 +1,10 @@
+.idea/
+.vscode/
+.cache/
+*/build/
+cmake-build-debug/
+*/old/
+venv/
+docs/html
+docs/man
+doc

@@ -36,6 +36,9 @@
 #ifndef MUJOCO_ROS2_CONTROL_MUJOCO_ROS2_CONTROL_PLUGIN_HPP
 #define MUJOCO_ROS2_CONTROL_MUJOCO_ROS2_CONTROL_PLUGIN_HPP
 
+// cmake config
+#include "config.h"
+
 // std libraries
 #include <algorithm>
 #include <fstream>
@@ -57,8 +60,6 @@
 #include "mujoco/mjdata.h"
 #include "mujoco/mjmodel.h"
 
-#include "mujoco_visualization/simulate_gui.hpp"
-
 // ros_control
 #include "controller_manager/controller_manager.hpp"
 #include "hardware_interface/hardware_info.hpp"
@@ -76,12 +77,19 @@
 #include "urdf/urdf/model.h"
 
 // Package header
-#include "mujoco_visualization/mujoco_visualization.hpp"
 #include "mujoco_ros2_control/mujoco_system.hpp"
 #include "mujoco_ros2_control/mujoco_system_interface.hpp"
 #include "mujoco_rgbd_camera/mujoco_depth_camera.hpp"
 
+// Sensors
 #include "mujoco_ros2_sensors/mujoco_ros2_sensors.hpp"
+
+// GUI
+#ifdef USE_LIBSIMULATE
+#include "mujoco_ros2_control_simulate_gui/simulate_gui.hpp"
+#else
+#include "mujoco_visualization/mujoco_visualization.hpp"
+#endif
 
 #include "mujoco_ros2_control_parameters.hpp"
 
@@ -112,127 +120,131 @@ namespace mujoco_ros2_control
  * @note This class assumes that the necessary ROS 2 parameters, such as the robot model path, simulation frequency,
  * and controller update rate, are properly set before initialization.
  */
-class MujocoRos2Control {
+    class MujocoRos2Control {
 
-public:
-    /**
-     * @brief Constructs a `MujocoRos2Control` object.
-     *
-     * This constructor initializes a `MujocoRos2Control` object with the given ROS 2 node.
-     *
-     * @param node A shared pointer to the ROS 2 node that will be used for communication and control.
-     */
-    explicit MujocoRos2Control(rclcpp::Node::SharedPtr &node);
-    /**
-     * @brief Destroys the `MujocoRos2Control` object.
-     *
-     * This destructor cleans up any resources associated with the `MujocoRos2Control` object.
-     * It is responsible for releasing any dynamically allocated memory or performing any necessary cleanup operations.
-     * It is automatically called when the object goes out of scope or is explicitly deleted.
-     */
-    virtual ~MujocoRos2Control();
+    public:
+        /**
+         * @brief Constructs a `MujocoRos2Control` object.
+         *
+         * This constructor initializes a `MujocoRos2Control` object with the given ROS 2 node.
+         *
+         * @param node A shared pointer to the ROS 2 node that will be used for communication and control.
+         */
+        explicit MujocoRos2Control(rclcpp::Node::SharedPtr &node);
+        /**
+         * @brief Destroys the `MujocoRos2Control` object.
+         *
+         * This destructor cleans up any resources associated with the `MujocoRos2Control` object.
+         * It is responsible for releasing any dynamically allocated memory or performing any necessary cleanup operations.
+         * It is automatically called when the object goes out of scope or is explicitly deleted.
+         */
+        virtual ~MujocoRos2Control();
 
-    /**
-     * @brief Updates the state of the MujocoRos2Control.
-     *
-     * This method is responsible for updating the state of the `MujocoRos2Control` based on the current simulation time and
-     * the duration of the simulation step. It performs the necessary computations and updates the internal variables and
-     * components of the `MujocoRos2Control`, including publishing the simulation time, updating the controllers, and
-     * updating the Mujoco model.
-     */
-    void update();
+        /**
+         * @brief Updates the state of the MujocoRos2Control.
+         *
+         * This method is responsible for updating the state of the `MujocoRos2Control` based on the current simulation time and
+         * the duration of the simulation step. It performs the necessary computations and updates the internal variables and
+         * components of the `MujocoRos2Control`, including publishing the simulation time, updating the controllers, and
+         * updating the Mujoco model.
+         */
+        void update();
 
-private:
-    /**
-     * @brief Publishes the current simulation time.
-     *
-     * This method publishes the current simulation time to the `/clock` topic. It checks the publishing frequency to ensure
-     * that the time is published at the desired rate. If the elapsed time since the last publication is less than the
-     * reciprocal of the publishing frequency, the method returns without publishing.
-     */
-    void publish_sim_time();
+    private:
+        /**
+         * @brief Publishes the current simulation time.
+         *
+         * This method publishes the current simulation time to the `/clock` topic. It checks the publishing frequency to ensure
+         * that the time is published at the desired rate. If the elapsed time since the last publication is less than the
+         * reciprocal of the publishing frequency, the method returns without publishing.
+         */
+        void publish_sim_time();
 
-    /**
-     * @brief Initializes the controller manager and hardware interfaces.
-     *
-     * This method initializes the controller manager and sets up the hardware interfaces for communication between the
-     * controllers and the Mujoco model. It loads the necessary resources, creates instances of the
-     * MujocoSystemInterface, and sets up the controller manager.
-     *
-     * @note If any errors occur during the initialization process, appropriate error messages are logged, and the method returns.
-     */
-    void init_controller_manager();
+        /**
+         * @brief Initializes the controller manager and hardware interfaces.
+         *
+         * This method initializes the controller manager and sets up the hardware interfaces for communication between the
+         * controllers and the Mujoco model. It loads the necessary resources, creates instances of the
+         * MujocoSystemInterface, and sets up the controller manager.
+         *
+         * @note If any errors occur during the initialization process, appropriate error messages are logged, and the method returns.
+         */
+        void init_controller_manager();
 
-    /**
-     * @brief Initializes the Mujoco simulation environment.
-     *
-     * This method initializes the Mujoco simulation environment by loading the Mujoco model, setting the simulation frequency,
-     * and creating the corresponding data structure. It also retrieves the Mujoco simulation period and stores it as a ROS duration.
-     *
-     * @note If an error occurs during the initialization process, the method logs a fatal error message and returns.
-     */
-    void init_mujoco();
+        /**
+         * @brief Initializes the Mujoco simulation environment.
+         *
+         * This method initializes the Mujoco simulation environment by loading the Mujoco model, setting the simulation frequency,
+         * and creating the corresponding data structure. It also retrieves the Mujoco simulation period and stores it as a ROS duration.
+         *
+         * @note If an error occurs during the initialization process, the method logs a fatal error message and returns.
+         */
+        void init_mujoco();
 
-    /**
-     * Initializes and configures camera objects based on the mujoco_model.
-     * If the mujoco_model contains cameras, it creates and configures the required number of camera objects.
-     *
-     * @note This method assumes that the MujocoModel (`mujoco_model_`) and MujocoData (`mujoco_data_`) are properly initialized.
-     *
-     * @post The `cameras_` vector will contain initialized camera objects based on the number of cameras in the `mujoco_model_`.
-     *       Each camera object is configured with a resolution of 640x480 pixels and a framerate of 25Hz.
-     *       Camera nodes are also created and stored in the `camera_nodes_` vector.
-     *       Camera threads are spawned to execute the `update()` function of each camera object.
-     */
-    void registerSensors();
+        /**
+         * Initializes and configures camera objects based on the mujoco_model.
+         * If the mujoco_model contains cameras, it creates and configures the required number of camera objects.
+         *
+         * @note This method assumes that the MujocoModel (`mujoco_model_`) and MujocoData (`mujoco_data_`) are properly initialized.
+         *
+         * @post The `cameras_` vector will contain initialized camera objects based on the number of cameras in the `mujoco_model_`.
+         *       Each camera object is configured with a resolution of 640x480 pixels and a framerate of 25Hz.
+         *       Camera nodes are also created and stored in the `camera_nodes_` vector.
+         *       Camera threads are spawned to execute the `update()` function of each camera object.
+         */
+        void registerSensors();
 
-    std::shared_ptr<rclcpp::Node> nh_; ///< ROS2 node handle
+        std::shared_ptr<rclcpp::Node> nh_; ///< ROS2 node handle
 
-    // Parameters from ROS2 using generate_parameter_library
-    std::shared_ptr<ParamListener> param_listener_;
-    Params params_;
+        // Parameters from ROS2 using generate_parameter_library
+        std::shared_ptr<ParamListener> param_listener_;
+        Params params_;
 
-    // realtime_tools publisher for the clock message
-    using ClockPublisher = realtime_tools::RealtimePublisher<rosgraph_msgs::msg::Clock>;
-    using ClockPublisherPtr = std::unique_ptr<ClockPublisher>;
-    rclcpp::Publisher<rosgraph_msgs::msg::Clock>::SharedPtr publisher_; ///< Publisher for the Clock message
-    ClockPublisherPtr clock_publisher_; ///< Clock publisher object
-    double pub_clock_frequency_; ///< Frequency the Clock is published
-    double last_pub_clock_time_; ///< Timestamp the clock was published
+        // realtime_tools publisher for the clock message
+        using ClockPublisher = realtime_tools::RealtimePublisher<rosgraph_msgs::msg::Clock>;
+        using ClockPublisherPtr = std::unique_ptr<ClockPublisher>;
+        rclcpp::Publisher<rosgraph_msgs::msg::Clock>::SharedPtr publisher_; ///< Publisher for the Clock message
+        ClockPublisherPtr clock_publisher_; ///< Clock publisher object
+        double pub_clock_frequency_; ///< Frequency the Clock is published
+        double last_pub_clock_time_; ///< Timestamp the clock was published
 
-    // Mujoco-related variables
-    mjModel* mujoco_model_{}; ///< Pointer to the Mujoco model
-    mjData* mujoco_data_{}; ///< Pointer to the Mujoco data
-    double mujoco_start_time_; ///< Start time of the Mujoco simulation
-    struct timespec startTime_; ///< Start time for the real-time clock
-    rclcpp::Duration mujoco_period_ = rclcpp::Duration(1, 0); ///< Update period of the mujoco simulation
-    rclcpp::Time last_update_sim_time_ros_ = rclcpp::Time((int64_t)0, RCL_ROS_TIME); ///< Timestamp of the last update call
-    double real_time_factor_; ///< Realtime factor of the simulation
-    bool show_gui_; ///< Flag if the gui is loaded
+        // Mujoco-related variables
+        mjModel* mujoco_model_{}; ///< Pointer to the Mujoco model
+        mjData* mujoco_data_{}; ///< Pointer to the Mujoco data
+        double mujoco_start_time_; ///< Start time of the Mujoco simulation
+        struct timespec startTime_; ///< Start time for the real-time clock
+        rclcpp::Duration mujoco_period_ = rclcpp::Duration(1, 0); ///< Update period of the mujoco simulation
+        rclcpp::Time last_update_sim_time_ros_ = rclcpp::Time((int64_t)0, RCL_ROS_TIME); ///< Timestamp of the last update call
+        double real_time_factor_; ///< Realtime factor of the simulation
+        bool show_gui_; ///< Flag if the gui is loaded
 
-    // Controller Manager
-    std::unique_ptr<hardware_interface::ResourceManager> resource_manager_; ///< Resource manager for hardware interfaces
-    rclcpp::executors::MultiThreadedExecutor::SharedPtr executor_; ///< Executor for created nodes
-    std::shared_ptr<controller_manager::ControllerManager> controller_manager_; ///< Controller manager object
-    rclcpp::Duration control_period_ = rclcpp::Duration(1, 0); ///< Control period of the controller manager
-    std::atomic<bool> stop_ = false; ///< Flag to stop the execution of the controller manager
-    std::thread thread_executor_spin_; ///< Thread for the controller manager executor
+        // Controller Manager
+        std::unique_ptr<hardware_interface::ResourceManager> resource_manager_; ///< Resource manager for hardware interfaces
+        rclcpp::executors::MultiThreadedExecutor::SharedPtr executor_; ///< Executor for created nodes
+        std::shared_ptr<controller_manager::ControllerManager> controller_manager_; ///< Controller manager object
+        rclcpp::Duration control_period_ = rclcpp::Duration(1, 0); ///< Control period of the controller manager
+        std::atomic<bool> stop_ = false; ///< Flag to stop the execution of the controller manager
+        std::thread thread_executor_spin_; ///< Thread for the controller manager executor
 
-    // Visualization class
-    //mujoco_visualization::MujocoVisualization& mj_vis_ = mujoco_visualization::MujocoVisualization::getInstance(); ///< MuJoCo visualizer object
-    mujoco_simulate_gui::MujocoSimulateGui& mj_vis_ = mujoco_simulate_gui::MujocoSimulateGui::getInstance(); ///< MuJoCo visualizer object
+        // Visualization class
 
-    // interface loader
-    std::shared_ptr<pluginlib::ClassLoader<mujoco_ros2_control::MujocoSystemInterface> > robot_hw_sim_loader_; ///< Plugin loader for RobotHWSimInterface
-    std::shared_ptr<mujoco_ros2_control::MujocoSystemInterface> robot_hw_sim_; ///< Robot hardware simulation interface
+#ifdef USE_LIBSIMULATE
+        mujoco_simulate_gui::MujocoSimulateGui& mj_vis_ = mujoco_simulate_gui::MujocoSimulateGui::getInstance(); ///< MuJoCo visualizer object
+#else
+        mujoco_visualization::MujocoVisualization& mj_vis_ = mujoco_visualization::MujocoVisualization::getInstance(); ///< MuJoCo visualizer object
+#endif
 
-    // Camera handling
-    std::vector<std::thread> camera_threads_; ///< Threads for the cameras (one thread per camera)
-    std::vector<rclcpp::Node::SharedPtr> camera_nodes_; ///< Nodes for the cameras (one Node per camera)
-    std::vector<std::shared_ptr<mujoco_rgbd_camera::MujocoDepthCamera>> cameras_; ///< Cameras Object vector
+        // interface loader
+        std::shared_ptr<pluginlib::ClassLoader<mujoco_ros2_control::MujocoSystemInterface> > robot_hw_sim_loader_; ///< Plugin loader for RobotHWSimInterface
+        std::shared_ptr<mujoco_ros2_control::MujocoSystemInterface> robot_hw_sim_; ///< Robot hardware simulation interface
 
-    std::shared_ptr<mujoco_ros2_sensors::MujocoRos2Sensors> mujoco_ros2_sensors_;
-};
+        // Camera handling
+        std::vector<std::thread> camera_threads_; ///< Threads for the cameras (one thread per camera)
+        std::vector<rclcpp::Node::SharedPtr> camera_nodes_; ///< Nodes for the cameras (one Node per camera)
+        std::vector<std::shared_ptr<mujoco_rgbd_camera::MujocoDepthCamera>> cameras_; ///< Cameras Object vector
+
+        std::shared_ptr<mujoco_ros2_sensors::MujocoRos2Sensors> mujoco_ros2_sensors_;
+    };
 }  // namespace mujoco_ros2_control
 
 

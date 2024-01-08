@@ -74,14 +74,17 @@ namespace mujoco_ros2_control {
         mujoco_start_time_ = mujoco_data_->time;
 
         clock_gettime(CLOCK_MONOTONIC, &startTime_);
-        //mj_vis_.init(mujoco_model_, mujoco_data_, show_gui_);
+#ifdef USE_LIBSIMULATE
         mj_vis_.init(mujoco_model_, mujoco_data_);
+#else
+        mj_vis_.init(mujoco_model_, mujoco_data_, show_gui_);
+#endif
 
         registerSensors();
         RCLCPP_INFO(nh_->get_logger(), "Sim environment setup complete");
     }
 
-    MujocoRos2Control::~MujocoRos2Control() 
+    MujocoRos2Control::~MujocoRos2Control()
     {
         stop_.store(true);
         for (auto &thread : camera_threads_) {
@@ -95,6 +98,7 @@ namespace mujoco_ros2_control {
 
         // deallocate existing mjData
         mj_deleteData(mujoco_data_);
+
         mj_vis_.terminate();
     }
 

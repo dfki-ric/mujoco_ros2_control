@@ -1,4 +1,4 @@
-#include "mujoco_visualization/simulate_gui.hpp"
+#include "mujoco_ros2_control_simulate_gui/simulate_gui.hpp"
 #include "simulate.cc"
 
 
@@ -6,8 +6,6 @@ namespace mujoco_simulate_gui {
     void MujocoSimulateGui::init(mjModel_ *model, mjData_ *data) {
         m = model;
         d = data;
-        // scan for libraries in the plugin directory to load additional plugins
-        //scanPluginLibraries();
 
         mjv_defaultCamera(&cam);
 
@@ -21,7 +19,6 @@ namespace mujoco_simulate_gui {
                 &cam, &opt, &pert, /* is_passive = */ false
         );
 
-        //sim->Load(m, d, "Mujoco ros2 control");
         sim->mnew_ = m;
         sim->dnew_ = d;
         mju::strcpy_arr(sim->filename, "Mujoco ros2 control");
@@ -87,9 +84,6 @@ namespace mujoco_simulate_gui {
         sim->platform_ui->SetVSync(sim->vsync);
 
         sim->LoadOnRenderThread();
-
-        // lock the sim mutex
-        //const std::unique_lock<std::recursive_mutex> lock(sim->mtx);
     }
 
     void MujocoSimulateGui::terminate() {
@@ -99,9 +93,6 @@ namespace mujoco_simulate_gui {
     void MujocoSimulateGui::update() {
         sim->platform_ui->PollEvents();
 
-        //mjv_updateSceneState(sim->m_, sim->d_, &sim->opt, &sim->scnstate_);
-        //sim->scnstate_.data.warning[mjWARN_VGEOMFULL].number += mjv_updateSceneFromState(
-        //        &sim->scnstate_, &sim->opt, &sim->pert, &sim->cam, mjCAT_ALL, &sim->scn);
         sim->Sync();
         sim->Render();
     }
