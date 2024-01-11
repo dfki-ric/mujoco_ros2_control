@@ -7,6 +7,7 @@ import xml.etree.ElementTree as ET
 import os
 import uuid
 import collections
+import copy
 
 
 ## @file xacro2mjcf.py
@@ -177,7 +178,7 @@ class Xacro2Mjcf(Node):
                                     if 'body' in child.tag:
                                         for attrib in child.attrib:
                                             mj_elements[0].set(attrib, child.attrib[attrib])
-                                            self.get_logger().info("added attrib " + str(child.tag))
+                                            self.get_logger().debug("added attrib " + str(child.tag))
 
                                     else:
                                         if 'name' in child.attrib:
@@ -190,7 +191,7 @@ class Xacro2Mjcf(Node):
                                                 for tag_element in tag_elements:
                                                     if parent_map.get(tag_element) == mj_elements[0]:
                                                         tag_element.set(attrib, child.attrib[attrib])
-                                                        self.get_logger().info("added attrib " + str(child.attrib) + " to " + str(child.tag))
+                                                        self.get_logger().debug("added attrib " + str(child.attrib) + " to " + str(child.tag))
                                         elif not 'name' in child.attrib:
                                             mj_elements[0].insert(0, child)
                             else:
@@ -217,7 +218,6 @@ class Xacro2Mjcf(Node):
                                 # If the child element doesn't exist in the second element, add it to the second element
                                 out_option.append(child)
 
-
                 if mjcf_tree.find('asset') is not None:
                     for element in mjcf_tree.find('asset'):
                         exist = False
@@ -242,7 +242,7 @@ class Xacro2Mjcf(Node):
                 self.destroy_node()
                 rclpy.shutdown()
 
-        self.get_logger().info(str([item for item, count in collections.Counter(out_assets).items() if count > 1]))
+        self.get_logger().debug(str([item for item, count in collections.Counter(out_assets).items() if count > 1]))
         # mesh_names = []
         # assets = []
         # for mesh in out_assets:
@@ -265,6 +265,30 @@ class Xacro2Mjcf(Node):
         self.destroy_node()
         exit(0)
 
+    def add_composite_collisions(self, urdf_root):
+        for link in self.get_elements(urdf_root, "link"):
+            collisions_to_replace = []
+            filenames = []
+            for collision in self.get_elements(link, "collision"):
+                meshes = self.get_elements(collision, "mesh")
+                for mesh in meshes:
+                    mesh_filename = mesh.get('filename')
+                    if mesh_filename:
+                        folder_path = mesh_filename[7:-4]
+                        if os.path.exists(folder_path):
+                            collisions_to_replace.append(collision)
+                            filenames.append([os.path.join(folder_path, filename) for filename in os.listdir(folder_path)])
+            for i, collision in enumerate(collisions_to_replace):
+                for filename in filenames[i]:
+                    self.get_logger().info(filename)
+                    collision_replacement_template = copy.deepcopy(collision)
+                    mesh = self.get_elements(collision_replacement_template, "mesh")[-1]
+                    mesh.attrib['filename'] = "file://" + filename
+                    link.append(collision_replacement_template)
+                link.remove(collision)
+
+
+
     def get_elements(self, parent, tag, attrib=None, value=None):
         elements = []
         if parent is None:
@@ -280,14 +304,19 @@ class Xacro2Mjcf(Node):
         return elements
 
     def create_symlinks(self, urdf_root, mujoco_files_path):
+        self.add_composite_collisions(urdf_root)
         # Create symlinks to used meshes in the tmp folder
         for mesh in self.get_elements(urdf_root, "mesh"):
             filename = mesh.get('filename')
             if filename:
                 source_file = filename[7:]
                 target_file = mujoco_files_path + "/meshes/" + source_file.replace("/", "_")
+
                 if source_file[-3:] == "stl" or source_file[-3:] == "STL" or \
-                   source_file[-3:] == "msh" or source_file[-3] == "MSH":
+                   source_file[-3:] == "obj" or source_file[-3:] == "OBJ" or \
+                   source_file[-3:] == "msh" or source_file[-3:] == "MSH":
+                    self.get_logger().info(source_file)
+                    self.get_logger().info(target_file)
                     if not os.path.exists(target_file):
                         os.symlink(source_file, target_file)
                     mesh.attrib['filename'] = "file://" + target_file
@@ -328,7 +357,7 @@ class Xacro2Mjcf(Node):
             if len(mujoco_elements) > 1:
                 for mujoco_element in self.get_elements(tmp_urdf_root, "mujoco")[1:]:
                     for element in mujoco_element:
-                        self.get_logger().info(str(element))
+                        self.get_logger().debug(str(element))
                         mujoco_elements[0].append(element)
                     tmp_urdf_root.remove(mujoco_element)
 
@@ -337,7 +366,7 @@ class Xacro2Mjcf(Node):
             reference_elements = self.get_elements(mujoco, "reference")
             if reference_elements is not None:
                 for reference in reference_elements:
-                    self.get_logger().info(str(reference.get("name")))
+                    self.get_logger().debug(str(reference.get("name")))
                     if reference.find("camera") is not None:
                         camera_links.append(reference.get("name"))
 

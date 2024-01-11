@@ -93,7 +93,7 @@ namespace mujoco_simulate_gui {
     }
 
     void MujocoSimulateGui::update() {
-        sim->platform_ui->UpdateMjuiState();
+        //sim->platform_ui->UpdateMjuiState();
         {
             const mujoco::MutexLock lock(sim->mtx);
             sim->platform_ui->PollEvents();
