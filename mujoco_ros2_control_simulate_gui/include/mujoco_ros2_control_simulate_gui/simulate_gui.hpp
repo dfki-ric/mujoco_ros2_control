@@ -29,7 +29,6 @@
 #include <mujoco/mujoco.h>
 #include "simulate.h"
 #include "glfw_adapter.h"
-//#include "array_safety.h"
 
 extern "C" {
 #include <sys/errno.h>
@@ -38,7 +37,6 @@ extern "C" {
 
 namespace mujoco_simulate_gui {
     namespace mj = ::mujoco;
-    //namespace mju = ::mujoco::sample_util;
 
     class MujocoSimulateGui {
     public:
@@ -109,30 +107,10 @@ namespace mujoco_simulate_gui {
          */
         mjvOption opt;
 
-        /**
-         * @brief Abstract scene for visualization.
-         * Represents the scene that contains the objects to be visualized.
-         */
-        mjvScene scn;
-
-        /**
-         * @brief Custom GPU context for visualization.
-         * Holds the context for rendering the visualization using GPU.
-         */
-        mjrContext con;
-
 
         mjvPerturb pert;
 
         std::unique_ptr<mj::Simulate> sim;
-
-
-        // return the path to the directory containing the current executable
-        // used to determine the location of auto-loaded plugin libraries
-        std::string getExecutableDir();
-
-        // scan for libraries in the plugin directory to load additional plugins
-        void scanPluginLibraries();
     };
 }
 #endif //MUJOCO_SIMULATE_GUI_HPP

@@ -172,6 +172,8 @@ class Xacro2Mjcf(Node):
                             mj_elements = self.get_elements(self.mjcf_root, 'body', 'name', reference_name)
                             if mj_elements:
                                 for child in element:
+                                    if 'camera' in child.tag:
+                                        mj_elements[0].insert(0, child)
                                     if 'body' in child.tag:
                                         for attrib in child.attrib:
                                             mj_elements[0].set(attrib, child.attrib[attrib])

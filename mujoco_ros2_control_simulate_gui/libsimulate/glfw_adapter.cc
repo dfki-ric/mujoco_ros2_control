@@ -204,6 +204,10 @@ void GlfwAdapter::ToggleFullscreen() {
   }
 }
 
+void GlfwAdapter::MakeContextCurrent() {
+    Glfw().glfwMakeContextCurrent(window_);
+}
+
 bool GlfwAdapter::IsLeftMouseButtonPressed() const {
   return Glfw().glfwGetMouseButton(window_, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
 }

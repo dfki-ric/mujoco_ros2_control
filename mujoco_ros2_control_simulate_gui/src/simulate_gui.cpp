@@ -19,16 +19,18 @@ namespace mujoco_simulate_gui {
                 &cam, &opt, &pert, /* is_passive = */ false
         );
 
+        sim->platform_ui->SetWindowTitle("MuJoCo ROS2");
+
         sim->mnew_ = m;
         sim->dnew_ = d;
-        mju::strcpy_arr(sim->filename, "Mujoco ros2 control");
+        mju::strcpy_arr(sim->filename, "MuJoCo ROS2");
 
         InitializeProfiler(sim.get());
         InitializeSensor(sim.get());
 
         if (!sim->is_passive_) {
             mjv_defaultScene(&sim->scn);
-            mjv_makeScene(nullptr, &sim->scn, sim->kMaxGeom);
+            mjv_makeScene(m, &sim->scn, sim->kMaxGeom);
         }
 
         if (!sim->platform_ui->IsGPUAccelerated()) {
@@ -91,9 +93,13 @@ namespace mujoco_simulate_gui {
     }
 
     void MujocoSimulateGui::update() {
-        sim->platform_ui->PollEvents();
+        sim->platform_ui->UpdateMjuiState();
+        {
+            const mujoco::MutexLock lock(sim->mtx);
+            sim->platform_ui->PollEvents();
 
-        sim->Sync();
+            sim->Sync();
+        }
         sim->Render();
     }
 }

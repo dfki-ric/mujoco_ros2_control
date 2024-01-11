@@ -1764,10 +1764,10 @@ Simulate::Simulate(std::unique_ptr<PlatformUIAdapter> platform_ui,
 // operations which require holding the mutex, prevents racing with physics thread
 void Simulate::Sync() {
   MutexLock lock(this->mtx);
-
   if (!m_) {
     return;
   }
+  this->platform_ui->MakeContextCurrent();
 
   bool update_profiler = this->profiler && (this->pause_update || this->run);
   bool update_sensor = this->sensor && (this->pause_update || this->run);

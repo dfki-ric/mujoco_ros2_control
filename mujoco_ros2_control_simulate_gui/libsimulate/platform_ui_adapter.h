@@ -56,6 +56,7 @@ class PlatformUIAdapter {
   virtual bool ShouldCloseWindow() const = 0;
   virtual void SwapBuffers() = 0;
   virtual void ToggleFullscreen() = 0;
+  virtual void MakeContextCurrent() = 0;
 
   virtual bool IsLeftMouseButtonPressed() const = 0;
   virtual bool IsMiddleMouseButtonPressed() const = 0;
@@ -71,7 +72,9 @@ class PlatformUIAdapter {
   virtual int TranslateKeyCode(int key) const = 0;
   virtual mjtButton TranslateMouseButton(int button) const = 0;
 
- protected:
+    void UpdateMjuiState();
+
+protected:
   PlatformUIAdapter();
   void FreeMjrContext();
 
@@ -93,8 +96,6 @@ class PlatformUIAdapter {
   const mjModel* last_model_ = nullptr;
   int last_fontscale_ = -1;
 
- private:
-  void UpdateMjuiState();
 };
 }  // namespace mujoco
 
