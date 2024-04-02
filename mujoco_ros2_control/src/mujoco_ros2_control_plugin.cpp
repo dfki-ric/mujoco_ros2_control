@@ -207,10 +207,14 @@ namespace mujoco_ros2_control {
             auto system = std::unique_ptr<mujoco_ros2_control::MujocoSystemInterface>(robot_hw_sim_loader_->createUnmanagedInstance(hardware_type));
             system->initSim(mujoco_model_, mujoco_data_, hw_info, &urdf_model);
             resource_manager_->import_component(std::move(system), hw_info);
-            resource_manager_->activate_all_components();
+            // activate all components
+            rclcpp_lifecycle::State state(
+                    lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE,
+                    hardware_interface::lifecycle_state_names::ACTIVE);
+            resource_manager_->set_component_state(hw_info.name, state);
         }
         executor_ = std::make_shared<rclcpp::executors::MultiThreadedExecutor>();
-        controller_manager_.reset(new controller_manager::ControllerManager(std::move(resource_manager_), executor_, "controller_manager"));
+        controller_manager_.reset(new controller_manager::ControllerManager(std::move(resource_manager_), executor_, "controller_manager", nh_->get_namespace()));
         if (!controller_manager_->has_parameter("update_rate")) {
             RCLCPP_ERROR(nh_->get_logger(), "controller manager doesn't have an update_rate parameter");
             return;
@@ -233,6 +237,7 @@ namespace mujoco_ros2_control {
         }
 
         executor_->add_node(controller_manager_);
+        stop_ = false;
         auto spin = [this]() {
             while(rclcpp::ok() && !stop_.load()) {
                 executor_->spin_once();
