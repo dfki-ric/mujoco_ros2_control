@@ -194,7 +194,6 @@ namespace mujoco_ros2_control {
 
         try {
             urdf_string = params_.robot_description;
-
             urdf_model.initString(urdf_string);
             control_hardware = hardware_interface::parse_control_resources_from_urdf(urdf_string);
         } catch (const std::runtime_error & ex) {
@@ -202,6 +201,15 @@ namespace mujoco_ros2_control {
                          ex.what());
             rclcpp::shutdown();
         }
+
+        try {
+            resource_manager_->load_urdf(urdf_string, false, false);
+        } catch (...) {
+            // This error should be normal as the resource manager is not supposed to load and initialize
+            // them
+            RCLCPP_ERROR(nh_->get_logger(), "Error initializing URDF to resource manager!");
+        }
+
         for (auto & hw_info : control_hardware) {
             const std::string hardware_type = hw_info.hardware_class_type;
             auto system = std::unique_ptr<mujoco_ros2_control::MujocoSystemInterface>(robot_hw_sim_loader_->createUnmanagedInstance(hardware_type));
@@ -213,8 +221,21 @@ namespace mujoco_ros2_control {
                     hardware_interface::lifecycle_state_names::ACTIVE);
             resource_manager_->set_component_state(hw_info.name, state);
         }
+
+        if (resource_manager_->is_urdf_already_loaded()) {
+            RCLCPP_INFO(nh_->get_logger(), "!TEST");
+        }
+
         executor_ = std::make_shared<rclcpp::executors::MultiThreadedExecutor>();
-        controller_manager_.reset(new controller_manager::ControllerManager(std::move(resource_manager_), executor_, "controller_manager", nh_->get_namespace()));
+        controller_manager_.reset(
+            new controller_manager::ControllerManager(
+                std::move(resource_manager_), 
+                executor_, 
+                "controller_manager", 
+                nh_->get_namespace()));
+        
+        executor_->add_node(controller_manager_);
+        
         if (!controller_manager_->has_parameter("update_rate")) {
             RCLCPP_ERROR(nh_->get_logger(), "controller manager doesn't have an update_rate parameter");
             return;
@@ -236,7 +257,10 @@ namespace mujoco_ros2_control {
             }
         }
 
-        executor_->add_node(controller_manager_);
+        // Force setting of use_sime_time parameter
+        controller_manager_->set_parameter(
+        rclcpp::Parameter("use_sim_time", rclcpp::ParameterValue(true)));
+
         stop_ = false;
         auto spin = [this]() {
             while(rclcpp::ok() && !stop_.load()) {
