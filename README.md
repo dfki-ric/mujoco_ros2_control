@@ -9,6 +9,9 @@ cmake --build .
 cmake --install .
 ```
 
+# Build with MuJoCo ![Simulate GUI](https://github.com/google-deepmind/mujoco_mpc/blob/main/docs/GUI.md)
+- Add ```mujoco_ros2_control_simulate_gui``` as dependency to the package.xml file of mujoco_ros2_control or build ```mujoco_ros2_control_simulate_gui``` before ```mujoco_ros2_control```
+
 # Creating a scene with Phobos and high resolution collision meshes
 ## Create a scene with ![Phobos](https://github.com/dfki-ric/phobos)
 0. Install ![Blender](https://docs.blender.org/manual/en/latest/getting_started/installing/index.html#installing-blender) and ![Phobos](https://github.com/dfki-ric/phobos/wiki/Installation#phobos)
