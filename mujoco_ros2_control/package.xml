@@ -5,7 +5,7 @@
   <version>1.0.0</version>
   <description>mujoco_ros2_control</description>
   <maintainer email="adrian.danzglock@dfki.de">Adrian Danzglock</maintainer>
-  <license>Apache License 2.0</license>
+  <license>GPL3</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
   <buildtool_depend>ament_cmake_python</buildtool_depend>
