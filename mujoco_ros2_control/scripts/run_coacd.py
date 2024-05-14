@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Adapted from https://github.com/SarahWeiii/CoACD/blob/main/python/package/bin/coacd
 
 try:
     import trimesh
