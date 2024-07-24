@@ -127,7 +127,7 @@ namespace mujoco_ros2_control {
                 }
             }
 
-            RCLCPP_INFO(rclcpp::get_logger("register joints"),
+            RCLCPP_DEBUG(rclcpp::get_logger("register joints"),
                          "%s: jnt_limited: %hhu, jnt_range: [%f,%f], jnt_actfrclimited: %hhu, jnt_actfrcrange: [%f, %f]",
                          joint.name.c_str(),
                          mujoco_model_->jnt_limited[joint.mujoco_dofadr],
