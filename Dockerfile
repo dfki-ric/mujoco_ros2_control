@@ -1,6 +1,7 @@
 FROM ros:humble AS base
 
 RUN apt-get update && apt-get install -y \
+    git \
     libglfw3-dev \
     libx11-dev \
     xorg-dev \
@@ -33,9 +34,9 @@ RUN rm -rf /git
 RUN echo source /ros2_ws/install/setup.bash > /root/.bashrc
 
 COPY mujoco_ros2_control /ros2_ws/src/mujoco_ros2_control
-RUN /bin/bash -c "source /opt/ros/$ROS_DISTRO/setup.sh && colcon build"
 
-COPY panda_simulation /ros2_ws/src/panda_mujoco
 WORKDIR /ros2_ws
+RUN rosdep init && rosdep update && rosdep install --from-paths src --ignore-src --rosdistro humble -y
+RUN . /opt/ros/$ROS_DISTRO/setup.sh && colcon build --packages-select mujoco_ros2_control_simulate_gui
 RUN . /opt/ros/$ROS_DISTRO/setup.sh && colcon build
 
