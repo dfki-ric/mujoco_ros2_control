@@ -223,7 +223,7 @@ namespace mujoco_ros2_control {
         }
 
         if (resource_manager_->is_urdf_already_loaded()) {
-            RCLCPP_INFO(nh_->get_logger(), "!TEST");
+            RCLCPP_DEBUG(nh_->get_logger(), "URDF is already loaded");
         }
 
         executor_ = std::make_shared<rclcpp::executors::MultiThreadedExecutor>();

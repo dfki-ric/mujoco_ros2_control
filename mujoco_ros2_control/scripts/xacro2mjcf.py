@@ -2,6 +2,7 @@
 import subprocess
 
 import rclpy
+from ament_index_python.packages import get_package_share_directory
 from rclpy.node import Node
 import xml.etree.ElementTree as ET
 import os
@@ -168,6 +169,7 @@ class Xacro2Mjcf(Node):
                 parent_map = {c: p for p in mjcf_tree.iter() for c in p}
                 if mujoco is not None:
                     for element in mujoco:
+                        # TODO: reference for geom by name
                         if element.tag == 'reference':
                             reference_name = element.attrib['name']
                             mj_elements = self.get_elements(self.mjcf_root, 'body', 'name', reference_name)
@@ -261,7 +263,7 @@ class Xacro2Mjcf(Node):
         ET.indent(output_tree, space="\t", level=0)
         output_tree.write(output_file)
 
-        self.get_logger().info("Saved mjcf xml file under " + output_file)
+        self.get_logger().debug(f"Saved mjcf xml file under {output_file}")
         self.destroy_node()
         exit(0)
 
@@ -280,7 +282,7 @@ class Xacro2Mjcf(Node):
                             filenames.append([os.path.join(folder_path, filename) for filename in os.listdir(folder_path)])
             for i, collision in enumerate(collisions_to_replace):
                 for filename in filenames[i]:
-                    self.get_logger().info(filename)
+                    self.get_logger().debug(filename)
                     collision_replacement_template = copy.deepcopy(collision)
                     mesh = self.get_elements(collision_replacement_template, "mesh")[-1]
                     mesh.attrib['filename'] = "file://" + filename
@@ -309,14 +311,19 @@ class Xacro2Mjcf(Node):
         for mesh in self.get_elements(urdf_root, "mesh"):
             filename = mesh.get('filename')
             if filename:
-                source_file = filename[7:]
-                target_file = mujoco_files_path + "/meshes/" + source_file.replace("/", "_")
+                source_file = None
+                if filename[:7] == "file://":
+                    source_file = filename[7:]
+                elif filename[:10] == "package://":
+                    file_name = filename[10:].split('/')
+                    package_path = get_package_share_directory(file_name[0])
+                    source_file = os.path.join(package_path, *file_name[1:])
+                target_file = mujoco_files_path + "/meshes/" + source_file.replace("/", "_").replace(":", "_")
 
                 if source_file[-3:] == "stl" or source_file[-3:] == "STL" or \
                    source_file[-3:] == "obj" or source_file[-3:] == "OBJ" or \
                    source_file[-3:] == "msh" or source_file[-3:] == "MSH":
-                    self.get_logger().info(source_file)
-                    self.get_logger().info(target_file)
+                    self.get_logger().debug(f'mesh source file: {source_file}, target_file: {target_file}')
                     if not os.path.exists(target_file):
                         os.symlink(source_file, target_file)
                     mesh.attrib['filename'] = "file://" + target_file

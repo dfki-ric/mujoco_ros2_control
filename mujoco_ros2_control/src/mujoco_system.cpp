@@ -90,6 +90,7 @@ namespace mujoco_ros2_control {
                     joint.effort_limit = joints.at(joint.name)->limits->effort;
                     if (joint.effort_limit != 0.0) {
                         mujoco_model_->jnt_actfrclimited[joint.mujoco_dofadr] = 1;
+                        mujoco_model_->jnt_actfrcrange[joint.mujoco_dofadr*2] = -joint.effort_limit;
                         mujoco_model_->jnt_actfrcrange[joint.mujoco_dofadr*2+1] = joint.effort_limit;
                     }
                 }
@@ -126,7 +127,7 @@ namespace mujoco_ros2_control {
                 }
             }
 
-            RCLCPP_DEBUG(rclcpp::get_logger("register joints"),
+            RCLCPP_INFO(rclcpp::get_logger("register joints"),
                          "%s: jnt_limited: %hhu, jnt_range: [%f,%f], jnt_actfrclimited: %hhu, jnt_actfrcrange: [%f, %f]",
                          joint.name.c_str(),
                          mujoco_model_->jnt_limited[joint.mujoco_dofadr],
@@ -192,6 +193,7 @@ namespace mujoco_ros2_control {
                             hardware_interface::HW_IF_VELOCITY,
                             &joint.velocity_command));
                     joint.velocity_command = string_to_double(command_interface.initial_value);
+                    joint.control_methods.push_back(VELOCITY);
                 } else if (command_interface.name == "acceleration") {
                     joint.acceleration = string_to_double(command_interface.initial_value);
                     joint.command_interfaces.emplace_back(&command_interfaces_.emplace_back(
@@ -199,6 +201,7 @@ namespace mujoco_ros2_control {
                             hardware_interface::HW_IF_ACCELERATION,
                             &joint.acceleration_command));
                     joint.effort_command = string_to_double(command_interface.initial_value);
+                    joint.control_methods.push_back(ACCELERATION);
                 } else if (command_interface.name == "effort") {
                     joint.effort = string_to_double(command_interface.initial_value);
                     joint.command_interfaces.emplace_back(&command_interfaces_.emplace_back(
@@ -206,6 +209,7 @@ namespace mujoco_ros2_control {
                             hardware_interface::HW_IF_EFFORT,
                             &joint.effort_command));
                     joint.effort_command = string_to_double(command_interface.initial_value);
+                    joint.control_methods.push_back(EFFORT);
                 }
             }
 
@@ -388,6 +392,8 @@ namespace mujoco_ros2_control {
             auto & control_methods = joint.control_methods;
             auto &pid = joint.pid;
             double tau = 0.0;
+            pid.position = false;
+            pid.velocity = false;
 
             // Position Control
             if (std::find(control_methods.begin(), control_methods.end(), POSITION) != control_methods.end()) {
@@ -416,7 +422,6 @@ namespace mujoco_ros2_control {
                     tau = pid.kp * position_error + pid.ki * pid.integral + pid.kd * derivative;
                     pid.prev_error = position_error;
                 }
-
             }
 
             // Velocity Control
@@ -470,7 +475,6 @@ namespace mujoco_ros2_control {
 
                 // Reset flags for used input commands to calculate tau
                 pid.position = pid.velocity = false;
-
             }
 
             // Effort Control
