@@ -1,0 +1,56 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://wiki.ros.org/xacro">
+  <!-- Macro to create position actuators -->
+  <xacro:macro name="create_mujoco_position_actuator" params="arm_id joint joint_limits">
+    <!-- Iterate over joints and create actuators -->
+    <xacro:property name="lower" value="${joint_limits[joint]['limit']['lower']}" />
+    <xacro:property name="upper" value="${joint_limits[joint]['limit']['upper']}" />
+    <xacro:property name="velocity" value="${joint_limits[joint]['limit']['velocity']}" />
+    <xacro:property name="effort" value="${joint_limits[joint]['limit']['effort']}" />
+      
+    <!-- Calculate control range -->
+    <xacro:property name="ctrlrange" value="${str(lower) + ' ' + str(upper)}" />
+    <xacro:property name="forcerange" value="${str(-effort) + ' ' + str(effort)}" />
+
+    <!-- Calculate position feedback gain (kp) -->
+    <xacro:property name="kp" value="${effort}" />
+
+    <!-- Create position actuator -->
+    <position
+      name="pos_actuator_${joint}"
+      joint="${arm_id}_${joint}"
+      ctrlrange="${ctrlrange}"
+      forcerange="${forcerange}"
+      kp="${effort}"/>
+    <velocity
+      name="vel_actuator_${joint}"
+      joint="${arm_id}_${joint}"
+      ctrlrange="${ctrlrange}"
+      forcerange="${forcerange}"
+      kv="10"/>
+  </xacro:macro>
+
+  <!-- Reference to create actuators https://mujoco.readthedocs.io/en/stable/XMLreference.html#actuator -->
+  <xacro:macro name="create_mujoco_actuators" params="arm_id ee_id">
+    <!-- Load YAML file -->
+    <xacro:property name="joint_limits_file" value="$(find franka_description)/robots/${arm_id}/joint_limits.yaml" />
+    <xacro:property name="joint_limits" value="${xacro.load_yaml(joint_limits_file)}" />
+    
+    <!-- Call the macro for each joint -->
+    <actuator>
+      <xacro:create_mujoco_position_actuator arm_id="${arm_id}" joint_limits="${joint_limits}" joint="joint1" />
+      <xacro:create_mujoco_position_actuator arm_id="${arm_id}" joint_limits="${joint_limits}" joint="joint2" />
+      <xacro:create_mujoco_position_actuator arm_id="${arm_id}" joint_limits="${joint_limits}" joint="joint3" />
+      <xacro:create_mujoco_position_actuator arm_id="${arm_id}" joint_limits="${joint_limits}" joint="joint4" />
+      <xacro:create_mujoco_position_actuator arm_id="${arm_id}" joint_limits="${joint_limits}" joint="joint5" />
+      <xacro:create_mujoco_position_actuator arm_id="${arm_id}" joint_limits="${joint_limits}" joint="joint6" />
+      <xacro:create_mujoco_position_actuator arm_id="${arm_id}" joint_limits="${joint_limits}" joint="joint7" />
+      <xacro:if value="${ee_id == 'franka_hand'}">
+        <position forcelimited="true" forcerange="-120 120" ctrllimited="true" ctrlrange="0 0.04" joint="${arm_id}_finger_joint1" kp="1000" name="pos_finger_joint1" user="1"/>
+        <position forcelimited="true" forcerange="-120 120" ctrllimited="true" ctrlrange="0 0.04" joint="${arm_id}_finger_joint2" kp="1000" name="pos_finger_joint2" user="1"/>
+        <velocity forcelimited="true" forcerange="-120 120" joint="${arm_id}_finger_joint1" kv="10" name="vel_finger_joint1" user="1"/>
+        <velocity forcelimited="true" forcerange="-120 120" joint="${arm_id}_finger_joint2" kv="10" name="vel_finger_joint2" user="1"/>
+      </xacro:if>
+    </actuator>
+  </xacro:macro>
+</robot>

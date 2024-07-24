@@ -1,0 +1,88 @@
+<?xml version="1.0"?>
+<!-- URDF for Franka Emika Panda -->
+<robot xmlns:xacro="http://wiki.ros.org/xacro" name="$(arg name)">
+
+    <!-- MuJoCo Config -->
+    <!-- Mujoco compiler options -->
+    <xacro:arg name="mujoco_model_path" default="/tmp/mujoco" />
+    <xacro:arg name="autolimits" default="true" />
+    <xacro:arg name="balanceinertia" default="true" />
+    <!-- Mujoco options -->
+    <xacro:arg name="integrator" default="implicitfast" />
+    <xacro:arg name="gravity" default="0 0 -9.81" />
+    <xacro:arg name="impratio" default="1" />
+    <xacro:arg name="integrator" default="implicitfast" />
+    <xacro:arg name="cone" default="elliptic" />
+    <xacro:arg name="solver" default="Newton" />
+    <xacro:arg name="noslip_iterations" default="3" />
+    <xacro:arg name="multiccd" default="disable" />
+
+    <!-- Franka config -->
+    <xacro:arg name="parent" default="world" />
+    <xacro:arg name="load_gripper" default="true" />
+    <xacro:arg name="ee_id" default="franka_hand" />
+    <xacro:arg name="arm_id" default="fp3" />
+    <!-- ROS2 Control-->
+    <xacro:arg name="robot_ip" default="true" />
+    <xacro:arg name="use_fake_hardware" default="false" />
+    <xacro:arg name="fake_sensor_commands" default="false" />
+    <xacro:arg name="mujoco" default="true" />
+    <xacro:arg name="mujoco_effort" default="false" />
+
+
+
+    <!-- Import franka urdf file -->
+    <link name="world" />
+	<joint name="world_to_base" type="fixed">
+		<parent link="world" />
+		<child link="base" />
+		<origin rpy="0 0 0" xyz="0 0 0" />
+	</joint>
+    <xacro:include filename="$(find franka_description)/robots/$(arg arm_id)/$(arg arm_id).urdf.xacro" />
+    <!-- Import franka ros2_control -->
+    <xacro:include filename="$(find franka_mujoco)/urdf/ros2_control.urdf.xacro" />
+    <xacro:franka_arm_ros2_control
+        arm_id="$(arg arm_id)"
+        ee_id="$(arg ee_id)" 
+        robot_ip="$(arg robot_ip)"
+        use_fake_hardware="$(arg use_fake_hardware)"
+        fake_sensor_commands="$(arg fake_sensor_commands)"
+        mujoco="$(arg mujoco)"
+        mujoco_effort="$(arg mujoco_effort)"
+    />
+    
+    <!-- Configure mujoco -->
+    <xacro:if value="$(arg mujoco)">
+        <mujoco>
+            <compiler meshdir="$(arg mujoco_model_path)/meshes" 
+                      discardvisual="false" 
+                      autolimits="$(arg autolimits)" 
+                      balanceinertia="$(arg balanceinertia)"
+            />
+            <option integrator="$(arg integrator)" 
+                    gravity="$(arg gravity)" 
+                    impratio="$(arg impratio)" 
+                    cone="$(arg cone)" 
+                    solver="$(arg solver)" 
+                    noslip_iterations="$(arg noslip_iterations)">
+                <flag multiccd="$(arg multiccd)" 
+            />
+            </option>
+            <!-- Create actuators to use position control -->
+            <xacro:include filename="$(find franka_mujoco)/urdf/mujoco_actuators.urdf.xacro" />
+            <xacro:create_mujoco_actuators
+                arm_id="$(arg arm_id)" 
+                ee_id="$(arg ee_id)" 
+            />
+        </mujoco>
+        <!-- Add a camera -->
+        <xacro:include filename="$(find franka_mujoco)/urdf/mujoco_camera.urdf.xacro" />
+        <xacro:camera
+                prefix=""
+                camera_name="camera"
+                parent_link="world"
+                origin_xyz="1 0 1."
+                origin_rpy="0 .9 ${pi}">
+        </xacro:camera>
+    </xacro:if>
+</robot>

@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+    <xacro:macro name="camera"
+                 params="prefix camera_name origin_xyz origin_rpy parent_link axis_xyz:='1 0 0'">
+
+        <joint name="${parent_link}_to_${prefix}${camera_name}" type="fixed">
+            <axis xyz="${axis_xyz}"/>
+            <origin xyz="${origin_xyz}" rpy="${origin_rpy}"/>
+            <parent link="${parent_link}"/>
+            <child link="${prefix}${camera_name}_link"/>
+        </joint>
+
+        <link name="${prefix}${camera_name}_link"/>
+        <mujoco>
+            <reference name="${prefix}${camera_name}_link">
+                <camera name="${prefix}${camera_name}" mode="fixed" fovy="45" quat="0.5 0.5 -0.5 -0.5"/>
+            </reference>
+            <sensor>
+                <framepos name="${prefix}${camera_name}_link_pose" objtype="body" objname="${prefix}${camera_name}_link" reftype="body" refname="${parent_link}"/>
+                <framequat name="${prefix}${camera_name}_link_quat" objtype="body" objname="${prefix}${camera_name}_link" reftype="body" refname="${parent_link}"/>
+            </sensor>
+        </mujoco>
+    </xacro:macro>
+</robot>
