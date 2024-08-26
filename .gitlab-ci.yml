@@ -1,25 +1,67 @@
-stages:          # List of stages for jobs, and their order of execution
+stages:
+  - setup
   - build
-  #- test
-  #- deploy
+  - cleanup
 
-build_job:
-  stage: build
-  image: docker:20.10.7 # Use the official Docker image to build other Docker images
-  services:
-    - docker:20.10.7-dind # Docker-in-Docker service for building Docker images
+# Base image setup
+image: ros:humble
+
+variables:
+  ROS_DISTRO: humble
+  DEBIAN_FRONTEND: noninteractive
+
+# Job to set up dependencies
+setup_dependencies:
+  stage: setup
   script:
-    # Build the Docker image with the desired Dockerfile content
-    - docker build -t mujoco_ros2_control:latest .
-  
-  # Cache for dependencies (optional)
-  cache:
-    key: "$CI_COMMIT_REF_SLUG"
-    paths:
-      - $WORKDIR/.colcon_cache
-  
-  # Artifacts (optional, you can save the Docker image or other files for later stages)
+    - apt-get update && apt-get install -y \
+      git \
+      libglfw3-dev \
+      libx11-dev \
+      xorg-dev \
+      ros-humble-urdf \
+      ros-humble-xacro \
+      ros-humble-rviz2 \
+      ros-humble-ros2-control \
+      ros-humble-ros2-controllers \
+      ros-humble-controller-manager \
+      libopencv-dev \
+      ros-humble-pcl-conversions \
+      ros-humble-cv-bridge \
+      libpcl-dev
+    - rosdep init
+    - rosdep update
+
+# Job to clone and build MuJoCo
+build_mujoco:
+  stage: build
+  script:
+    - mkdir /git
+    - cd /git
+    - git clone https://github.com/deepmind/mujoco
+    - cd mujoco
+    - cmake .
+    - cmake --build .
+    - cmake --install .
+
+# Job to build ROS 2 workspace
+build_ros2_workspace:
+  stage: build
+  script:
+    - mkdir -p /ros2_ws/src
+    - cp -r $CI_PROJECT_DIR/mujoco_ros2_control /ros2_ws/src/
+    - cd /ros2_ws
+    - . /opt/ros/$ROS_DISTRO/setup.sh
+    - rosdep install --from-paths src --ignore-src --rosdistro $ROS_DISTRO -y
+    - colcon build
   artifacts:
     paths:
-      - $WORKDIR/install
+      - /ros2_ws/install
     expire_in: 1 week
+
+# Job to clean up build artifacts (optional)
+cleanup:
+  stage: cleanup
+  script:
+    - rm -rf /git
+    - echo "Cleanup completed."
