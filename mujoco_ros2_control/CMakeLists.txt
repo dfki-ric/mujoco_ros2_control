@@ -43,11 +43,16 @@ endforeach()
 
 find_package(mujoco 3.0.0 REQUIRED)
 
-find_package(mujoco_ros2_control_simulate_gui QUIET)
-if(mujoco_ros2_control_simulate_gui_FOUND)
-    set(USE_LIBSIMULATE ON CACHE BOOL "Use LibSimulate" FORCE)
-    message("Setting USE_LIBSIMULATE to: ${USE_LIBSIMULATE}")
-endif()
+# find_package(mujoco_ros2_control_simulate_gui QUIET)
+# if(mujoco_ros2_control_simulate_gui_FOUND)
+#     set(USE_LIBSIMULATE ON CACHE BOOL "Use LibSimulate" FORCE)
+#     message("Setting USE_LIBSIMULATE to: ${USE_LIBSIMULATE}")
+# endif()
+
+# Add libsimulate
+set(USE_LIBSIMULATE ON CACHE BOOL "Use LibSimulate" FORCE)
+message("Setting USE_LIBSIMULATE to: ${USE_LIBSIMULATE}")
+
 
 # Configure the header file with CMake variables
 configure_file(cmake/config.h.in ${CMAKE_BINARY_DIR}/config.h)
@@ -68,6 +73,7 @@ include_directories(
         ${OpenCV_INCLUDE_DIRS}
         ${PCL_INCLUDE_DIRS}
         ${pcl_conversions_INCLUDE_DIRS}
+        ${CMAKE_CURRENT_SOURCE_DIR}/libsimulate
 )
 
 generate_parameter_library(${PROJECT_NAME}_parameters
@@ -115,25 +121,67 @@ target_link_libraries(${PROJECT_NAME}
         mujoco_rgbd_camera_parameters
         )
 
-if(mujoco_ros2_control_simulate_gui_FOUND)
-    include_directories(${mujoco_ros2_control_simulate_gui_INCLUDE_DIRS})
-    target_link_libraries(${PROJECT_NAME} ${mujoco_ros2_control_simulate_gui_LIBRARIES})
-else()
-    add_library(mujoco_visualization
-            src/mujoco_visualization.cpp)
-    ament_target_dependencies(mujoco_visualization
-            rclcpp
-            glfw3
-            )
-    target_link_libraries(${PROJECT_NAME}
-            mujoco_visualization
-            )
+#if(...)
+add_subdirectory(libsimulate)
+# Build shared library
+add_library(simulate_gui SHARED src/simulate_gui.cpp)
 
-    install(TARGETS
-            mujoco_visualization
-            DESTINATION lib
-            )
-endif()
+target_include_directories(simulate_gui PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/libsimulate
+)
+
+target_link_libraries(simulate_gui PUBLIC
+    glfw
+)
+
+target_link_libraries(simulate_gui PRIVATE
+    mujoco::libsimulate
+    mujoco::platform_ui_adapter
+)
+target_link_libraries(${PROJECT_NAME} simulate_gui)
+
+
+install(TARGETS
+        simulate_gui
+        DESTINATION lib
+        )
+# else()
+#     add_library(mujoco_visualization
+#             src/mujoco_visualization.cpp)
+#     ament_target_dependencies(mujoco_visualization
+#             rclcpp
+#             glfw3
+#             )
+#     target_link_libraries(${PROJECT_NAME}
+#             mujoco_visualization
+#             )
+
+#     install(TARGETS
+#             mujoco_visualization
+#             DESTINATION lib
+#             )
+# endif()
+
+
+# if(mujoco_ros2_control_simulate_gui_FOUND)
+#     include_directories(${mujoco_ros2_control_simulate_gui_INCLUDE_DIRS})
+#     target_link_libraries(${PROJECT_NAME} ${mujoco_ros2_control_simulate_gui_LIBRARIES})
+# else()
+#     add_library(mujoco_visualization
+#             src/mujoco_visualization.cpp)
+#     ament_target_dependencies(mujoco_visualization
+#             rclcpp
+#             glfw3
+#             )
+#     target_link_libraries(${PROJECT_NAME}
+#             mujoco_visualization
+#             )
+
+#     install(TARGETS
+#             mujoco_visualization
+#             DESTINATION lib
+#             )
+# endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR})
 
