@@ -162,27 +162,6 @@ install(TARGETS
 #             )
 # endif()
 
-
-# if(mujoco_ros2_control_simulate_gui_FOUND)
-#     include_directories(${mujoco_ros2_control_simulate_gui_INCLUDE_DIRS})
-#     target_link_libraries(${PROJECT_NAME} ${mujoco_ros2_control_simulate_gui_LIBRARIES})
-# else()
-#     add_library(mujoco_visualization
-#             src/mujoco_visualization.cpp)
-#     ament_target_dependencies(mujoco_visualization
-#             rclcpp
-#             glfw3
-#             )
-#     target_link_libraries(${PROJECT_NAME}
-#             mujoco_visualization
-#             )
-
-#     install(TARGETS
-#             mujoco_visualization
-#             DESTINATION lib
-#             )
-# endif()
-
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR})
 
 ## Install
