@@ -99,6 +99,7 @@ def create_nodes(context: LaunchContext):
         package="mujoco_ros2_control",
         executable="mujoco_ros2_control",
         namespace=namespace,
+        prefix=['gnome-terminal -- gdb -ex run --args'],
         parameters=[
             robot_description,
             ros2_control_params_file,

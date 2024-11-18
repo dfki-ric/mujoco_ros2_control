@@ -97,7 +97,9 @@ ament_target_dependencies(mujoco_system_plugins
 add_executable(${PROJECT_NAME}
         src/mujoco_ros2_control_plugin.cpp
         src/mujoco_depth_camera.cpp
-        src/pose_sensor.cpp src/mujoco_ros2_sensors.cpp
+        src/pose_sensor.cpp 
+        src/wrench_sensor.cpp
+        src/mujoco_ros2_sensors.cpp
         )
 ament_target_dependencies(${PROJECT_NAME}
         controller_manager

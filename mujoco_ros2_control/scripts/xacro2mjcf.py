@@ -181,6 +181,8 @@ class Xacro2Mjcf(Node):
                                         for attrib in child.attrib:
                                             mj_elements[0].set(attrib, child.attrib[attrib])
                                             self.get_logger().debug("added attrib " + str(child.tag))
+                                    if 'site' in child.tag:
+                                        mj_elements[0].insert(0, child)
 
                                     else:
                                         if 'name' in child.attrib:

@@ -12,6 +12,7 @@
 // ROS header
 #include "rclcpp/rclcpp.hpp"
 #include "mujoco_ros2_sensors/pose_sensor.hpp"
+#include "mujoco_ros2_sensors/wrench_sensor.hpp"
 
 using namespace std::chrono_literals;
 
@@ -43,11 +44,18 @@ namespace mujoco_ros2_sensors {
         
         rclcpp::executors::MultiThreadedExecutor::SharedPtr executor_;
 
+        // Pose Sensor
         std::vector<PoseSensorStruct> pose_sensors_;
         std::vector<rclcpp::Node::SharedPtr> pose_sensor_nodes_; ///< Nodes for the cameras (one Node per camera)
         std::vector<std::shared_ptr<mujoco_ros2_sensors::PoseSensor>> pose_sensor_objs_; ///< Cameras Object vector
-
         void register_pose_sensors(const std::vector<PoseSensorStruct> &sensors);
+
+        // Wrench Sensor
+        std::vector<WrenchSensorStruct> wrench_sensors_;
+        std::vector<rclcpp::Node::SharedPtr> wrench_sensor_nodes_; ///< Nodes for the cameras (one Node per camera)
+        std::vector<std::shared_ptr<mujoco_ros2_sensors::WrenchSensor>> wrench_sensor_objs_; ///< Cameras Object vector
+        void register_wrench_sensors(const std::vector<WrenchSensorStruct> &sensors);
+
         std::string get_frame_id(int sensor_id);
     };
 }

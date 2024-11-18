@@ -9,6 +9,9 @@ namespace mujoco_ros2_sensors {
 
         this->publisher_ = nh_->create_publisher<geometry_msgs::msg::PoseStamped>("~/position", rclcpp::SystemDefaultsQoS());
         this->pose_stamped_publisher_ = std::make_unique<PoseStampedPublisher>(publisher_);
+        pose_stamped_publisher_->lock();
+        pose_stamped_publisher_->msg_.header.frame_id = sensor_.frame_id;
+        pose_stamped_publisher_->unlock();
 
         timer_ = nh_->create_wall_timer(
                 std::chrono::duration<double>(1.0 / frequency),
@@ -18,7 +21,7 @@ namespace mujoco_ros2_sensors {
     void PoseSensor::update() {
         if (pose_stamped_publisher_->trylock()) {
             pose_stamped_publisher_->msg_.header.stamp = nh_->now();
-            pose_stamped_publisher_->msg_.header.frame_id = sensor_.frame_id;
+            //pose_stamped_publisher_->msg_.header.frame_id = sensor_.frame_id;
             if (sensor_.position) {
                 pose_stamped_publisher_->msg_.pose.position.x = mujoco_data_->sensordata[sensor_.position_sensor_adr];
                 pose_stamped_publisher_->msg_.pose.position.y = mujoco_data_->sensordata[sensor_.position_sensor_adr + 1];

@@ -48,7 +48,7 @@ if __name__ == "__main__":
         "--resolution",
         type=int,
         default=2000,
-        help="surface samping resolution for Hausdorff distance computation",
+        help="surface sampling resolution for Hausdorff distance computation",
     )
     parser.add_argument(
         "-nm",
