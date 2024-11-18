@@ -14,8 +14,10 @@ variables:
 setup_dependencies:
   stage: setup
   script:
-    - apt-get update && apt-get install -y \
+    - apt-get update
+    - apt-get install -y \
       git \
+      build-essential \
       libglfw3-dev \
       libx11-dev \
       xorg-dev \
@@ -43,6 +45,10 @@ build_mujoco:
     - cmake .
     - cmake --build .
     - cmake --install .
+  cache:
+    key: mujoco_build_cache
+    paths:
+      - /git/mujoco/build
 
 # Job to build ROS 2 workspace
 build_ros2_workspace:
