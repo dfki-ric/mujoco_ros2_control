@@ -10,6 +10,8 @@ import uuid
 import collections
 import copy
 
+from urdf2mjcf import create_mjcf_from_urdf
+
 
 ## @file xacro2mjcf.py
 # @brief Converts Xacro and URDF files into Mujoco MJCF XML file.
@@ -137,9 +139,11 @@ class Xacro2Mjcf(Node):
                     ET.indent(output_tree, space="\t", level=0)
                     output_tree.write(mujoco_files_path + '/tmp_' + name + '.urdf')
 
-                    os.system(
-                        compile_executable + ' ' + mujoco_files_path + '/tmp_' + name + '.urdf ' +
-                        mujoco_files_path + '/tmp_' + name + '.xml')
+                    #TODO: use urdf2mjcf.py
+                    create_mjcf_from_urdf(mujoco_files_path + '/tmp_' + name + '.urdf', mujoco_files_path + '/tmp_' + name + '.xml')
+                    #os.system(
+                    #    compile_executable + ' ' + mujoco_files_path + '/tmp_' + name + '.urdf ' +
+                    #    mujoco_files_path + '/tmp_' + name + '.xml')
                 else:
                     urdf_tree = ET.parse(filename)
                     tmp_urdf_root = urdf_tree.getroot()
