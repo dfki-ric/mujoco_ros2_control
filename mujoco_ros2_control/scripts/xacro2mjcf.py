@@ -139,11 +139,7 @@ class Xacro2Mjcf(Node):
                     ET.indent(output_tree, space="\t", level=0)
                     output_tree.write(mujoco_files_path + '/tmp_' + name + '.urdf')
 
-                    #TODO: use urdf2mjcf.py
                     create_mjcf_from_urdf(mujoco_files_path + '/tmp_' + name + '.urdf', mujoco_files_path + '/tmp_' + name + '.xml')
-                    #os.system(
-                    #    compile_executable + ' ' + mujoco_files_path + '/tmp_' + name + '.urdf ' +
-                    #    mujoco_files_path + '/tmp_' + name + '.xml')
                 else:
                     urdf_tree = ET.parse(filename)
                     tmp_urdf_root = urdf_tree.getroot()
@@ -155,8 +151,7 @@ class Xacro2Mjcf(Node):
                     output_tree = ET.ElementTree(tmp_urdf_root)
                     ET.indent(output_tree, space="\t", level=0)
                     output_tree.write(mujoco_files_path + '/tmp_' + filename.split('/')[-1])
-                    os.system(compile_executable + ' ' + mujoco_files_path + '/tmp_' + filename.split('/')[-1] + ' ' +
-                              mujoco_files_path + '/tmp_' + name + '.xml')
+                    create_mjcf_from_urdf(mujoco_files_path + '/tmp_' + filename.split('/')[-1], mujoco_files_path + '/tmp_' + name + '.xml')
 
                 self.urdf_root = urdf_tree.getroot()
                 mjcf_tree = ET.parse(mujoco_files_path + '/tmp_' + name + '.xml')

@@ -20,18 +20,18 @@ namespace mujoco_ros2_sensors {
 
     void WrenchSensor::update() {
         if (wrench_stamped_publisher_->trylock()) {
-            wrench_stamped_publisher_->msg_.header.stamp = nh_->now();
-            //wrench_stamped_publisher_->msg_.header.frame_id = sensor_.frame_id;
+            wrench_stamped_publisher_->msg_.header.stamp.sec = std::floor(mujoco_data_->time);
+            wrench_stamped_publisher_->msg_.header.stamp.nanosec = std::floor((mujoco_data_->time-std::floor(mujoco_data_->time))*1e9);
             if (sensor_.force) {
-                wrench_stamped_publisher_->msg_.wrench.force.x = mujoco_data_->sensordata[sensor_.force_sensor_adr];
-                wrench_stamped_publisher_->msg_.wrench.force.y = mujoco_data_->sensordata[sensor_.force_sensor_adr + 1];
-                wrench_stamped_publisher_->msg_.wrench.force.z = mujoco_data_->sensordata[sensor_.force_sensor_adr + 2];
+                wrench_stamped_publisher_->msg_.wrench.force.x = -mujoco_data_->sensordata[sensor_.force_sensor_adr];
+                wrench_stamped_publisher_->msg_.wrench.force.y = -mujoco_data_->sensordata[sensor_.force_sensor_adr + 1];
+                wrench_stamped_publisher_->msg_.wrench.force.z = -mujoco_data_->sensordata[sensor_.force_sensor_adr + 2];
             }
 
             if (sensor_.torque) {
-                wrench_stamped_publisher_->msg_.wrench.torque.x = mujoco_data_->sensordata[sensor_.torque_sensor_adr];
-                wrench_stamped_publisher_->msg_.wrench.torque.y = mujoco_data_->sensordata[sensor_.torque_sensor_adr + 1];
-                wrench_stamped_publisher_->msg_.wrench.torque.z = mujoco_data_->sensordata[sensor_.torque_sensor_adr + 2];
+                wrench_stamped_publisher_->msg_.wrench.torque.x = -mujoco_data_->sensordata[sensor_.torque_sensor_adr];
+                wrench_stamped_publisher_->msg_.wrench.torque.y = -mujoco_data_->sensordata[sensor_.torque_sensor_adr + 1];
+                wrench_stamped_publisher_->msg_.wrench.torque.z = -mujoco_data_->sensordata[sensor_.torque_sensor_adr + 2];
             }
 
             wrench_stamped_publisher_->unlockAndPublish();

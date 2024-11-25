@@ -185,6 +185,7 @@ ament_python_install_package(scripts)
 
 install(PROGRAMS
         scripts/xacro2mjcf.py
+        scripts/urdf2mjcf.py
         DESTINATION lib/${PROJECT_NAME})
 
 ament_export_include_directories(

@@ -53,11 +53,19 @@ def create_mjcf(robot, robot_tree, mujoco_element):
             body = ET.SubElement(parent_body, "body", name=link_name)
             joint_type = robot.joint_map[robot.parent_map[link_name][0]].joint_type
             # Create joints for this link
-            joint = robot.parent_map[link_name][0]
-            joint_type = robot.joint_map[joint].joint_type
-            axis = robot.joint_map[joint].axis
+            joint = robot.joint_map[robot.parent_map[link_name][0]]
+            joint_type = joint.joint_type
+            axis = joint.axis
             if joint_type == "revolute":
-                joint_elem = ET.SubElement(body, "joint", name=joint, type="hinge", axis=f"{axis[0]} {axis[1]} {axis[2]}")
+                joint_elem = ET.SubElement(body, "joint", name=joint.name, type="hinge", axis=f"{axis[0]} {axis[1]} {axis[2]}")
+                if joint.limit:
+                    joint_elem.set("range", f"{joint.limit.lower} {joint.limit.upper}")
+                    joint_elem.set("limited", "true")
+                if joint.dynamics:
+                    joint_elem.set("damping", str(joint.dynamics.damping))
+                    joint_elem.set("frictionloss", str(joint.dynamics.friction))
+            elif joint_type == "floating":
+                joint_elem = ET.SubElement(body, "joint", name=joint.name, type="free")
             else:
                 print(joint_type)
         # Add the link's body
@@ -91,29 +99,29 @@ def create_mjcf(robot, robot_tree, mujoco_element):
             ])
             # Compute eigenvalues and eigenvectors
             eigenvalues, _ = np.linalg.eigh(inertia_matrix)
-            print(eigenvalues)
-            inertial.set("diaginertia", f"{eigenvalues[0]} {eigenvalues[1]} {eigenvalues[2]}")
-        if robot.link_map[link_name].collision:
-            geom = ET.SubElement(body, "geom", group="0")
-            origin = robot.link_map[link_name].collision.origin
-            geom.set("pos", f"{origin.position[0]} {origin.position[1]} {origin.position[2]}")
-            if not all(element == 0 for element in origin.rpy):
-                quat = R.from_euler('xyz', origin.rpy).as_quat()
-                norm = np.linalg.norm(quat)
-                quat = quat / norm
-                geom.set("quat", f"{quat[3]} {quat[0]} {quat[1]} {quat[2]}")
-            if type(robot.link_map[link_name].collision.geometry) == urdf.Mesh:
-                filename = robot.link_map[link_name].collision.geometry.filename
-                mesh = ET.SubElement(asset, "mesh", name=filename.split("/")[-1][:-4], file=filename.split("/")[-1])
+            inertial.set("diaginertia", f"{eigenvalues[2]} {eigenvalues[1]} {eigenvalues[0]}")
+        if robot.link_map[link_name].collisions:
+            for collision in robot.link_map[link_name].collisions:
+                geom = ET.SubElement(body, "geom", group="0")
+                origin = collision.origin
+                geom.set("pos", f"{origin.position[0]} {origin.position[1]} {origin.position[2]}")
+                if not all(element == 0 for element in origin.rpy):
+                    quat = R.from_euler('xyz', origin.rpy).as_quat()
+                    norm = np.linalg.norm(quat)
+                    quat = quat / norm
+                    geom.set("quat", f"{quat[3]} {quat[0]} {quat[1]} {quat[2]}")
+                if type(collision.geometry) == urdf.Mesh:
+                    filename = collision.geometry.filename
+                    mesh = ET.SubElement(asset, "mesh", name=filename.split("/")[-1][:-4], file=filename.split("/")[-1])
 
-                geom.set("type", "mesh")
-                geom.set("mesh", filename.split("/")[-1][:-4])
-            elif type(robot.link_map[link_name].collision.geometry) == urdf.Box:
-                size = robot.link_map[link_name].collision.geometry.size
-                geom.set("type", "box")
-                geom.set("size", f"{size[0]/2} {size[1]/2} {size[2]/2}")
-            else:
-                print(type(robot.link_map[link_name].collision.geometry))
+                    geom.set("type", "mesh")
+                    geom.set("mesh", filename.split("/")[-1][:-4])
+                elif type(collision.geometry) == urdf.Box:
+                    size = collision.geometry.size
+                    geom.set("type", "box")
+                    geom.set("size", f"{size[0]/2} {size[1]/2} {size[2]/2}")
+                else:
+                    print(type(collision.geometry))
         # TODO: Fix visual (at the moment it results in different problems)
         # if robot.link_map[link_name].visual:
         #     geom = ET.SubElement(body, "geom", group="0")
@@ -175,5 +183,5 @@ def create_mjcf_from_urdf(input_file, output_file):
         file.write(mjcf_string)
 
 if __name__ == "__main__":
-    file_path = "/tmp/mujoco/tmp_kuka_lbr.urdf"
+    file_path = "/tmp/mujoco/tmp_tofas_disc.urdf"
     create_mjcf_from_urdf(file_path, "/tmp/mujoco/test.xml")

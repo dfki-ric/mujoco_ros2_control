@@ -20,7 +20,8 @@ namespace mujoco_ros2_sensors {
 
     void PoseSensor::update() {
         if (pose_stamped_publisher_->trylock()) {
-            pose_stamped_publisher_->msg_.header.stamp = nh_->now();
+            pose_stamped_publisher_->msg_.header.stamp.sec = std::floor(mujoco_data_->time);
+            pose_stamped_publisher_->msg_.header.stamp.nanosec = std::floor((mujoco_data_->time-std::floor(mujoco_data_->time))*1e9);
             //pose_stamped_publisher_->msg_.header.frame_id = sensor_.frame_id;
             if (sensor_.position) {
                 pose_stamped_publisher_->msg_.pose.position.x = mujoco_data_->sensordata[sensor_.position_sensor_adr];
