@@ -28,7 +28,7 @@
   <depend>PCL</depend>
   <depend>pcl_conversions</depend>
   <depend>cv_bridge</depend>
-  <depend>Eigen3</depend>
+  <depend>eigen</depend>
 
 
   <test_depend>ament_lint_common</test_depend>

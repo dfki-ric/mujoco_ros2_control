@@ -122,25 +122,31 @@ def create_mjcf(robot, robot_tree, mujoco_element):
                     geom.set("size", f"{size[0]/2} {size[1]/2} {size[2]/2}")
                 else:
                     print(type(collision.geometry))
-        # TODO: Fix visual (at the moment it results in different problems)
-        # if robot.link_map[link_name].visual:
-        #     geom = ET.SubElement(body, "geom", group="0")
-        #     origin = robot.link_map[link_name].visual.origin
-        #     geom.set("pos", f"{origin.position[0]} {origin.position[1]} {origin.position[2]}")
-        #     if sum(origin.rpy) > 0.:
-        #         geom.set("euler", f"{origin.rpy[0]} {origin.rpy[1]} {origin.rpy[2]}")
-        #     if type(robot.link_map[link_name].visual.geometry) == urdf.Mesh:
-        #         filename = robot.link_map[link_name].visual.geometry.filename
-        #         mesh = ET.SubElement(asset, "mesh", name=filename.split("/")[-1][:-4], file=filename.split("/")[-1])
+                    
+        if robot.link_map[link_name].visual:
+            for visual in robot.link_map[link_name].visuals:
+                geom = ET.SubElement(body, "geom", group="1", contype="0", conaffinity="0")
+                origin = visual.origin
+                geom.set("pos", f"{origin.position[0]} {origin.position[1]} {origin.position[2]}")
+                if not all(element == 0 for element in origin.rpy):
+                    quat = R.from_euler('xyz', origin.rpy).as_quat()
+                    norm = np.linalg.norm(quat)
+                    quat = quat / norm
+                    geom.set("quat", f"{quat[3]} {quat[0]} {quat[1]} {quat[2]}")
+                if type(visual.geometry) == urdf.Mesh:
+                    filename = visual.geometry.filename
+                    mesh = ET.SubElement(asset, "mesh", name=filename.split("/")[-1][:-4], file=filename.split("/")[-1])
+                    if visual.geometry.scale:
+                        mesh.set("scale", f"{visual.geometry.scale[0]} {visual.geometry.scale[1]} {visual.geometry.scale[2]}")
 
-        #         geom.set("type", "mesh")
-        #         geom.set("mesh", filename.split("/")[-1][:-4])
-        #     elif type(robot.link_map[link_name].visual.geometry) == urdf.Box:
-        #         size = robot.link_map[link_name].visual.geometry.size
-        #         geom.set("type", "box")
-        #         geom.set("size", f"{size[0]} {size[1]} {size[2]}")
-        #     else:
-        #         print(type(robot.link_map[link_name].visual.geometry))
+                    geom.set("type", "mesh")
+                    geom.set("mesh", filename.split("/")[-1][:-4])
+                elif type(visual.geometry) == urdf.Box:
+                    size = visual.geometry.size
+                    geom.set("type", "box")
+                    geom.set("size", f"{size[0]/2} {size[1]/2} {size[2]/2}")
+                else:
+                    print(type(visual.geometry))
         
         
         # Recursively add child links and their joints
