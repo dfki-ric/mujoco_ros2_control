@@ -1,21 +1,20 @@
 stages:
   - setup
   - build
-  - cleanup
+#  - cleanup
 
 # Base image setup
 image: ros:humble
 
-variables:
-  ROS_DISTRO: humble
-  DEBIAN_FRONTEND: noninteractive
+#variables:
+#  ROS_DISTRO: humble
+#  DEBIAN_FRONTEND: noninteractive
 
 # Job to set up dependencies
 setup_dependencies:
   stage: setup
   script:
-    - apt-get update
-    - apt-get install -y \
+    - apt-get update && apt-get install -y \
       git \
       build-essential \
       libglfw3-dev \
@@ -31,8 +30,7 @@ setup_dependencies:
       ros-humble-pcl-conversions \
       ros-humble-cv-bridge \
       libpcl-dev
-    - rosdep init
-    - rosdep update
+    - rosdep init && rosdep update
 
 # Job to clone and build MuJoCo
 build_mujoco:
@@ -40,15 +38,11 @@ build_mujoco:
   script:
     - mkdir /git
     - cd /git
-    - git clone https://github.com/deepmind/mujoco
+    - git clone https://github.com/deepmind/mujoco -b 3.0.0
     - cd mujoco
     - cmake .
     - cmake --build .
     - cmake --install .
-  cache:
-    key: mujoco_build_cache
-    paths:
-      - /git/mujoco/build
 
 # Job to build ROS 2 workspace
 build_ros2_workspace:
@@ -64,10 +58,3 @@ build_ros2_workspace:
     paths:
       - /ros2_ws/install
     expire_in: 1 week
-
-# Job to clean up build artifacts (optional)
-cleanup:
-  stage: cleanup
-  script:
-    - rm -rf /git
-    - echo "Cleanup completed."
