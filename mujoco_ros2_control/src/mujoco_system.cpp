@@ -45,6 +45,16 @@ namespace mujoco_ros2_control {
         this->mujoco_data_ = mujoco_data;
 
         registerJoints(hardware_info, urdf_model_ptr->joints_);
+
+        std::vector<std::string> joints_to_remove = {};
+        for (const auto &joint : joints_) {
+            if (joint.first != joint.second.name) {
+                joints_to_remove.push_back(joint.first);
+            }
+        }
+        for (const auto &joint : joints_to_remove) {
+            joints_.erase(joint);
+        }
         return true;
     }
 
@@ -58,8 +68,11 @@ namespace mujoco_ros2_control {
                 return default_value;
             }
         };
+        name_ = hardware_info.name;
 
+        RCLCPP_INFO(rclcpp::get_logger(hardware_info.name.c_str()), "Initializing Hardware Interface");
         for (auto& joint_info : hardware_info.joints) {
+            RCLCPP_INFO(rclcpp::get_logger(hardware_info.name.c_str()), "  %s", joint_info.name.c_str());
             if (joints.find(joint_info.name) == joints.end()) {
                 RCLCPP_WARN(rclcpp::get_logger("mujoco_system"),
                             "Joint %s was not found in the URDF, registration of joint failed", joint_info.name.c_str());
@@ -316,7 +329,6 @@ namespace mujoco_ros2_control {
     MujocoSystem::perform_command_mode_switch(
             const std::vector<std::string> &start_interfaces,
             const std::vector<std::string> &stop_interfaces) {
-
         for (auto& joint : joints_) {
             std::vector<ControlMethod> & control_methods = joint.second.control_methods;
             for (const std::string &interface_name : stop_interfaces) {
@@ -387,6 +399,9 @@ namespace mujoco_ros2_control {
         }
 
         for (auto &joint_data: joints_) {
+            if (joint_data.first != joint_data.second.name) {
+                continue;
+            }
             auto &joint = joint_data.second;
             auto & actuators = joint.actuators;
             auto & control_methods = joint.control_methods;
@@ -486,6 +501,7 @@ namespace mujoco_ros2_control {
                 // check if an actuator is available
                 if (actuators.find(EFFORT) != actuators.end()) {
                     mujoco_data_->ctrl[actuators[EFFORT]] = effort;
+                    continue;
                 } else {
                     // write to effort address from the joint
                     mujoco_data_->qfrc_applied[joint.mujoco_dofadr] = effort;

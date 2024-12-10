@@ -1,39 +1,40 @@
 stages:
-  - setup
+  - prepare
   - build
-#  - cleanup
 
-# Base image setup
 image: ros:humble
 
-#variables:
-#  ROS_DISTRO: humble
-#  DEBIAN_FRONTEND: noninteractive
+variables:
+  ROS_DISTRO: humble
+  DEBIAN_FRONTEND: noninteractive
+
 
 # Job to set up dependencies
-setup_dependencies:
+prepare:
   stage: setup
   script:
-    - apt-get update && apt-get install -y \
-      git \
-      build-essential \
-      libglfw3-dev \
-      libx11-dev \
-      xorg-dev \
-      ros-humble-urdf \
-      ros-humble-xacro \
-      ros-humble-rviz2 \
-      ros-humble-ros2-control \
-      ros-humble-ros2-controllers \
-      ros-humble-controller-manager \
-      libopencv-dev \
-      ros-humble-pcl-conversions \
-      ros-humble-cv-bridge \
+    - apt-get update
+    - apt-get install -y
+      git
+      build-essential
+      libglfw3-dev
+      libx11-dev
+      xorg-dev
+      ros-humble-urdf
+      ros-humble-xacro
+      ros-humble-rviz2
+      ros-humble-ros2-control
+      ros-humble-ros2-controllers
+      ros-humble-controller-manager
+      libopencv-dev
+      ros-humble-pcl-conversions
+      ros-humble-cv-bridge
       libpcl-dev
-    - rosdep init && rosdep update
+    - rosdep init
+    - rosdep update
 
 # Job to clone and build MuJoCo
-build_mujoco:
+build:
   stage: build
   script:
     - mkdir /git
@@ -43,11 +44,6 @@ build_mujoco:
     - cmake .
     - cmake --build .
     - cmake --install .
-
-# Job to build ROS 2 workspace
-build_ros2_workspace:
-  stage: build
-  script:
     - mkdir -p /ros2_ws/src
     - cp -r $CI_PROJECT_DIR/mujoco_ros2_control /ros2_ws/src/
     - cd /ros2_ws

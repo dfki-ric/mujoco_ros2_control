@@ -101,8 +101,8 @@ def create_mjcf(robot, robot_tree, mujoco_element):
             eigenvalues, _ = np.linalg.eigh(inertia_matrix)
             inertial.set("diaginertia", f"{eigenvalues[2]} {eigenvalues[1]} {eigenvalues[0]}")
         if robot.link_map[link_name].collisions:
-            for collision in robot.link_map[link_name].collisions:
-                geom = ET.SubElement(body, "geom", group="0")
+            for i, collision in enumerate(robot.link_map[link_name].collisions):
+                geom = ET.SubElement(body, "geom", group="1", name=f"{link_name}_collision_{i}")
                 origin = collision.origin
                 geom.set("pos", f"{origin.position[0]} {origin.position[1]} {origin.position[2]}")
                 if not all(element == 0 for element in origin.rpy):
@@ -112,10 +112,11 @@ def create_mjcf(robot, robot_tree, mujoco_element):
                     geom.set("quat", f"{quat[3]} {quat[0]} {quat[1]} {quat[2]}")
                 if type(collision.geometry) == urdf.Mesh:
                     filename = collision.geometry.filename
-                    mesh = ET.SubElement(asset, "mesh", name=filename.split("/")[-1][:-4], file=filename.split("/")[-1])
-
+                    mesh = ET.SubElement(asset, "mesh", name=f"{link_name}_collision_mesh{i}", file=filename.split("/")[-1])
+                    if collision.geometry.scale:
+                        mesh.set("scale", f"{collision.geometry.scale[0]} {collision.geometry.scale[1]} {collision.geometry.scale[2]}")
                     geom.set("type", "mesh")
-                    geom.set("mesh", filename.split("/")[-1][:-4])
+                    geom.set("mesh", f"{link_name}_collision_mesh{i}")
                 elif type(collision.geometry) == urdf.Box:
                     size = collision.geometry.size
                     geom.set("type", "box")
@@ -124,8 +125,8 @@ def create_mjcf(robot, robot_tree, mujoco_element):
                     print(type(collision.geometry))
                     
         if robot.link_map[link_name].visual:
-            for visual in robot.link_map[link_name].visuals:
-                geom = ET.SubElement(body, "geom", group="1", contype="0", conaffinity="0")
+            for i, visual in enumerate(robot.link_map[link_name].visuals):
+                geom = ET.SubElement(body, "geom", group="0", contype="0", conaffinity="0", name=f"{link_name}_visual_{i}")
                 origin = visual.origin
                 geom.set("pos", f"{origin.position[0]} {origin.position[1]} {origin.position[2]}")
                 if not all(element == 0 for element in origin.rpy):
@@ -135,12 +136,12 @@ def create_mjcf(robot, robot_tree, mujoco_element):
                     geom.set("quat", f"{quat[3]} {quat[0]} {quat[1]} {quat[2]}")
                 if type(visual.geometry) == urdf.Mesh:
                     filename = visual.geometry.filename
-                    mesh = ET.SubElement(asset, "mesh", name=filename.split("/")[-1][:-4], file=filename.split("/")[-1])
+                    mesh = ET.SubElement(asset, "mesh", name=f"{link_name}_visual_mesh{i}", file=filename.split("/")[-1])
                     if visual.geometry.scale:
                         mesh.set("scale", f"{visual.geometry.scale[0]} {visual.geometry.scale[1]} {visual.geometry.scale[2]}")
 
                     geom.set("type", "mesh")
-                    geom.set("mesh", filename.split("/")[-1][:-4])
+                    geom.set("mesh", f"{link_name}_visual_mesh{i}")
                 elif type(visual.geometry) == urdf.Box:
                     size = visual.geometry.size
                     geom.set("type", "box")

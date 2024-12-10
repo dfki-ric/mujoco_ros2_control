@@ -307,6 +307,7 @@ namespace mujoco_ros2_control {
     protected:
         std::map<std::string, JointData> joints_; ///< Map of joint names to JointData structs.
         std::vector<MimicJoint> mimiced_joints_; ///!< Mimiced Joints
+        std::string name_;
     };
 
 }  // namespace mujoco_ros2_control
