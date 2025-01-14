@@ -302,7 +302,7 @@ namespace mujoco_ros2_control {
             cameras_.resize(mujoco_model_->ncam);
             for (int id = 0; id < mujoco_model_->ncam; id++) {
                 std::string name = mj_id2name(mujoco_model_, mjOBJ_CAMERA, id);
-                auto node = camera_nodes_.emplace_back(rclcpp::Node::make_shared(name));
+                auto node = camera_nodes_.emplace_back(rclcpp::Node::make_shared(name), rclcpp::NodeOptions().parameter_overrides({{"use_sim_time", true}}));
                 executor_->add_node(node);
                 cameras_.at(id).reset(new mujoco_rgbd_camera::MujocoDepthCamera(node, mujoco_model_, mujoco_data_, id,
                                                                                 name, &stop_));

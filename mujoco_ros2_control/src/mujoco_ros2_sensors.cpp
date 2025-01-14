@@ -22,22 +22,16 @@ namespace mujoco_ros2_sensors {
                         pose_sensor.body_name = sensor.first;
                         pose_sensor.position_sensor_adr = sensor.second.sensor_addresses[i];
                         pose_sensor.position = true;
-                        if (pose_sensor.frame_id.empty()) {
-                            pose_sensor.frame_id = get_frame_id(sensor.second.sensor_ids[i]);
-                        } else if (pose_sensor.frame_id != get_frame_id(sensor.second.sensor_ids[i])) {
-                            RCLCPP_WARN(rclcpp::get_logger("sensor_handler"), "Failed to create pose sensor, frames from position and orientation sensors doesn't match");
-                            continue;
-                        }
                     } else if (sensor.second.sensor_types[i] == mjSENS_FRAMEQUAT) {
                         pose_sensor.body_name = sensor.first;
                         pose_sensor.orientation_sensor_adr = sensor.second.sensor_addresses[i];
                         pose_sensor.orientation = true;
-                        if (pose_sensor.frame_id.empty()) {
-                            pose_sensor.frame_id = get_frame_id(sensor.second.sensor_ids[i]);
-                        } else if (pose_sensor.frame_id != get_frame_id(sensor.second.sensor_ids[i])) {
-                            RCLCPP_WARN(rclcpp::get_logger("sensor_handler"), "Failed to create pose sensor, frames from position and orientation sensors doesn't match");
-                            continue;
-                        }
+                    }
+                    if (pose_sensor.frame_id.empty()) {
+                        pose_sensor.frame_id = get_frame_id(sensor.second.sensor_ids[i]);
+                    } else if (pose_sensor.frame_id != get_frame_id(sensor.second.sensor_ids[i])) {
+                        RCLCPP_WARN(rclcpp::get_logger("sensor_handler"), "Failed to create pose sensor, frames from position and orientation sensors doesn't match");
+                        continue;
                     }
                 }
                 pose_sensors.push_back(pose_sensor);
@@ -52,23 +46,18 @@ namespace mujoco_ros2_sensors {
                         wrench_sensor.body_name = sensor.first;
                         wrench_sensor.force_sensor_adr = sensor.second.sensor_addresses[i];
                         wrench_sensor.force = true;
-                        if (wrench_sensor.frame_id.empty()) {
-                           wrench_sensor.frame_id = get_frame_id(sensor.second.sensor_ids[i]);
-                        } else if (wrench_sensor.frame_id != get_frame_id(sensor.second.sensor_ids[i])) {
-                           RCLCPP_WARN(rclcpp::get_logger("sensor_handler"), "Failed to create wrench sensor, frames from position and orientation sensors doesn't match");
-                           continue;
-                        }
                     } else if (sensor.second.sensor_types[i] == mjSENS_TORQUE) {
                         wrench_sensor.body_name = sensor.first;
                         wrench_sensor.torque_sensor_adr = sensor.second.sensor_addresses[i];
                         wrench_sensor.torque = true;
-                        if (wrench_sensor.frame_id.empty()) {
-                           wrench_sensor.frame_id = get_frame_id(sensor.second.sensor_ids[i]);
-                        } else if (wrench_sensor.frame_id != get_frame_id(sensor.second.sensor_ids[i])) {
-                           RCLCPP_WARN(rclcpp::get_logger("sensor_handler"), "Failed to create wrench sensor, frames from position and orientation sensors doesn't match");
-                           continue;
-                        }
                     }
+                    if (wrench_sensor.frame_id.empty()) {
+                        wrench_sensor.frame_id = get_frame_id(sensor.second.sensor_ids[i]);
+                    } else if (wrench_sensor.frame_id != get_frame_id(sensor.second.sensor_ids[i])) {
+                        RCLCPP_WARN(rclcpp::get_logger("sensor_handler"), "Failed to create wrench sensor, frames from position and orientation sensors doesn't match");
+                        continue;
+                    }
+                    RCLCPP_INFO(rclcpp::get_logger("sensor_handler"), "Added Sensor %s in frame %s", wrench_sensor.body_name.c_str(), wrench_sensor.frame_id.c_str());
                 }
                 wrench_sensors.push_back(wrench_sensor);
             }
@@ -123,7 +112,7 @@ namespace mujoco_ros2_sensors {
             }
             std::string name = sensor.body_name;
 
-            auto node = pose_sensor_nodes_.emplace_back(rclcpp::Node::make_shared(name + "_pose_sensor"));
+            auto node = pose_sensor_nodes_.emplace_back(rclcpp::Node::make_shared(name + "_pose_sensor", rclcpp::NodeOptions().parameter_overrides({{"use_sim_time", true}})));
             executor_->add_node(node);
             pose_sensor_objs_.at(i).reset(new PoseSensor(node, mujoco_model_, mujoco_data_, sensor, stop_, 100.0));
             RCLCPP_INFO(rclcpp::get_logger("pose_sensor_registration"), "[%s] frame: %s", sensor.body_name.c_str(), sensor.frame_id.c_str());
@@ -148,7 +137,7 @@ namespace mujoco_ros2_sensors {
             }
             std::string name = sensor.body_name;
 
-            auto node = wrench_sensor_nodes_.emplace_back(rclcpp::Node::make_shared(name + "_wrench_sensor"));
+            auto node = wrench_sensor_nodes_.emplace_back(rclcpp::Node::make_shared(name + "_wrench_sensor", rclcpp::NodeOptions().parameter_overrides({{"use_sim_time", true}})));
             executor_->add_node(node);
             wrench_sensor_objs_.at(i).reset(new WrenchSensor(node, mujoco_model_, mujoco_data_, sensor, stop_, 100.0));
             RCLCPP_INFO(rclcpp::get_logger("wrench_sensor_registration"), "[%s] frame: %s", sensor.body_name.c_str(), sensor.frame_id.c_str());
