@@ -11,7 +11,7 @@ variables:
 
 # Job to set up dependencies
 prepare:
-  stage: setup
+  stage: prepare
   script:
     - apt-get update
     - apt-get install -y
@@ -30,7 +30,6 @@ prepare:
       ros-humble-pcl-conversions
       ros-humble-cv-bridge
       libpcl-dev
-    - rosdep init
     - rosdep update
 
 # Job to clone and build MuJoCo
