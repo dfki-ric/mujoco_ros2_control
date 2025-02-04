@@ -73,18 +73,29 @@ class Xacro2Mjcf(Node):
             parameters=[
                 ('input_files', rclpy.Parameter.Type.STRING_ARRAY),
                 ('output_file', rclpy.Parameter.Type.STRING),
-                ('compile_executable', 'compile'),
                 ('robot_descriptions', rclpy.Parameter.Type.STRING_ARRAY),
                 ('mujoco_files_path', "/tmp/mujoco/"),
+                ('floating', rclpy.Parameter.Type.BOOL),
+                ('initial_position', rclpy.Parameter.Type.STRING),
+                ('initial_orientation', rclpy.Parameter.Type.STRING),
+                ('base_link', rclpy.Parameter.Type.STRING)
             ]
         )
 
         # Get parameters
         input_files = self.get_parameter('input_files').value
         output_file = self.get_parameter('output_file').value
-        compile_executable = self.get_parameter('compile_executable').value
         robot_descriptions = self.get_parameter('robot_descriptions').value
         mujoco_files_path = self.get_parameter('mujoco_files_path').value
+
+        initial_position = self.get_parameter('initial_position').value # x y z
+        if len(initial_position.split(" ")) != 3:
+            initial_position = "0 0 0"
+        initial_orientation = self.get_parameter('initial_orientation').value # r p y
+        if len(initial_orientation.split(" ")) != 3:
+            initial_orientation = "0 0 0"
+        base_link = self.get_parameter('base_link').value
+        floating = self.get_parameter('floating').value
 
         # Remove trailing slash from mujoco_files_path
         if mujoco_files_path.split("/")[-1] == '':
@@ -131,6 +142,20 @@ class Xacro2Mjcf(Node):
                     urdf_tree = ET.parse(mujoco_files_path + '/tmp_' + name + '.urdf')
                     tmp_urdf_root = urdf_tree.getroot()
 
+                    if base_link:
+                        robot = tmp_urdf_root
+                        link = ET.Element("link", {"name": "world"})
+                        joint = ET.Element("joint", {"name": "world_to_base", "type": "floating" if floating else "fixed"})
+
+                        parent = ET.Element("parent", {"link": "world"})
+                        child = ET.Element("child", {"link": base_link})
+                        origin = ET.Element("origin", {"rpy": initial_orientation, "xyz": initial_position})
+                        joint.append(parent)
+                        joint.append(child)
+                        joint.append(origin)
+                        robot.insert(0, link)
+                        robot.insert(1, joint)
+
                     self.convert_camera_links(tmp_urdf_root)
                     self.correct_visual_mesh(tmp_urdf_root)
                     self.create_symlinks(tmp_urdf_root, mujoco_files_path)
@@ -143,6 +168,20 @@ class Xacro2Mjcf(Node):
                 else:
                     urdf_tree = ET.parse(filename)
                     tmp_urdf_root = urdf_tree.getroot()
+
+                    if base_link:
+                        robot = tmp_urdf_root
+                        link = ET.Element("link", {"name": "world"})
+                        joint = ET.Element("joint", {"name": "world_to_base", "type": "floating" if floating else "fixed"})
+
+                        parent = ET.Element("parent", {"link": "world"})
+                        child = ET.Element("child", {"link": base_link})
+                        origin = ET.Element("origin", {"rpy": initial_orientation, "xyz": initial_position})
+                        joint.append(parent)
+                        joint.append(child)
+                        joint.append(origin)
+                        robot.insert(0, link)
+                        robot.insert(1, joint)
 
                     self.convert_camera_links(tmp_urdf_root)
                     self.correct_visual_mesh(tmp_urdf_root)
@@ -157,6 +196,12 @@ class Xacro2Mjcf(Node):
                 mjcf_tree = ET.parse(mujoco_files_path + '/tmp_' + name + '.xml')
 
                 self.mjcf_root = mjcf_tree.getroot()
+
+
+                # if base_link and floating:
+                #     base_link_body = self.mjcf_root.find(".//body[@name='{}']".format(base_link))
+                #     joint = ET.Element("joint", {"name": "world_to_base", "type": "free"})
+                #     base_link_body.insert(1, joint)
 
                 # Add limited=true to all joints with range (limits)
                 joints = self.get_elements(self.mjcf_root, 'joint', 'range')

@@ -1,0 +1,76 @@
+<?xml version="1.0"?>
+<!-- URDF for Franka Emika Panda -->
+<robot xmlns:xacro="http://wiki.ros.org/xacro" name="$(arg name)">
+
+    <!-- MuJoCo Config -->
+    <!-- Mujoco compiler options -->
+    <xacro:arg name="mujoco_model_path" default="/tmp/mujoco" />
+    <xacro:arg name="autolimits" default="true" />
+    <xacro:arg name="balanceinertia" default="true" />
+    <!-- Mujoco options -->
+    <xacro:arg name="integrator" default="implicitfast" />
+    <xacro:arg name="gravity" default="0 0 -9.81" />
+    <xacro:arg name="impratio" default="1" />
+    <xacro:arg name="integrator" default="implicitfast" />
+    <xacro:arg name="cone" default="elliptic" />
+    <xacro:arg name="solver" default="Newton" />
+    <xacro:arg name="noslip_iterations" default="3" />
+    <xacro:arg name="multiccd" default="disable" />
+
+    <!-- ROS2 Control-->
+    <xacro:arg name="use_fake_hardware" default="false" />
+    <xacro:arg name="fake_sensor_commands" default="false" />
+    <xacro:arg name="mujoco" default="true" />
+    <xacro:arg name="mujoco_effort" default="true" /> <!-- position actuators must be defined before using them -->
+
+    <!-- <link name="world" />
+	<joint name="world_to_base" type="floating">
+		<parent link="world" />
+		<child link="pelvis" />
+		<origin rpy="0 0 0" xyz="0 0 1.05" />
+	</joint> -->
+
+    <xacro:include filename="$(find unitree_h1_mujoco)/urdf/unitree_h1.urdf" />
+    <!-- Import franka ros2_control -->
+    <xacro:include filename="$(find unitree_h1_mujoco)/urdf/ros2_control.urdf.xacro" />
+    <xacro:unitree_h1_ros2_control
+        use_fake_hardware="$(arg use_fake_hardware)"
+        fake_sensor_commands="$(arg fake_sensor_commands)"
+        mujoco="$(arg mujoco)"
+        mujoco_effort="$(arg mujoco_effort)"
+    />
+    
+    <!-- Configure mujoco -->
+    <xacro:if value="$(arg mujoco)">
+        <mujoco>
+            <compiler meshdir="$(arg mujoco_model_path)/meshes" 
+                      discardvisual="false" 
+                      autolimits="$(arg autolimits)" 
+                      balanceinertia="$(arg balanceinertia)"
+            />
+            <option integrator="$(arg integrator)" 
+                    gravity="$(arg gravity)" 
+                    impratio="$(arg impratio)" 
+                    cone="$(arg cone)" 
+                    solver="$(arg solver)" 
+                    noslip_iterations="$(arg noslip_iterations)">
+                <flag multiccd="$(arg multiccd)" 
+            />
+            </option>
+            <!-- Create actuators to use position control -->
+            <xacro:unless value="$(arg mujoco_effort)">
+                <xacro:include filename="$(find unitree_h1_mujoco)/urdf/mujoco_actuators.urdf.xacro" />
+                <xacro:create_mujoco_actuators/>
+            </xacro:unless>
+
+            
+            <reference name="torso_link">
+                <site name="imu" size="0.01" pos="-0.04452 -0.01891 0.27756" />
+            </reference>
+            <sensor>
+                <gyro name="imu-angular-velocity" site="imu" noise="5e-4" cutoff="34.9"/>
+                <accelerometer name="imu-linear-acceleration" site="imu" noise="1e-2" cutoff="157"/>
+            </sensor>
+        </mujoco>
+    </xacro:if>
+</robot>

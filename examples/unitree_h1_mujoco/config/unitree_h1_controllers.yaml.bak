@@ -1,0 +1,253 @@
+controller_manager:
+  ros__parameters:
+    update_rate: 500  # Hz
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+    #### WBC ####
+    whole_body_controller:
+      type: wbc_ros/WholeBodyController
+
+    #com_controller:
+    #  type: wbc_ros/CartesianPositionController
+
+    # hand_pose_left_controller:
+    #   type: wbc_ros/CartesianPositionController
+
+    # hand_pose_right_controller:
+    #   type: wbc_ros/CartesianPositionController
+
+    # foot_pose_left_controller:
+    #   type: wbc_ros/CartesianPositionController
+
+    # foot_pose_right_controller:
+    #   type: wbc_ros/CartesianPositionController
+
+# Parameters for WBC. See https://arc-opt.github.io/Documentation/tutorials/parameters/whole_body_controller_parameters.html
+# for a description of the parameters or use 'ros2 param describe <parameter_name>''
+whole_body_controller:
+    ros__parameters:
+        # Update rate of the controller
+        update_rate: 500
+        # Control mode of the wbc. Can be one of [velocity,acceleration].
+        control_mode: velocity
+        # Command interfaces to claim from hardware. Can be one of [position,velocity,effort]
+        command_interfaces: ["position"]
+        # State interfaces to claim from hardware. Can be one of [position,velocity,acceleration,effort]
+        state_interfaces: ["position"]
+        # Names of the tasks to be configured in task configuration. Each task will be a summand in the QP solver's cost function.
+        task_names: ["balancing"]
+        #task_names: ["balancing", "hand_pose_left", "hand_pose_right", "foot_pose_left", "foot_pose_right"]
+        # The joint weights control the contribution of each individual joint to the solution. Values have to be within [0,1].
+        # A zero means here that the joint is not used at all. Size has to be same as number of robot joints.
+        joint_weights: [1.0,1.0,1.0,1.0,1.0,1.0,1.0]
+        # contact_names: ["left_ankle_roll_link", "right_ankle_roll_link", "L_hand_base_link", "R_hand_base_link"]
+        robot_model:
+            # Robot model type. Must be the exact name of one of the registered robot model plugins. See src/robot_models for all available plugins. Default is rbdl
+            type: rbdl
+            # floating_base: true
+            # contact_points:
+            #   left_ankle_roll_link: 1
+            #   right_ankle_roll_link: 1
+            #   L_hand_base_link: 0
+            #   R_hand_base_link: 0
+            joint_blacklist: []
+        tasks:
+            balancing:
+                # Task type, can be one of 'jnt' (joint space task), 'cart' (Cartesian task) or 'com' (Center of Mass task).
+                type: com
+                # Priority of this task. 0 corresponds to the highest priority. Prioritization is only supported by the hls solver.
+                priority: 0
+                # Only Cartesian tasks:  Root frame of the kinematic chain associated with this task. Has to be the name of a valid link in the robot model.
+                # Only robot_model.type=kdl supports root frames, which are not equal to the root of the URDF tree.
+                #root: pelvis
+                # Initial weights for this task. Size has to be same as number of task variables, e.g. number of joint names in joint space tasks.
+                # and 6 in case of a Cartesian task. All entries have to be >= 0.  Can be used to balance contributions of the task variables.
+                # A value of 0 means that the reference of the corresponding task variable will be ignored while computing the solution.
+                weights: [1.0,1.0,1.0,1.0,1.0,1.0]
+                # Initial activation for this task. Has to be within 0 and 1. Can be used to enable(1)/disable(0) the whole task,
+                # or to apply a smooth activation function.
+                activation: 1.0
+            # hand_pose_left:
+            #     # Task type, can be one of 'jnt' (joint space task), 'cart' (Cartesian task) or 'com' (Center of Mass task).
+            #     type: cart
+            #     # Priority of this task. 0 corresponds to the highest priority. Prioritization is only supported by the hls solver.
+            #     priority: 0
+            #     # Only Cartesian tasks:  Root frame of the kinematic chain associated with this task. Has to be the name of a valid link in the robot model.
+            #     # Only robot_model.type=kdl supports root frames, which are not equal to the root of the URDF tree.
+            #     root: pelvis
+            #     # Only Cartesian tasks: Tip frame of the kinematic chain associated with this task. Has to be the name of a valid link in the robot model.
+            #     tip: L_hand_base_link
+            #     # Only Cartesian tasks: Reference frame of the task input (frame wrt which the input is expressed).
+            #     # This has to be the name of a valid link in robot model. If ref_frame != root the input will be transformed to the root frame.
+            #     ref_frame: pelvis
+            #     # Initial weights for this task. Size has to be same as number of task variables, e.g. number of joint names in joint space tasks.
+            #     # and 6 in case of a Cartesian task. All entries have to be >= 0.  Can be used to balance contributions of the task variables.
+            #     # A value of 0 means that the reference of the corresponding task variable will be ignored while computing the solution.
+            #     weights: [1.0,1.0,1.0,1.0,1.0,1.0]
+            #     # Initial activation for this task. Has to be within 0 and 1. Can be used to enable(1)/disable(0) the whole task,
+            #     # or to apply a smooth activation function.
+            #     activation: 1.0
+            # hand_pose_right:
+            #     # Task type, can be one of 'jnt' (joint space task), 'cart' (Cartesian task) or 'com' (Center of Mass task).
+            #     type: cart
+            #     # Priority of this task. 0 corresponds to the highest priority. Prioritization is only supported by the hls solver.
+            #     priority: 0
+            #     # Only Cartesian tasks:  Root frame of the kinematic chain associated with this task. Has to be the name of a valid link in the robot model.
+            #     # Only robot_model.type=kdl supports root frames, which are not equal to the root of the URDF tree.
+            #     root: pelvis
+            #     # Only Cartesian tasks: Tip frame of the kinematic chain associated with this task. Has to be the name of a valid link in the robot model.
+            #     tip: R_hand_base_link
+            #     # Only Cartesian tasks: Reference frame of the task input (frame wrt which the input is expressed).
+            #     # This has to be the name of a valid link in robot model. If ref_frame != root the input will be transformed to the root frame.
+            #     ref_frame: pelvis
+            #     # Initial weights for this task. Size has to be same as number of task variables, e.g. number of joint names in joint space tasks.
+            #     # and 6 in case of a Cartesian task. All entries have to be >= 0.  Can be used to balance contributions of the task variables.
+            #     # A value of 0 means that the reference of the corresponding task variable will be ignored while computing the solution.
+            #     weights: [1.0,1.0,1.0,1.0,1.0,1.0]
+            #     # Initial activation for this task. Has to be within 0 and 1. Can be used to enable(1)/disable(0) the whole task,
+            #     # or to apply a smooth activation function.
+            #     activation: 1.0
+            # foot_pose_left:
+            #     # Task type, can be one of 'jnt' (joint space task), 'cart' (Cartesian task) or 'com' (Center of Mass task).
+            #     type: cart
+            #     # Priority of this task. 0 corresponds to the highest priority. Prioritization is only supported by the hls solver.
+            #     priority: 0
+            #     # Only Cartesian tasks:  Root frame of the kinematic chain associated with this task. Has to be the name of a valid link in the robot model.
+            #     # Only robot_model.type=kdl supports root frames, which are not equal to the root of the URDF tree.
+            #     root: pelvis
+            #     # Only Cartesian tasks: Tip frame of the kinematic chain associated with this task. Has to be the name of a valid link in the robot model.
+            #     tip: left_ankle_roll_link
+            #     # Only Cartesian tasks: Reference frame of the task input (frame wrt which the input is expressed).
+            #     # This has to be the name of a valid link in robot model. If ref_frame != root the input will be transformed to the root frame.
+            #     ref_frame: pelvis
+            #     # Initial weights for this task. Size has to be same as number of task variables, e.g. number of joint names in joint space tasks.
+            #     # and 6 in case of a Cartesian task. All entries have to be >= 0.  Can be used to balance contributions of the task variables.
+            #     # A value of 0 means that the reference of the corresponding task variable will be ignored while computing the solution.
+            #     weights: [1.0,1.0,1.0,1.0,1.0,1.0]
+            #     # Initial activation for this task. Has to be within 0 and 1. Can be used to enable(1)/disable(0) the whole task,
+            #     # or to apply a smooth activation function.
+            #     activation: 1.0
+            # foot_pose_right:
+            #     # Task type, can be one of 'jnt' (joint space task), 'cart' (Cartesian task) or 'com' (Center of Mass task).
+            #     type: cart
+            #     # Priority of this task. 0 corresponds to the highest priority. Prioritization is only supported by the hls solver.
+            #     priority: 0
+            #     # Only Cartesian tasks:  Root frame of the kinematic chain associated with this task. Has to be the name of a valid link in the robot model.
+            #     # Only robot_model.type=kdl supports root frames, which are not equal to the root of the URDF tree.
+            #     root: pelvis
+            #     # Only Cartesian tasks: Tip frame of the kinematic chain associated with this task. Has to be the name of a valid link in the robot model.
+            #     tip: right_ankle_roll_link
+            #     # Only Cartesian tasks: Reference frame of the task input (frame wrt which the input is expressed).
+            #     # This has to be the name of a valid link in robot model. If ref_frame != root the input will be transformed to the root frame.
+            #     ref_frame: pelvis
+            #     # Initial weights for this task. Size has to be same as number of task variables, e.g. number of joint names in joint space tasks.
+            #     # and 6 in case of a Cartesian task. All entries have to be >= 0.  Can be used to balance contributions of the task variables.
+            #     # A value of 0 means that the reference of the corresponding task variable will be ignored while computing the solution.
+            #     weights: [1.0,1.0,1.0,1.0,1.0,1.0]
+            #     # Initial activation for this task. Has to be within 0 and 1. Can be used to enable(1)/disable(0) the whole task,
+            #     # or to apply a smooth activation function.
+            #     activation: 1.0
+        solver:
+            # QP Solver type. Must be the exact name of one of the registered QP solver plugins. See src/solvers for all available plugins. Default is qpoases
+            type: qpoases
+        scene:
+            # Scene type. Must be the exact name of one of the registered scene plugins. See src/scenes for all available plugins.
+            type: velocity_qp
+        # Do numerical integration on the solver output, e.g. if output is acceleration type, integrate twice to get velocity and position
+        integrate: true
+
+# Parameters for the end effector controller. See https://arc-opt.github.io/Documentation/tutorials/parameters/cartesian_position_controller_parameters.html
+# for a description of the parameters or use 'ros2 param describe <parameter_name>'
+#com_controller:
+#    ros__parameters:
+#        # Control mode of the wbc. Can be one of [velocity,acceleration].
+#        control_mode: velocity
+#        # Name of the WBC task this controller is assigned to.
+#        task_name: balancing
+#        # Node name of the WBC controller.
+#        wbc_name: whole_body_controller
+#        # P-Gain of the controller, size has to be 6.
+#        p_gain: [5.0,5.0,5.0,5.0,5.0,5.0]
+#        # D-Gain of the controller, size has to be 6. In case of velcity control mode, this is the feed forward gain
+#        d_gain: [1.0,1.0,1.0,1.0,1.0,1.0]
+#        # Feed forward gain of the controller, size has to be 6.
+#        ff_gain: [0.0,0.0,0.0,0.0,0.0,0.0]
+#        # Controller output saturation per element. Size has to be 6.
+#        max_control_output: [10.0,10.0,10.0,10.0,10.0,10.0]
+#        # Dead zone for the position error per element. Size has to be 6.
+#        dead_zone: [0.0,0.0,0.0,0.0,0.0,0.0]
+
+# hand_pose_left_controller:
+#     ros__parameters:
+#         # Control mode of the wbc. Can be one of [velocity,acceleration].
+#         control_mode: velocity
+#         # Name of the WBC task this controller is assigned to.
+#         task_name: hand_pose_left
+#         # Node name of the WBC controller.
+#         wbc_name: whole_body_controller
+#         # P-Gain of the controller, size has to be 6.
+#         p_gain: [5.0,5.0,5.0,5.0,5.0,5.0]
+#         # D-Gain of the controller, size has to be 6. In case of velcity control mode, this is the feed forward gain
+#         d_gain: [1.0,1.0,1.0,1.0,1.0,1.0]
+#         # Feed forward gain of the controller, size has to be 6.
+#         ff_gain: [0.0,0.0,0.0,0.0,0.0,0.0]
+#         # Controller output saturation per element. Size has to be 6.
+#         max_control_output: [10.0,10.0,10.0,10.0,10.0,10.0]
+#         # Dead zone for the position error per element. Size has to be 6.
+#         dead_zone: [0.0,0.0,0.0,0.0,0.0,0.0]
+# hand_pose_right_controller:
+#     ros__parameters:
+#         # Control mode of the wbc. Can be one of [velocity,acceleration].
+#         control_mode: velocity
+#         # Name of the WBC task this controller is assigned to.
+#         task_name: hand_pose_right
+#         # Node name of the WBC controller.
+#         wbc_name: whole_body_controller
+#         # P-Gain of the controller, size has to be 6.
+#         p_gain: [5.0,5.0,5.0,5.0,5.0,5.0]
+#         # D-Gain of the controller, size has to be 6. In case of velcity control mode, this is the feed forward gain
+#         d_gain: [1.0,1.0,1.0,1.0,1.0,1.0]
+#         # Feed forward gain of the controller, size has to be 6.
+#         ff_gain: [0.0,0.0,0.0,0.0,0.0,0.0]
+#         # Controller output saturation per element. Size has to be 6.
+#         max_control_output: [10.0,10.0,10.0,10.0,10.0,10.0]
+#         # Dead zone for the position error per element. Size has to be 6.
+#         dead_zone: [0.0,0.0,0.0,0.0,0.0,0.0]
+# foot_pose_left_controller:
+#     ros__parameters:
+#         # Control mode of the wbc. Can be one of [velocity,acceleration].
+#         control_mode: velocity
+#         # Name of the WBC task this controller is assigned to.
+#         task_name: foot_pose_left
+#         # Node name of the WBC controller.
+#         wbc_name: whole_body_controller
+#         # P-Gain of the controller, size has to be 6.
+#         p_gain: [5.0,5.0,5.0,5.0,5.0,5.0]
+#         # D-Gain of the controller, size has to be 6. In case of velcity control mode, this is the feed forward gain
+#         d_gain: [1.0,1.0,1.0,1.0,1.0,1.0]
+#         # Feed forward gain of the controller, size has to be 6.
+#         ff_gain: [0.0,0.0,0.0,0.0,0.0,0.0]
+#         # Controller output saturation per element. Size has to be 6.
+#         max_control_output: [10.0,10.0,10.0,10.0,10.0,10.0]
+#         # Dead zone for the position error per element. Size has to be 6.
+#         dead_zone: [0.0,0.0,0.0,0.0,0.0,0.0]
+# foot_pose_right_controller:
+#     ros__parameters:
+#         # Control mode of the wbc. Can be one of [velocity,acceleration].
+#         control_mode: velocity
+#         # Name of the WBC task this controller is assigned to.
+#         task_name: foot_pose_right
+#         # Node name of the WBC controller.
+#         wbc_name: whole_body_controller
+#         # P-Gain of the controller, size has to be 6.
+#         p_gain: [5.0,5.0,5.0,5.0,5.0,5.0]
+#         # D-Gain of the controller, size has to be 6. In case of velcity control mode, this is the feed forward gain
+#         d_gain: [1.0,1.0,1.0,1.0,1.0,1.0]
+#         # Feed forward gain of the controller, size has to be 6.
+#         ff_gain: [0.0,0.0,0.0,0.0,0.0,0.0]
+#         # Controller output saturation per element. Size has to be 6.
+#         max_control_output: [10.0,10.0,10.0,10.0,10.0,10.0]
+#         # Dead zone for the position error per element. Size has to be 6.
+#         dead_zone: [0.0,0.0,0.0,0.0,0.0,0.0]

@@ -104,12 +104,13 @@ def create_mjcf(robot, robot_tree, mujoco_element):
             for i, collision in enumerate(robot.link_map[link_name].collisions):
                 geom = ET.SubElement(body, "geom", group="1", name=f"{link_name}_collision_{i}")
                 origin = collision.origin
-                geom.set("pos", f"{origin.position[0]} {origin.position[1]} {origin.position[2]}")
-                if not all(element == 0 for element in origin.rpy):
-                    quat = R.from_euler('xyz', origin.rpy).as_quat()
-                    norm = np.linalg.norm(quat)
-                    quat = quat / norm
-                    geom.set("quat", f"{quat[3]} {quat[0]} {quat[1]} {quat[2]}")
+                if origin:
+                    geom.set("pos", f"{origin.position[0]} {origin.position[1]} {origin.position[2]}")
+                    if not all(element == 0 for element in origin.rpy):
+                        quat = R.from_euler('xyz', origin.rpy).as_quat()
+                        norm = np.linalg.norm(quat)
+                        quat = quat / norm
+                        geom.set("quat", f"{quat[3]} {quat[0]} {quat[1]} {quat[2]}")
                 if type(collision.geometry) == urdf.Mesh:
                     filename = collision.geometry.filename
                     mesh = ET.SubElement(asset, "mesh", name=f"{link_name}_collision_mesh{i}", file=filename.split("/")[-1])
@@ -121,6 +122,15 @@ def create_mjcf(robot, robot_tree, mujoco_element):
                     size = collision.geometry.size
                     geom.set("type", "box")
                     geom.set("size", f"{size[0]/2} {size[1]/2} {size[2]/2}")
+                elif type(collision.geometry) == urdf.Sphere:
+                    radius = collision.geometry.radius
+                    geom.set("type", "sphere")
+                    geom.set("size", f"{radius}")
+                elif type(collision.geometry) == urdf.Cylinder:
+                    radius = collision.geometry.radius
+                    length = collision.geometry.length
+                    geom.set("type", "sphere")
+                    geom.set("size", f"{radius} {length/2}")
                 else:
                     print(type(collision.geometry))
                     

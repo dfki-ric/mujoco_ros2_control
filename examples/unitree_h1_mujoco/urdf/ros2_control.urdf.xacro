@@ -1,0 +1,93 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+<xacro:macro name="unitree_h1_ros2_control" 
+             params="mujoco
+                     mujoco_effort
+                     use_fake_hardware
+                     fake_sensor_commands">
+    <ros2_control name="Unitree_H1_HardwareInterface" type="system">
+        <hardware>
+          <xacro:if value="${use_fake_hardware}">
+            <plugin>fake_components/GenericSystem</plugin>
+            <param name="fake_sensor_commands">${fake_sensor_commands}</param>
+            <param name="state_following_offset">0.0</param>
+          </xacro:if>
+          <xacro:if value="${mujoco}">
+            <plugin>mujoco_ros2_control/MujocoSystem</plugin>
+          </xacro:if>
+        </hardware>
+
+      <xacro:macro name="configure_joint" params="joint_name initial_position">
+        <joint name="${joint_name}">
+          <xacro:if value="${mujoco == 0 or mujoco_effort == 1}">
+            <command_interface name="effort"/>
+          </xacro:if>
+          <xacro:unless value="${mujoco == 0 or mujoco_effort == 1}">
+            <!--command_interface name="velocity"/-->
+            <command_interface name="position"/>
+          </xacro:unless>
+          <state_interface name="position">
+            <param name="initial_value">${initial_position}</param>
+          </state_interface>
+          <state_interface name="velocity"/>
+            <param name="initial_value">0.0</param>
+          <state_interface name="effort"/>
+        </joint>
+      </xacro:macro>
+
+      <xacro:configure_joint joint_name="left_hip_yaw_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="left_hip_pitch_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="left_hip_roll_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="left_knee_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="left_ankle_pitch_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="left_ankle_roll_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="right_hip_yaw_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="right_hip_pitch_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="right_hip_roll_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="right_knee_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="right_ankle_pitch_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="right_ankle_roll_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="torso_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="left_shoulder_pitch_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="left_shoulder_roll_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="left_shoulder_yaw_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="left_elbow_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="left_wrist_roll_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="left_wrist_pitch_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="left_wrist_yaw_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="right_shoulder_pitch_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="right_shoulder_roll_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="right_shoulder_yaw_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="right_elbow_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="right_wrist_roll_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="right_wrist_pitch_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="right_wrist_yaw_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="L_index_proximal_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="L_index_intermediate_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="L_middle_proximal_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="L_middle_intermediate_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="L_ring_proximal_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="L_ring_intermediate_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="L_pinky_proximal_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="L_pinky_intermediate_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="L_thumb_proximal_yaw_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="L_thumb_proximal_pitch_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="L_thumb_intermediate_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="L_thumb_distal_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="R_index_proximal_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="R_index_intermediate_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="R_middle_proximal_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="R_middle_intermediate_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="R_ring_proximal_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="R_ring_intermediate_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="R_pinky_proximal_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="R_pinky_intermediate_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="R_thumb_proximal_yaw_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="R_thumb_proximal_pitch_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="R_thumb_intermediate_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="R_thumb_distal_joint" initial_position="0.0"/>
+    </ros2_control>
+
+  </xacro:macro>
+</robot>

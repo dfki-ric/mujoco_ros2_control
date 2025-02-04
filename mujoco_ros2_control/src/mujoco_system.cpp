@@ -32,7 +32,7 @@
  * limitations under the License.
  */
 
-#include "mujoco_ros2_control/mujoco_system.hpp"
+#include <mujoco_ros2_control/mujoco_system.hpp>
 
 namespace mujoco_ros2_control {
 
@@ -70,6 +70,9 @@ namespace mujoco_ros2_control {
         };
         name_ = hardware_info.name;
 
+        char error[1000];
+        const char* name = "/tmp/model_output_before_register_joints.xml";
+        mj_saveLastXML("/tmp/model_output_before_register_joints.xml", mujoco_model_, error, 1000);
         RCLCPP_INFO(rclcpp::get_logger(hardware_info.name.c_str()), "Initializing Hardware Interface");
         for (auto& joint_info : hardware_info.joints) {
             RCLCPP_INFO(rclcpp::get_logger(hardware_info.name.c_str()), "  %s", joint_info.name.c_str());
@@ -96,18 +99,23 @@ namespace mujoco_ros2_control {
             }
 
             if (joint.type == urdf::Joint::REVOLUTE || joint.type == urdf::Joint::PRISMATIC ||
-                joint.type == urdf::Joint::CONTINUOUS || joint.type == urdf::Joint::FLOATING ||
-                joint.type == urdf::Joint::PLANAR) {
+                joint.type == urdf::Joint::CONTINUOUS) {
                 if (joints.at(joint.name)->limits != nullptr) {
                     joint.velocity_limit = joints.at(joint.name)->limits->velocity;
                     joint.effort_limit = joints.at(joint.name)->limits->effort;
                     if (joint.effort_limit != 0.0) {
+                        mujoco_model_->jnt_margin[joint.mujoco_dofadr] = 0;
                         mujoco_model_->jnt_actfrclimited[joint.mujoco_dofadr] = 1;
                         mujoco_model_->jnt_actfrcrange[joint.mujoco_dofadr*2] = -joint.effort_limit;
                         mujoco_model_->jnt_actfrcrange[joint.mujoco_dofadr*2+1] = joint.effort_limit;
                     }
                 }
             }
+            // {
+            //     std::stringstream ss;
+            //     ss << "/tmp/model_output_after_changing_params_" << joint_info.name << ".xml";
+            //     mj_saveLastXML(ss.str().c_str(), mujoco_model_, error, 1000);
+            // }
 
             for (auto& param : joint_info.parameters) {
                 if (param.first == "p" || param.first == "kp") {
@@ -246,7 +254,14 @@ namespace mujoco_ros2_control {
             }
 
             mj_forward(mujoco_model_, mujoco_data_);
+
+            {
+                std::stringstream ss;
+                ss << "/tmp/model_output_after_forward_" << joint_info.name << ".xml";
+                mj_saveLastXML(ss.str().c_str(), mujoco_model_, error, 1000);
+            }
         }
+        
 
         for (int mujoco_actuator_id = 0; mujoco_actuator_id < mujoco_model_->nu; mujoco_actuator_id++) {
             std::string joint_name = mj_id2name(mujoco_model_, mjOBJ_JOINT, mujoco_model_->actuator_trnid[mujoco_actuator_id*2]);
