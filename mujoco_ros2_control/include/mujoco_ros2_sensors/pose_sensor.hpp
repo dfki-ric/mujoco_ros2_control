@@ -12,6 +12,9 @@
 #include "realtime_tools/realtime_publisher.h"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 
+#include "tf2_ros/transform_broadcaster.h"
+#include "geometry_msgs/msg/transform_stamped.hpp"
+
 namespace mujoco_ros2_sensors {
     struct PoseSensorStruct {
         std::string body_name;
@@ -39,8 +42,10 @@ namespace mujoco_ros2_sensors {
 
         rclcpp::TimerBase::SharedPtr timer_; ///< Shared pointer to the ROS 2 timer object used for scheduling periodic updates.
 
+        std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
+        geometry_msgs::msg::TransformStamped t_;
 
-        // realtime_tools publisher for the clock message
+        // fallback to pose publisher when position or orientation is missing
         using PoseStampedPublisher = realtime_tools::RealtimePublisher<geometry_msgs::msg::PoseStamped>;
         using PoseStampedPublisherPtr = std::unique_ptr<PoseStampedPublisher>;
         rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr publisher_;

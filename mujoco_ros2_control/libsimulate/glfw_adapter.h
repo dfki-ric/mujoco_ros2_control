@@ -44,7 +44,6 @@ class GlfwAdapter : public PlatformUIAdapter {
   bool ShouldCloseWindow() const override;
   void SwapBuffers() override;
   void ToggleFullscreen() override;
-  void MakeContextCurrent() override;
 
   bool IsLeftMouseButtonPressed() const override;
   bool IsMiddleMouseButtonPressed() const override;

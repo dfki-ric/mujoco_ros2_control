@@ -64,12 +64,22 @@
             </xacro:unless>
 
             
+            <contact> 
+                <exclude body1="right_knee_link" body2="right_ankle_roll_link"/>
+                <exclude body1="left_knee_link" body2="left_ankle_roll_link"/>
+
+                <exclude body1="L_hand_base_link" body2="L_thumb_proximal"/>
+                <exclude body1="R_hand_base_link" body2="R_thumb_proximal"/>
+            </contact>
+
             <reference name="torso_link">
                 <site name="imu" size="0.01" pos="-0.04452 -0.01891 0.27756" />
             </reference>
             <sensor>
                 <gyro name="imu-angular-velocity" site="imu" noise="5e-4" cutoff="34.9"/>
                 <accelerometer name="imu-linear-acceleration" site="imu" noise="1e-2" cutoff="157"/>
+                <framepos name="gears_large_pose" objtype="body" objname="pelvis" reftype="body" refname="world"/>
+                <framequat name="gears_medium_quat" objtype="body" objname="pelvis" reftype="body" refname="world"/>
             </sensor>
         </mujoco>
     </xacro:if>
