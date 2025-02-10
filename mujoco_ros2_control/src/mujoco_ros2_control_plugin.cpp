@@ -152,11 +152,11 @@ namespace mujoco_ros2_control {
         // create mjModel
         mujoco_model_ = mj_loadXML(params_.robot_model_path.c_str(), NULL, error, 1000);
 
-        if (!mujoco_model_)
-        {
+        if (!mujoco_model_) {
             RCLCPP_FATAL(nh_->get_logger(), "Could not load mujoco model with error: %s.\n", error);
             return;
         } else {
+            // No problem with margins
             RCLCPP_INFO(nh_->get_logger(), "loaded mujoco model");
         }
 

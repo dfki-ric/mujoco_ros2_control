@@ -19,7 +19,7 @@ RUN apt-get update && apt-get install -y \
 RUN mkdir /git
 WORKDIR /git
 
-RUN git clone https://github.com/deepmind/mujoco
+RUN git clone https://github.com/deepmind/mujoco -b 3.0.0
 
 WORKDIR /git/mujoco
 RUN cmake .
@@ -36,7 +36,8 @@ RUN echo source /ros2_ws/install/setup.bash > /root/.bashrc
 COPY mujoco_ros2_control /ros2_ws/src/mujoco_ros2_control
 
 WORKDIR /ros2_ws
-RUN rosdep init && rosdep update && rosdep install --from-paths src --ignore-src --rosdistro humble -y
+#RUN rosdep init ||
+RUN rosdep update && rosdep install --from-paths src --ignore-src --rosdistro humble -y
 RUN . /opt/ros/$ROS_DISTRO/setup.sh && colcon build --packages-select mujoco_ros2_control_simulate_gui
 RUN . /opt/ros/$ROS_DISTRO/setup.sh && colcon build
 

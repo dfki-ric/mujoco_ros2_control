@@ -1,0 +1,157 @@
+controller_manager:
+  ros__parameters:
+    update_rate: 500  # Hz
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+    
+    left_arm_position_controller:
+      type: "joint_trajectory_controller/JointTrajectoryController"
+    left_hand_position_controller:
+      type: "joint_trajectory_controller/JointTrajectoryController"
+    left_leg_position_controller:
+      type: "joint_trajectory_controller/JointTrajectoryController"
+    right_arm_position_controller:
+      type: "joint_trajectory_controller/JointTrajectoryController"
+    right_hand_position_controller:
+      type: "joint_trajectory_controller/JointTrajectoryController"
+    right_leg_position_controller:
+      type: "joint_trajectory_controller/JointTrajectoryController"
+
+    #### WBC ####
+    # whole_body_controller:
+    #   type: wbc_ros/WholeBodyController
+
+    # com_controller:
+    #  type: wbc_ros/CartesianPositionController
+
+    # hand_pose_left_controller:
+    #   type: wbc_ros/CartesianPositionController
+
+    # hand_pose_right_controller:
+    #   type: wbc_ros/CartesianPositionController
+
+    # foot_pose_left_controller:
+    #   type: wbc_ros/CartesianPositionController
+
+    # foot_pose_right_controller:
+    #   type: wbc_ros/CartesianPositionController
+
+left_arm_position_controller:
+  ros__parameters:
+    joints:
+        - left_shoulder_pitch_joint
+        - left_shoulder_roll_joint
+        - left_shoulder_yaw_joint
+        - left_elbow_joint
+        - left_wrist_roll_joint
+        - left_wrist_pitch_joint
+        - left_wrist_yaw_joint
+    command_interfaces:
+      - position
+      #- velocity
+
+    state_interfaces:
+      - position
+      - velocity
+
+left_hand_position_controller:
+  ros__parameters:
+    joints:
+        - L_index_proximal_joint
+        - L_index_intermediate_joint
+        - L_middle_proximal_joint
+        - L_middle_intermediate_joint
+        - L_ring_proximal_joint
+        - L_ring_intermediate_joint
+        - L_pinky_proximal_joint
+        - L_pinky_intermediate_joint
+        - L_thumb_proximal_yaw_joint
+        - L_thumb_proximal_pitch_joint
+        - L_thumb_intermediate_joint
+        - L_thumb_distal_joint
+    command_interfaces:
+      - position
+      #- velocity
+
+    state_interfaces:
+      - position
+      - velocity
+
+left_leg_position_controller:
+  ros__parameters:
+    joints:
+        - left_hip_yaw_joint
+        - left_hip_pitch_joint
+        - left_hip_roll_joint
+        - left_knee_joint
+        - left_ankle_pitch_joint
+        - left_ankle_roll_joint
+
+    command_interfaces:
+      - position
+      #- velocity
+
+    state_interfaces:
+      - position
+      - velocity
+
+right_arm_position_controller:
+  ros__parameters:
+    joints:
+        - right_shoulder_pitch_joint
+        - right_shoulder_roll_joint
+        - right_shoulder_yaw_joint
+        - right_elbow_joint
+        - right_wrist_roll_joint
+        - right_wrist_pitch_joint
+        - right_wrist_yaw_joint
+    command_interfaces:
+      - position
+      #- velocity
+
+    state_interfaces:
+      - position
+      - velocity
+
+right_hand_position_controller:
+  ros__parameters:
+    joints:
+        - R_index_proximal_joint
+        - R_index_intermediate_joint
+        - R_middle_proximal_joint
+        - R_middle_intermediate_joint
+        - R_ring_proximal_joint
+        - R_ring_intermediate_joint
+        - R_pinky_proximal_joint
+        - R_pinky_intermediate_joint
+        - R_thumb_proximal_yaw_joint
+        - R_thumb_proximal_pitch_joint
+        - R_thumb_intermediate_joint
+        - R_thumb_distal_joint
+    command_interfaces:
+      - position
+      #- velocity
+
+    state_interfaces:
+      - position
+      - velocity
+
+right_leg_position_controller:
+  ros__parameters:
+    joints:
+        - right_hip_yaw_joint
+        - right_hip_pitch_joint
+        - right_hip_roll_joint
+        - right_knee_joint
+        - right_ankle_pitch_joint
+        - right_ankle_roll_joint
+
+    command_interfaces:
+      - position
+      #- velocity
+
+    state_interfaces:
+      - position
+      - velocity

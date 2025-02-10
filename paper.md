@@ -32,11 +32,17 @@ Our software, MuJoCoROS2Control, bridges this gap by providing an intuitive and 
 # Implementation
 ## General Structure
 
-Mujoco_ros2_control is essentially composed of three main components:
+Mujoco_ros2_control is essentially composed of four main components:
 
+
+1. Preparation of the robot description
+  - Because ros uses the URDF file format to describe the robot and mujoco uses the MJCF file format, it was required to convert a urdf to mjcf with passing important options and not by urdf supported features to mjcf by using our own urdf 2 mjcf scripts.
+  With this scripts it is possible to have fixed joints (that arent merged to a single object) in mjcf and it is possible to declare sensors and other mujoco specific stuff in the urdf, to initialize it in the mujoco simulation
+  
 1. ROS 2 Control
     - This component provides the ROS 2 hardware interface and allows the use of Mujoco actuators for joint control (in addition to standard torque control). Furthermore, this component publishes the system time and visualizes the other two components (sensors and GUI).
-    - Because Mujoco uses applied torques to control the joints internal, we integrated a opttional simple pid controller for combinations of position, velocity and acceleration command interfaces as alternative to the usage of mujocos actuators (that can be defined in the mjcf).
+    - It uses the SystemInterface from ros2 control to update the state and command interfaces required for ros2. The actual state is read from mujocos data object that holds the actual state in form of q (qpos for position), qd (qvel for velocity), and \tau (qfrc_applied for effort).
+    - Because Mujoco uses applied torques to control the joints internal, we integrated a optional simple pid controller for combinations of position, velocity and acceleration command interfaces as alternative to the usage of mujocos actuators (that can be defined in the mjcf) .
 
 2. Sensors
     - Sensors are launched as independent nodes in ROS 2. Apart from the camera sensor, they utilize a sensor class that individual sensor classes can inherit from, enabling easy integration of additional sensors.

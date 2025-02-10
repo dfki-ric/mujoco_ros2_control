@@ -1,0 +1,94 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://wiki.ros.org/xacro">
+  <!-- Macro to create position actuators -->
+  <xacro:macro name="create_mujoco_position_actuator" params="joint joint_limits">
+    <!-- Iterate over joints and create actuators -->
+    <xacro:property name="lower" value="${joint_limits[joint]['limit']['lower']}" />
+    <xacro:property name="upper" value="${joint_limits[joint]['limit']['upper']}" />
+    <xacro:property name="velocity" value="${joint_limits[joint]['limit']['velocity']}" />
+    <xacro:property name="effort" value="${joint_limits[joint]['limit']['effort']}" />
+      
+    <!-- Calculate control range -->
+    <xacro:property name="ctrlrange" value="${str(lower) + ' ' + str(upper)}" />
+    <xacro:property name="forcerange" value="${str(-effort) + ' ' + str(effort)}" />
+
+    <!-- Calculate position feedback gain (kp) -->
+    <xacro:property name="kp" value="${effort}" />
+
+    <!-- Create position actuator -->
+    <position
+      name="pos_actuator_${joint}"
+      joint="${joint}"
+      ctrlrange="${ctrlrange}"
+      forcerange="${forcerange}"
+      kp="${effort * 100}"/>
+    <velocity
+      name="vel_actuator_${joint}"
+      joint="${joint}"
+      ctrlrange="${ctrlrange}"
+      forcerange="${forcerange}"
+      kv="${velocity * 10}"/>
+  </xacro:macro>
+
+  <!-- Reference to create actuators https://mujoco.readthedocs.io/en/stable/XMLreference.html#actuator -->
+  <xacro:macro name="create_mujoco_actuators">
+    <!-- Load YAML file -->
+    <xacro:property name="joint_limits_file" value="$(find unitree_h1_mujoco)/config/joint_limits.yaml" />
+    <xacro:property name="joint_limits" value="${xacro.load_yaml(joint_limits_file)}" />
+    
+    <!-- Call the macro for each joint -->
+    <actuator>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="left_hip_yaw_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="left_hip_pitch_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="left_hip_roll_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="left_knee_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="left_ankle_pitch_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="left_ankle_roll_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="right_hip_yaw_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="right_hip_pitch_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="right_hip_roll_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="right_knee_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="right_ankle_pitch_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="right_ankle_roll_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="torso_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="left_shoulder_pitch_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="left_shoulder_roll_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="left_shoulder_yaw_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="left_elbow_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="left_wrist_roll_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="left_wrist_pitch_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="left_wrist_yaw_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="right_shoulder_pitch_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="right_shoulder_roll_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="right_shoulder_yaw_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="right_elbow_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="right_wrist_roll_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="right_wrist_pitch_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="right_wrist_yaw_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="L_index_proximal_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="L_index_intermediate_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="L_middle_proximal_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="L_middle_intermediate_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="L_ring_proximal_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="L_ring_intermediate_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="L_pinky_proximal_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="L_pinky_intermediate_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="L_thumb_proximal_yaw_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="L_thumb_proximal_pitch_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="L_thumb_intermediate_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="L_thumb_distal_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="R_index_proximal_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="R_index_intermediate_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="R_middle_proximal_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="R_middle_intermediate_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="R_ring_proximal_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="R_ring_intermediate_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="R_pinky_proximal_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="R_pinky_intermediate_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="R_thumb_proximal_yaw_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="R_thumb_proximal_pitch_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="R_thumb_intermediate_joint"/>
+      <xacro:create_mujoco_position_actuator joint_limits="${joint_limits}" joint="R_thumb_distal_joint"/>
+    </actuator>
+  </xacro:macro>
+</robot>

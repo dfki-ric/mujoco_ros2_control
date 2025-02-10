@@ -16,6 +16,8 @@ add_compile_options(-g)
 set(CMAKE_BUILD_TYPE Debug)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0")
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
+
 set(OpenGL_GL_PREFERENCE LEGACY)
 
 set(THIS_PACKAGE_INCLUDE_DEPENDS
@@ -36,12 +38,13 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
         cv_bridge
         generate_parameter_library
         Eigen3
+        tf2_ros
         )
 foreach(Dependency IN ITEMS ${THIS_PACKAGE_INCLUDE_DEPENDS})
     find_package(${Dependency} REQUIRED)
 endforeach()
 
-find_package(mujoco 3.0.0 REQUIRED)
+find_package(mujoco 3.2.7 REQUIRED)
 
 # find_package(mujoco_ros2_control_simulate_gui QUIET)
 # if(mujoco_ros2_control_simulate_gui_FOUND)
@@ -113,6 +116,7 @@ ament_target_dependencies(${PROJECT_NAME}
         cv_bridge
         PCL
         pcl_conversions
+        tf2_ros
         )
 
 target_link_libraries(${PROJECT_NAME}

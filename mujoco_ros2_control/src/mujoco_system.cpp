@@ -32,7 +32,7 @@
  * limitations under the License.
  */
 
-#include "mujoco_ros2_control/mujoco_system.hpp"
+#include <mujoco_ros2_control/mujoco_system.hpp>
 
 namespace mujoco_ros2_control {
 
@@ -95,19 +95,21 @@ namespace mujoco_ros2_control {
                 joint.lower_limit = joints.at(joint.name)->limits->lower;
             }
 
-            if (joint.type == urdf::Joint::REVOLUTE || joint.type == urdf::Joint::PRISMATIC ||
-                joint.type == urdf::Joint::CONTINUOUS || joint.type == urdf::Joint::FLOATING ||
-                joint.type == urdf::Joint::PLANAR) {
+            // Limiting actuators like this can add a joint limit margin
+            /*if (joint.type == urdf::Joint::REVOLUTE || joint.type == urdf::Joint::PRISMATIC ||
+                joint.type == urdf::Joint::CONTINUOUS) {
                 if (joints.at(joint.name)->limits != nullptr) {
                     joint.velocity_limit = joints.at(joint.name)->limits->velocity;
                     joint.effort_limit = joints.at(joint.name)->limits->effort;
                     if (joint.effort_limit != 0.0) {
+                        // FIx the joint margin
                         mujoco_model_->jnt_actfrclimited[joint.mujoco_dofadr] = 1;
                         mujoco_model_->jnt_actfrcrange[joint.mujoco_dofadr*2] = -joint.effort_limit;
                         mujoco_model_->jnt_actfrcrange[joint.mujoco_dofadr*2+1] = joint.effort_limit;
+                        //mujoco_model_->jnt_margin[joint.mujoco_dofadr] = 0;
                     }
                 }
-            }
+            }*/
 
             for (auto& param : joint_info.parameters) {
                 if (param.first == "p" || param.first == "kp") {
@@ -247,6 +249,7 @@ namespace mujoco_ros2_control {
 
             mj_forward(mujoco_model_, mujoco_data_);
         }
+        
 
         for (int mujoco_actuator_id = 0; mujoco_actuator_id < mujoco_model_->nu; mujoco_actuator_id++) {
             std::string joint_name = mj_id2name(mujoco_model_, mjOBJ_JOINT, mujoco_model_->actuator_trnid[mujoco_actuator_id*2]);
