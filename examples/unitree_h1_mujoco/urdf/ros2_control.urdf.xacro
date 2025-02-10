@@ -20,11 +20,11 @@
 
       <xacro:macro name="configure_joint" params="joint_name initial_position">
         <joint name="${joint_name}">
-          <xacro:if value="${mujoco == 0 or mujoco_effort == 1}">
+          <xacro:if value="${mujoco_effort}">
             <command_interface name="effort"/>
           </xacro:if>
-          <xacro:unless value="${mujoco == 0 or mujoco_effort == 1}">
-            <!--command_interface name="velocity"/-->
+          <xacro:unless value="${mujoco_effort}">
+            <command_interface name="velocity"/>
             <command_interface name="position"/>
           </xacro:unless>
           <state_interface name="position">

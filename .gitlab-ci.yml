@@ -38,7 +38,7 @@ build:
   script:
     - mkdir /git
     - cd /git
-    - git clone https://github.com/deepmind/mujoco -b 3.0.0
+    - git clone https://github.com/deepmind/mujoco -b 3.2.7
     - cd mujoco
     - cmake .
     - cmake --build .

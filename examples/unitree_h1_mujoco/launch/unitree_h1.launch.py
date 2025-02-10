@@ -60,7 +60,6 @@ def create_nodes(context: LaunchContext):
             {"input_files": additional_files},
             {"output_file": mujoco_model_file},
             {"mujoco_files_path": mujoco_model_path},
-            {"mujoco_effort": True},
             {"base_link": "pelvis"},
             {"floating": True},
             {"initial_position": "0 0 1.05"},
