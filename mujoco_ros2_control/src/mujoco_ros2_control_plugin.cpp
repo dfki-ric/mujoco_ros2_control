@@ -108,28 +108,33 @@ namespace mujoco_ros2_control {
         param_listener_->refresh_dynamic_parameters();
         params_ = param_listener_->get_params();
         // run until the next frame must be rendered with 60Hz
-        while( mujoco_data_->time - simstart < 1.0/60.0 ) {
-            // check that mujoco is not faster than the expected realtime factor
-            clock_gettime(CLOCK_MONOTONIC, &currentTime);
-            if (double (currentTime.tv_sec-startTime_.tv_sec) + double (currentTime.tv_nsec-startTime_.tv_nsec) / 1e9 >= (mujoco_data_->time-mujoco_start_time_)*params_.real_time_factor) {
-                publish_sim_time();
-                rclcpp::Time sim_time_ros = rclcpp::Time((int64_t) (mujoco_data_->time * 1e+9), RCL_ROS_TIME);
-                rclcpp::Duration sim_period = sim_time_ros - last_update_sim_time_ros_;
+        if (mj_vis_.sim->run) {
+            while( mujoco_data_->time - simstart < 1.0/60.0 ) {
+                // check that mujoco is not faster than the expected realtime factor
+                clock_gettime(CLOCK_MONOTONIC, &currentTime);
+                if (double (currentTime.tv_sec-startTime_.tv_sec) + double (currentTime.tv_nsec-startTime_.tv_nsec) / 1e9 >= (mujoco_data_->time-mujoco_start_time_)*params_.real_time_factor) {
+                    publish_sim_time();
+                    rclcpp::Time sim_time_ros = rclcpp::Time((int64_t) (mujoco_data_->time * 1e+9), RCL_ROS_TIME);
+                    rclcpp::Duration sim_period = sim_time_ros - last_update_sim_time_ros_;
 
-                // check if we should update the controllers
-                if (sim_period >= control_period_) {
-                    // store simulation time
-                    last_update_sim_time_ros_ = sim_time_ros;
-                    // update the robot simulation with the state of the mujoco model
-                    controller_manager_->read(sim_time_ros, sim_period);
-                    // compute the controller commands
-                    controller_manager_->update(sim_time_ros, sim_period);
-                    // update the mujoco model with the result of the controller
-                    controller_manager_->write(sim_time_ros, sim_period);
+                    // check if we should update the controllers
+                    if (sim_period >= control_period_) {
+                        // store simulation time
+                        last_update_sim_time_ros_ = sim_time_ros;
+                        // update the robot simulation with the state of the mujoco model
+                        controller_manager_->read(sim_time_ros, sim_period);
+                        // compute the controller commands
+                        controller_manager_->update(sim_time_ros, sim_period);
+                        // update the mujoco model with the result of the controller
+                        controller_manager_->write(sim_time_ros, sim_period);
+                    }
+                    // Calculate the next mujoco step
+                    mj_step(mujoco_model_, mujoco_data_);
                 }
-                // Calculate the next mujoco step
-                mj_step(mujoco_model_, mujoco_data_);
             }
+        } else {
+            mj_forward(mujoco_model_, mujoco_data_);
+            mj_vis_.sim->speed_changed = true;
         }
         mj_vis_.update();
     }

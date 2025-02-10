@@ -70,6 +70,7 @@ namespace mujoco_simulate_gui {
             static MujocoSimulateGui instance;
             return instance;
         }
+        std::unique_ptr<mj::Simulate> sim;
 
     private:
         /**
@@ -109,8 +110,6 @@ namespace mujoco_simulate_gui {
 
 
         mjvPerturb pert;
-
-        std::unique_ptr<mj::Simulate> sim;
     };
 }
 #endif //MUJOCO_SIMULATE_GUI_HPP
