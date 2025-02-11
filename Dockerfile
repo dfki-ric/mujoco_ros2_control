@@ -19,7 +19,7 @@ RUN apt-get update && apt-get install -y \
 RUN mkdir /git
 WORKDIR /git
 
-RUN git clone https://github.com/deepmind/mujoco -b 3.0.0
+RUN git clone https://github.com/deepmind/mujoco -b 3.2.7
 
 WORKDIR /git/mujoco
 RUN cmake .
