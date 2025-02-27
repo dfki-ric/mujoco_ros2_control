@@ -8,16 +8,15 @@ namespace mujoco_ros2_sensors {
         this->sensor_ = sensor;
 
 
-        if (sensor_.position and sensor_.orientation) {
+        //if (sensor_.position and sensor_.orientation) {
             tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(this->nh_);
-
-        } else {
+        //} else {
             this->publisher_ = nh_->create_publisher<geometry_msgs::msg::PoseStamped>("~/position", rclcpp::SystemDefaultsQoS());
             this->pose_stamped_publisher_ = std::make_unique<PoseStampedPublisher>(publisher_);
             pose_stamped_publisher_->lock();
             pose_stamped_publisher_->msg_.header.frame_id = sensor_.frame_id;
             pose_stamped_publisher_->unlock();
-        }
+        //}
 
 
         timer_ = nh_->create_wall_timer(
@@ -26,7 +25,7 @@ namespace mujoco_ros2_sensors {
     }
 
     void PoseSensor::update() {
-        if (sensor_.position && sensor_.orientation) {
+        //if (sensor_.position && sensor_.orientation) {
             t_.header.stamp.sec = std::floor(mujoco_data_->time);
             t_.header.stamp.nanosec = std::floor((mujoco_data_->time-std::floor(mujoco_data_->time))*1e9);
             t_.header.frame_id = sensor_.frame_id;
@@ -41,7 +40,7 @@ namespace mujoco_ros2_sensors {
             t_.transform.rotation.z = mujoco_data_->sensordata[sensor_.orientation_sensor_adr + 3];
             t_.transform.rotation.w = mujoco_data_->sensordata[sensor_.orientation_sensor_adr];
             tf_broadcaster_->sendTransform(t_);
-        } else {
+        //} else {
             if (pose_stamped_publisher_->trylock()) {
                 pose_stamped_publisher_->msg_.header.stamp.sec = std::floor(mujoco_data_->time);
                 pose_stamped_publisher_->msg_.header.stamp.nanosec = std::floor((mujoco_data_->time-std::floor(mujoco_data_->time))*1e9);
@@ -61,7 +60,7 @@ namespace mujoco_ros2_sensors {
 
                 pose_stamped_publisher_->unlockAndPublish();
             }
-        }
+        //}
 
     }
 }

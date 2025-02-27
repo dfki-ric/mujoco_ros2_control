@@ -39,6 +39,7 @@
 		<origin rpy="0 0 0" xyz="0 0 0" />
 	</joint>
     <xacro:include filename="$(find franka_description)/robots/$(arg arm_id)/$(arg arm_id).urdf.xacro" />
+
     <!-- Import franka ros2_control -->
     <xacro:include filename="$(find franka_mujoco)/urdf/ros2_control.urdf.xacro" />
     <xacro:franka_arm_ros2_control
@@ -85,13 +86,13 @@
             </sensor>
         </mujoco>
         <!-- Add a camera -->
-        <xacro:include filename="$(find franka_mujoco)/urdf/mujoco_camera.urdf.xacro" />
+        <!--xacro:include filename="$(find franka_mujoco)/urdf/mujoco_camera.urdf.xacro" />
         <xacro:camera
                 prefix=""
                 camera_name="camera"
                 parent_link="world"
                 origin_xyz="1 0 1."
                 origin_rpy="0 .9 ${pi}">
-        </xacro:camera>
+        </xacro:camera-->
     </xacro:if>
 </robot>

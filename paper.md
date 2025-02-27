@@ -41,16 +41,13 @@ Mujoco_ros2_control is essentially composed of four main components:
   
 1. ROS 2 Control
     - This component provides the ROS 2 hardware interface and allows the use of Mujoco actuators for joint control (in addition to standard torque control). Furthermore, this component publishes the system time and visualizes the other two components (sensors and GUI).
-    - It uses the SystemInterface from ros2 control to update the state and command interfaces required for ros2. The actual state is read from mujocos data object that holds the actual state in form of q (qpos for position), qd (qvel for velocity), and \tau (qfrc_applied for effort).
-    - Because Mujoco uses applied torques to control the joints internal, we integrated a optional simple pid controller for combinations of position, velocity and acceleration command interfaces as alternative to the usage of mujocos actuators (that can be defined in the mjcf) .
+    - It uses the SystemInterface from ros2 control to update the state and command interfaces required for ros2. The actual state is read from mujocos data object that holds the actual state in form of $q$ (qpos for position), $qd$ (qvel for velocity), and $\tau$ (qfrc_applied for effort).
+    - Because Mujoco uses applied torques to control the joints internal, we integrated a optional simple pid controller for combinations of position, velocity and acceleration command interfaces as alternative to the usage of mujocos actuators (that can be defined in the mjcf).
 
 2. Sensors
-    - Sensors are launched as independent nodes in ROS 2. Apart from the camera sensor, they utilize a sensor class that individual sensor classes can inherit from, enabling easy integration of additional sensors.
-
-    - Sensors must be defined in the URDF/MJCF file. During runtime, they can be read and published using the Mujoco data object.
+    - Sensors are launched as independent nodes in ROS 2. Apart from the camera sensor, they utilize a sensor class that individual sensor classes can inherit from, enabling easy integration of additional sensors. Each sensor has access to the pointers of mujoco to read the values from mujoco outside of the ros2 control loop.
 
 3. Visualization (GUI)
-
     - The visualization utilizes the GUI from the Simulate.cc example of Mujoco, which is incorporated as an external library.
 
 ## Helpers Scripts
@@ -59,6 +56,10 @@ Because mujoco uses mjcf and not urdf as input model and the default structure o
 # Citations
 
 # Figures
+![Class Diagram](./images/mujoco_ros2_control_class_diagram.svg)
+
+![Unitree H1 in mujoco ros2 control](./images/unitree_h1_example.png)
+![Franka pr3 in mujoco ros2 control with a gear task with pose sensors](./images/unitree_h1_example.png)
 <!-- TODO -->
 # Acknowledgements
 <!-- TODO -->

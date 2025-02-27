@@ -75,10 +75,10 @@ class Xacro2Mjcf(Node):
                 ('output_file', rclpy.Parameter.Type.STRING),
                 ('robot_descriptions', rclpy.Parameter.Type.STRING_ARRAY),
                 ('mujoco_files_path', "/tmp/mujoco/"),
-                ('floating', rclpy.Parameter.Type.BOOL),
-                ('initial_position', rclpy.Parameter.Type.STRING),
-                ('initial_orientation', rclpy.Parameter.Type.STRING),
-                ('base_link', rclpy.Parameter.Type.STRING)
+                ('floating', False),
+                ('initial_position', "0 0 0"),
+                ('initial_orientation', "0 0 0"),
+                ('base_link', "")
             ]
         )
 
@@ -142,7 +142,7 @@ class Xacro2Mjcf(Node):
                     urdf_tree = ET.parse(mujoco_files_path + '/tmp_' + name + '.urdf')
                     tmp_urdf_root = urdf_tree.getroot()
 
-                    if base_link:
+                    if len(base_link) > 0:
                         robot = tmp_urdf_root
                         link = ET.Element("link", {"name": "world"})
                         joint = ET.Element("joint", {"name": "world_to_base", "type": "floating" if floating else "fixed"})

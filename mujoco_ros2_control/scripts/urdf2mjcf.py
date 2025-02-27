@@ -64,6 +64,14 @@ def create_mjcf(robot, robot_tree, mujoco_element):
                 if joint.dynamics:
                     joint_elem.set("damping", str(joint.dynamics.damping))
                     joint_elem.set("frictionloss", str(joint.dynamics.friction))
+            elif joint_type == "continuous":
+                joint_elem = ET.SubElement(body, "joint", name=joint.name, type="hinge", axis=f"{axis[0]} {axis[1]} {axis[2]}")
+                joint_elem.set("limited", "false")
+                if joint.dynamics:
+                    joint_elem.set("damping", str(joint.dynamics.damping))
+                    joint_elem.set("frictionloss", str(joint.dynamics.friction))
+            elif joint_type == "prismatic":
+                joint_elem = ET.SubElement(body, "joint", name=joint.name, type="slide", axis=f"{axis[0]} {axis[1]} {axis[2]}")
             elif joint_type == "floating":
                 joint_elem = ET.SubElement(body, "joint", name=joint.name, type="free")
             else:
@@ -138,12 +146,13 @@ def create_mjcf(robot, robot_tree, mujoco_element):
             for i, visual in enumerate(robot.link_map[link_name].visuals):
                 geom = ET.SubElement(body, "geom", group="0", contype="0", conaffinity="0", name=f"{link_name}_visual_{i}")
                 origin = visual.origin
-                geom.set("pos", f"{origin.position[0]} {origin.position[1]} {origin.position[2]}")
-                if not all(element == 0 for element in origin.rpy):
-                    quat = R.from_euler('xyz', origin.rpy).as_quat()
-                    norm = np.linalg.norm(quat)
-                    quat = quat / norm
-                    geom.set("quat", f"{quat[3]} {quat[0]} {quat[1]} {quat[2]}")
+                if origin:
+                    geom.set("pos", f"{origin.position[0]} {origin.position[1]} {origin.position[2]}")
+                    if not all(element == 0 for element in origin.rpy):
+                        quat = R.from_euler('xyz', origin.rpy).as_quat()
+                        norm = np.linalg.norm(quat)
+                        quat = quat / norm
+                        geom.set("quat", f"{quat[3]} {quat[0]} {quat[1]} {quat[2]}")
                 if type(visual.geometry) == urdf.Mesh:
                     filename = visual.geometry.filename
                     mesh = ET.SubElement(asset, "mesh", name=f"{link_name}_visual_mesh{i}", file=filename.split("/")[-1])

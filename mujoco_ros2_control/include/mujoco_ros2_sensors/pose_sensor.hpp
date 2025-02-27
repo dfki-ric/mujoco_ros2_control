@@ -15,6 +15,7 @@
 #include "tf2_ros/transform_broadcaster.h"
 #include "geometry_msgs/msg/transform_stamped.hpp"
 
+// TODO: Make it possible to choose if want to use tf or pose stamped
 namespace mujoco_ros2_sensors {
     struct PoseSensorStruct {
         std::string body_name;

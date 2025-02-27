@@ -118,7 +118,11 @@ WARN_LOGFILE           =
 #---------------------------------------------------------------------------
 # Configuration options related to the input files
 #---------------------------------------------------------------------------
-INPUT                  = ./include/mujoco_ros2_control \
+INPUT                  = ./include/mujoco_rgbd_camera \
+                         ./include/mujoco_ros2_control \
+                         ./include/mujoco_ros2_control_simulate_gui \
+                         ./include/mujoco_ros2_sensors \
+                         ./include/mujoco_visualization \
                          ./src \
                          ./scripts \
                          ./README.md
