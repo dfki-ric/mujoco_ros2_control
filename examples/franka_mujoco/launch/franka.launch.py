@@ -227,7 +227,7 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             "arm_id",
-            default_value="fp3",
+            default_value="fr3",
             description="ID of the type of arm used. Supported values: "
                         "fer, fr3, fp3",
         ),
