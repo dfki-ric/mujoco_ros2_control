@@ -86,13 +86,13 @@
             </sensor>
         </mujoco>
         <!-- Add a camera -->
-        <!--xacro:include filename="$(find franka_mujoco)/urdf/mujoco_camera.urdf.xacro" />
+        <xacro:include filename="$(find franka_mujoco)/urdf/mujoco_camera.urdf.xacro" />
         <xacro:camera
                 prefix=""
                 camera_name="camera"
                 parent_link="world"
                 origin_xyz="1 0 1."
                 origin_rpy="0 .9 ${pi}">
-        </xacro:camera-->
+        </xacro:camera>
     </xacro:if>
 </robot>

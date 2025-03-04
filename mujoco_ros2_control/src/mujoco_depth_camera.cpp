@@ -54,15 +54,23 @@ namespace mujoco_rgbd_camera {
             RCLCPP_ERROR(nh_->get_logger(), "Could not initialize GLFW");
         }
 
-        glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+        glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
         window_ = glfwCreateWindow(width_, height_, name_.c_str(), NULL, NULL);
         glfwSetWindowAttrib(window_, GLFW_RESIZABLE, GLFW_FALSE);
+        auto context = glfwGetCurrentContext();
         glfwMakeContextCurrent(window_);
-        glfwSwapInterval(1);
+        //glfwSwapInterval(1);
 
-        // setup camera
+        // Set camera parameters
         rgbd_camera_.type = mjCAMERA_FIXED;
-        rgbd_camera_.fixedcamid = id;
+        rgbd_camera_.fixedcamid = id; // Set the ID of the fixed camera you want to use
+        // rgbd_camera_.lookat[0] = 0.0;
+        // rgbd_camera_.lookat[1] = 0.0;
+        // rgbd_camera_.lookat[2] = 0.0;
+        // rgbd_camera_.distance = 2.0; // Set a reasonable distance for the camera
+        // rgbd_camera_.azimuth = 90.0; // Set the azimuth angle
+        // rgbd_camera_.elevation = 20.0; // Set the elevation angle
+        // rgbd_camera_.orthographic = 0; // Set to 1 if you want an orthographic view, otherwise 0
 
         mjr_defaultContext(&sensor_context_);
         mjv_defaultOption(&sensor_option_);
@@ -72,7 +80,7 @@ namespace mujoco_rgbd_camera {
         mjv_makeScene(mujoco_model_, &sensor_scene_, 2000);
         mjr_makeContext(mujoco_model_, &sensor_context_, mjFONTSCALE_150);
 
-        mjr_setBuffer(mjFB_OFFSCREEN, &sensor_context_);
+        mjr_setBuffer(mjFB_WINDOW, &sensor_context_);
 
         if (params_.color_image) {
             color_camera_info_publisher_ = nh_->create_publisher<sensor_msgs::msg::CameraInfo>("/" + name_ + "/color/camera_info", 10);
@@ -85,6 +93,8 @@ namespace mujoco_rgbd_camera {
         if (params_.point_cloud) {
             pointcloud_publisher_ = nh_->create_publisher<sensor_msgs::msg::PointCloud2>("/" + name_ + "/depth/points", 10);
         }
+        glfwMakeContextCurrent(context);
+
     }
 
     MujocoDepthCamera::~MujocoDepthCamera() {
@@ -98,14 +108,14 @@ namespace mujoco_rgbd_camera {
             // update dynamic parameters
             if (mujoco_data_->time - last_update >= 1.0 / frequency_) {
                 last_update = mujoco_data_->time;
+                auto context = glfwGetCurrentContext();
                 glfwMakeContextCurrent(window_);
 
                 // get framebuffer viewport
                 mjrRect viewport = {0, 0, 0, 0};
                 glfwGetFramebufferSize(window_, &viewport.width, &viewport.height);
                 set_camera_intrinsics(viewport);
-                mjv_updateScene(mujoco_model_, mujoco_data_, &sensor_option_, NULL, &rgbd_camera_, mjCAT_ALL,
-                                &sensor_scene_);
+                mjv_updateScene(mujoco_model_, mujoco_data_, &sensor_option_, NULL, &rgbd_camera_, mjCAT_ALL, &sensor_scene_);
 
                 // update scene and render
                 mjr_render(viewport, &sensor_scene_, &sensor_context_);
@@ -122,7 +132,10 @@ namespace mujoco_rgbd_camera {
                 publish_point_cloud();
                 publish_camera_info();
                 release_buffer();
+                glfwMakeContextCurrent(context);
             }
+            // glfwSwapBuffers(window_);
+            // glfwPollEvents();
         }
     }
 
@@ -157,6 +170,9 @@ namespace mujoco_rgbd_camera {
         color_buffer_ = (uchar*) malloc(viewport.height*viewport.width * 3);
         depth_buffer_ = (float*) malloc(viewport.height*viewport.width * 4);
         mjr_readPixels(color_buffer_, depth_buffer_, viewport, &sensor_context_);
+        if (!color_buffer_ || !depth_buffer_) {
+            RCLCPP_ERROR(nh_->get_logger(), "Failed to allocate color or depth buffer!");
+        }
 
         extent_ = mujoco_model_->stat.extent;
         z_near_ = mujoco_model_->vis.map.znear;
