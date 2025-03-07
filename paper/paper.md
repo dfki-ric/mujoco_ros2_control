@@ -91,10 +91,13 @@ Key aspects of this conversion process include:
 #### URDF-to-MJCF Conversion Workflow
 The following figure illustrates the **input-output structure** of the **URDF-to-MJCF (xacro2mjcf) script**, detailing how **ROS-based URDF models** are transformed into **MuJoCo-compatible MJCF files**.
 
-<figure>
+<!-- <figure>
   <img src="./figures/mujoco_ros2_control_flow_diagram_xacro2mjcf.svg" alt="Figure 1" width="300"/>
   <figcaption>Figure 1: Flow diagram of the inputs and outputs of the xacro2mjcf script</figcaption>
-</figure>
+</figure> -->
+
+![Flow diagram of the inputs and outputs of the xacro2mjcf script](./figures/mujoco_ros2_control_flow_diagram_xacro2mjcf.svg)
+
 
 ##### Collision Handling in MuJoCo
 MuJoCo represents **collision surfaces** using **convex hull approximations**, which may lead to inaccuracies when simulating **intricate mechanical parts**, such as **gear teeth and complex robot end-effectors**. To mitigate this issue, we employ **CoACD** [@wei2022coacd], a tool that **decomposes complex meshes into smaller convex sub-meshes**, allowing for a more precise and **realistic collision representation** within MuJoCo.
@@ -120,8 +123,6 @@ The following **MuJoCo state variables** are utilized:
 
 Since MuJoCo inherently operates with **torque-based control**, we have also implemented an **optional PID controller** that allows users to control joints using **position, velocity, or acceleration commands**, making it more flexible for different control strategies.
 
----
-
 ### 3. Sensor Integration
 
 MuJoCo provides a **diverse set of sensor models**, and **MujocoROS2Control** extends this functionality by offering a flexible and modular **ROS 2 sensor interface**.
@@ -139,7 +140,6 @@ Supported sensors include:
 
 Unlike traditional **ROS 2 control loops**, our sensor integration runs **outside the ROS 2 control cycle**, preventing **synchronization delays** and ensuring **accurate real-time sensor feedback**.
 
----
 
 ### 4. Visualization and GUI
 
@@ -151,12 +151,13 @@ To facilitate **real-time monitoring and debugging**, **MujocoROS2Control** inco
 - **Interactive simulation control**, allowing users to interact, pause, resume, and modify simulation parameters.
 ## System Architecture and Class Structure
 The class structure of MujocoROS2Control is designed to keep different functional components modular and independent while allowing seamless interaction. The diagram below illustrates the core classes and their interactions, showing how the URDF-MJCF converter, ROS 2 control interface, sensor integration, and visualization components are structured within the framework.
-<figure>
+<!-- <figure>
   <img src="./figures/simplified_class_diagram.svg" alt="Figure 2" width="600"/>
   <figcaption>Figure 2: Simplified class diagram of MujocoROS2Control</figcaption>
-</figure>
+</figure> -->
 
----
+![Simplified class diagram of MujocoROS2Control](./figures/simplified_class_diagram.svg)
+
 
 ## Helper Scripts
 
@@ -176,44 +177,62 @@ By incorporating these **helper scripts**, users can seamlessly **integrate ROS 
 ## Franka FR3 with IndustRealKit Gears
 In this example we show how to use a Franka FR3 from the official robot description [@franka_description] together with high detailed gears from the IndustRealKit [@tang2023industreal].
 In this example we use the [MuJoCo actuators](https://mujoco.readthedocs.io/en/latest/computation/index.html#geactuation) to generate the actuated joint torques, but it is also possible to use a PID controller via the ros2_control xacro config or direct torque control.
-<figure>
+<!-- <figure>
   <img src="./figures/franke_task_table_example_joint_trajectory_fr3.png" alt="Figure 3" width="600"/>
   <figcaption>Figure 3: Franka FP3 controlled with ros2 joint trajectory controller</figcaption>
-</figure>
+</figure> -->
+
+![Franka FP3 controlled with ROS 2 Joint Trajectory Controller](./figures/franke_task_table_example_joint_trajectory_fr3.png)
+
 To get the hight resolution collisions in mujoco, we use CoaCD [@wei2022coacd] to create multiple meshes from a single mesh, to have more detailed convex hulls around the shape of the object in MuJoCo (the replacement of the single mesh file with the new mesh files is done by the Xacro2Mjcf script, when the generated files are in a folder at the same place as the original mesh).
-<figure>
+<!-- <figure>
   <img src="./figures/IndustRealKit_gears.png" alt="Figure 4" width="600"/>
   <figcaption>Figure 4: Convex hull inside MuJoCo for the gears of the IndustRealKit [@tang2023industreal]</figcaption>
-</figure>
+</figure> -->
+
+![Convex hull inside MuJoCo for the gears of the IndustRealKit](./figures/IndustRealKit_gears.png)
+
 For simple perception tasks there is a OpenGL RGBD camera, that can be defined in the URDF.
-<figure>
+<!-- <figure>
   <img src="./figures/franka_rgbd_example.png" alt="Figure 5" width="600"/>
   <figcaption>Figure 5: RGBD Camera inside of mujoco</figcaption>
-</figure>
+</figure> -->
+
+![RGBD Camera inside of MuJoCo](./figures/franka_rgbd_example.png)
+
 
 ## Unitree H1
 In this example we use the [Unitree H1 description](https://github.com/unitreerobotics/unitree_ros/blob/master/robots/h1_description/urdf/h1_with_hand.urdf) with 51 DoG in a floating base (robot stands on ground) environment together with MuJoCo actuators to control the joints with joint position command interfaces.
-<figure>
+<!-- <figure>
   <img src="./figures/unitree_h1_example.png" alt="Figure 6" width="600"/>
   <figcaption>Figure 6: Unitree H1 with floating joint between world and pelvis</figcaption>
-</figure>
+</figure> -->
 
-## [IMRK](https://robotik.dfki-bremen.de/de/forschung/robotersysteme/imrk)
+![Unitree H1 with floating joint between world and pelvis](./figures/unitree_h1_example.png)
+
+## IMRK
 In this example we use imrk system of the DFKI Bremen. This Robot consist of two [Kuka LBR iiwa 14](https://www.kuka.com/-/media/kuka-downloads/imported/8350ff3ca11642998dbdc81dcc2ed44c/0000246833_en.pdf) and in this example we use a torque controller for both arms, position controllers with MuJoCo actuators for the robotiq grippers and Force Torque sensors for both end effectors.
-<figure>
+<!-- <figure>
   <img src="./figures/kuka_imrk_example.png" alt="Figure 7" width="600"/>
   <figcaption>Figure 7: IMRK with robotiq 2f Gripper and Robotiq FT300 Sensor</figcaption>
-</figure>
+</figure> -->
+
+![IMRK with Robotiq 2F Gripper and Robotiq FT300 Sensor](./figures/kuka_imrk_example.png)
+
 (The robot is not included in the examples, as the robot description is available only for internal use.)
+
+# Conclusion
+
+MujocoROS2Control facilitates the integration of MuJoCo with ROS 2, providing a structured framework for physics-based robotic simulation and control. By combining MuJoCo's physics engine with ROS 2's control architecture, this interface enables users to conduct simulations, validate robotic controllers, and explore reinforcement learning applications in a simulated environment.
+
+The ability to convert URDF robot models to MuJoCo-compatible MJCF format simplifies the adoption process, allowing users to integrate existing ROS 2-based robot descriptions with minimal modifications. Additionally, its support for actuators, sensors, and real-time visualization enhances the overall simulation workflow.
+
+Compared to other ROS 2-compatible simulation engines, MujocoROS2Control offers computational efficiency and flexible sensor and actuator configurations. These features make it particularly suitable for applications requiring force-based control, trajectory optimization, and reinforcement learning.
+
+Future improvements could include additional sensor modalities, enhanced multi-robot simulation capabilities, and improved real-time simulation. By refining this framework, MujocoROS2Control can continue to support a wide range of robotic research and development efforts.
 
 # Acknowledgements
 This library was initiated and developed at Robotics Innovation Center, German Research Center for Artificial Intelligence (DFKI GmbH) at Bremen, Germany as part of the HARTU Project. This project has received funding from the European Union’s research and innovation program Horizon Europe under grant agreement No. 101092100.
 
-<!---
-# Attachements
-<figure>
-  <img src="./figures/mujoco_ros2_control_class_diagram.svg" alt="Figure 8" width="600"/>
-  <figcaption>Figure 8: Class diagram of mujoco_ros2_control</figcaption>
-</figure>
--->
+
 # References
