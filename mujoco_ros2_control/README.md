@@ -134,7 +134,7 @@ Here are some guidelines on how to use the **MuJoCo ROS2 Control** effectively:
       
 ## License
 
-The **MuJoCo ROS2 Control** is released under the [GPL-3](LICENSE). Please review the license file for more information.
+The **MuJoCo ROS2 Control** is released under the [BSD 3-Clause](LICENSE). Please review the license file for more information.
 
 ## About
 

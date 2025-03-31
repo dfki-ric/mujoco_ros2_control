@@ -5,7 +5,7 @@
   <version>1.0.0</version>
   <description>mujoco_ros2_control</description>
   <maintainer email="adrian.danzglock@dfki.de">Adrian Danzglock</maintainer>
-  <license>Apache License 2.0</license>
+  <license>GPL3</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
   <buildtool_depend>ament_cmake_python</buildtool_depend>
@@ -13,7 +13,7 @@
   <depend>pluginlib</depend>
   <depend>rclcpp</depend>
   <depend>rclpy</depend>
-  <depend>realtime-tools</depend>
+  <depend>realtime_tools</depend>
   <depend>controller_manager</depend>
   <depend>hardware_interface</depend>
 
@@ -22,13 +22,13 @@
   <depend>geometry_msgs</depend>
   <depend>rosgraph_msgs</depend>
 
-  <depend>mujoco</depend>
-  <depend>glfw3</depend>
-  <depend>OpenCV</depend>
-  <depend>PCL</depend>
+  <!-- <depend>mujoco</depend> -->
+  <depend>libglfw3-dev</depend>
+  <depend>vision_opencv</depend>
+  <depend>perception_pcl</depend>
   <depend>pcl_conversions</depend>
   <depend>cv_bridge</depend>
-  <depend>Eigen3</depend>
+  <depend>eigen</depend>
 
 
   <test_depend>ament_lint_common</test_depend>

@@ -1,0 +1,188 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro" name="task_table">
+  <link name="world"/>
+  <mujoco>
+      <reference name="gears_base_link">
+					<geom friction="0.7" solimp="0.95 0.99 0.001" solref="0.004 1" priority="1"/>
+      </reference>
+      <reference name="gears_large_link">
+					<geom friction="0.7" solimp="0.95 0.99 0.001" solref="0.004 1" priority="1"/>
+      </reference>
+      <reference name="gears_medium_link">
+					<geom friction="0.7" solimp="0.95 0.99 0.001" solref="0.004 1" priority="1"/>
+      </reference>
+      <reference name="gears_small_link">
+					<geom friction="0.7" solimp="0.95 0.99 0.001" solref="0.004 1" priority="1"/>
+      </reference>
+      <sensor>
+        <!-- refname should match with a existing frame from the robot model -->
+        <framepos name="gears_large_pose" objtype="body" objname="gears_large_link" reftype="body" refname="world"/>
+        <framepos name="gears_medium_pose" objtype="body" objname="gears_medium_link" reftype="body" refname="world"/>
+        <framepos name="gears_small_pose" objtype="body" objname="gears_small_link" reftype="body" refname="world"/>
+        <framequat name="gears_large_quat" objtype="body" objname="gears_large_link" reftype="body" refname="world"/>
+        <framequat name="gears_medium_quat" objtype="body" objname="gears_medium_link" reftype="body" refname="world"/>
+        <framequat name="gears_small_quat" objtype="body" objname="gears_small_link" reftype="body" refname="world"/>
+      </sensor>
+  </mujoco>
+  
+
+  <link name="table_link">
+    <inertial>
+      <origin xyz="0 0 0.0" rpy="0 0 0"/>
+      <mass value="1.0"/>
+      <inertia ixx="0.001" ixy="0" ixz="0" iyy="0.001" iyz="0" izz="0.001"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <box size="0.4 0.4 0.01"/>
+      </geometry>
+      <material name="Wood">
+       <color rgba="0.91 0.81 0.71 1.0"/>
+     </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <box size="0.4 0.4 0.01"/>
+      </geometry>
+      <material name="Wood">
+       <color rgba="0.91 0.81 0.71 1.0"/>
+     </material>
+    </collision>
+  </link>
+
+  <link name="gears_base_link">
+    <inertial>
+      <origin xyz="0 0 0.0" rpy="0 0 0"/>
+      <mass value="1.0"/>
+      <inertia ixx="0.001" ixy="0" ixz="0" iyy="0.001" iyz="0" izz="0.001"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="file://$(find task_table_mujoco)/meshes/task_board/gears_base.stl" />
+      </geometry>
+      <material name="Red">
+       <color rgba="0.51 0.3 0.3 1.0"/>
+     </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="file://$(find task_table_mujoco)/meshes/task_board/gears_base.stl" />
+      </geometry>
+      <material name="Red">
+       <color rgba="0.51 0.3 0.3 1.0"/>
+     </material>
+    </collision>
+  </link>
+
+  <link name="gears_large_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.01"/>
+      <inertia ixx="0.001" ixy="0" ixz="0" iyy="0.001" iyz="0" izz="0.001"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="file://$(find task_table_mujoco)/meshes/task_board/gears_large.stl" />
+      </geometry>
+      <material name="Blue">
+       <color rgba="0.22 0.39 0.55 1.0"/>
+     </material>
+    </visual>
+    <collision name="gears_large_geom">
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="file://$(find task_table_mujoco)/meshes/task_board/gears_large.stl" />
+      </geometry>
+      <material name="Blue">
+       <color rgba="0.22 0.39 0.55 1.0"/>
+     </material>
+    </collision>
+  </link>
+
+  <link name="gears_medium_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.01"/>
+      <inertia ixx="0.001" ixy="0" ixz="0" iyy="0.001" iyz="0" izz="0.001"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="file://$(find task_table_mujoco)/meshes/task_board/gears_medium.stl" />
+      </geometry>
+      <material name="Blue">
+       <color rgba="0.22 0.39 0.55 1.0"/>
+     </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="file://$(find task_table_mujoco)/meshes/task_board/gears_medium.stl" />
+      </geometry>
+      <material name="Blue">
+       <color rgba="0.22 0.39 0.55 1.0"/>
+     </material>
+    </collision>
+  </link>
+
+  <link name="gears_small_link">
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="0.01"/>
+        <inertia ixx="0.001" ixy="0" ixz="0" iyy="0.001" iyz="0" izz="0.001"/>
+      </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="file://$(find task_table_mujoco)/meshes/task_board/gears_small.stl" />
+      </geometry>
+      <material name="Blue">
+       <color rgba="0.22 0.39 0.55 1.0"/>
+     </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="file://$(find task_table_mujoco)/meshes/task_board/gears_small.stl" />
+      </geometry>
+      <material name="Blue">
+       <color rgba="0.22 0.39 0.55 1.0"/>
+     </material>
+    </collision>
+  </link>
+
+  <joint name="joint_base_table_link" type="fixed">
+      <origin xyz="0.5 0.0 0.005" rpy="0 0 0"/>
+      <parent link="world"/>
+      <child link="table_link"/>
+	</joint>
+
+  <joint name="joint_base_gears_base_link" type="fixed">
+      <origin xyz="0. 0.0 0.015" rpy="0 0 0"/>
+      <parent link="table_link"/>
+      <child link="gears_base_link"/>
+	</joint>
+
+  <joint name="joint_base_gears_large_link" type="floating">
+      <origin xyz="0.4 -0.1 0.05" rpy="0 0 0"/>
+      <parent link="world"/>
+      <child link="gears_large_link"/>
+	</joint>
+
+  <joint name="joint_base_gears_medium_link" type="floating">
+      <origin xyz="0.4 0.0 0.05" rpy="0 0 0"/>
+			<parent link="world"/>
+			<child link="gears_medium_link"/>
+	</joint>
+
+  <joint name="joint_base_gears_small_link" type="floating">
+      <origin xyz="0.4 0.1 0.05" rpy="0 0 0"/>
+			<parent link="world"/>
+			<child link="gears_small_link"/>
+	</joint>
+</robot>

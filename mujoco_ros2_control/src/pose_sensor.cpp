@@ -1,3 +1,34 @@
+/**
+ * @file pose_sensor.cpp
+ * @brief This file contains the implementation of pose sensor.
+ *
+ * @author Adrian Danzglock
+ * @date 2023
+ *
+ * @license BSD 3-Clause License
+ * @copyright Copyright (c) 2023, DFKI GmbH
+ *
+ * Redistribution and use in source and binary forms, with or without modification, are permitted
+ * provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, this list of conditions
+ *    and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions
+ *    and the following disclaimer in the documentation and/or other materials provided with the distribution.
+ *
+ * 3. Neither the name of DFKI GmbH nor the names of its contributors may be used to endorse or promote
+ *    products derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+ * FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+ * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
+ * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
 #include "mujoco_ros2_sensors/pose_sensor.hpp"
 namespace mujoco_ros2_sensors {
 
@@ -7,8 +38,17 @@ namespace mujoco_ros2_sensors {
         this->mujoco_data_ = data;
         this->sensor_ = sensor;
 
-        this->publisher_ = nh_->create_publisher<geometry_msgs::msg::PoseStamped>("~/position", rclcpp::SystemDefaultsQoS());
-        this->pose_stamped_publisher_ = std::make_unique<PoseStampedPublisher>(publisher_);
+
+        //if (sensor_.position and sensor_.orientation) {
+            tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(this->nh_);
+        //} else {
+            this->publisher_ = nh_->create_publisher<geometry_msgs::msg::PoseStamped>("~/position", rclcpp::SystemDefaultsQoS());
+            this->pose_stamped_publisher_ = std::make_unique<PoseStampedPublisher>(publisher_);
+            pose_stamped_publisher_->lock();
+            pose_stamped_publisher_->msg_.header.frame_id = sensor_.frame_id;
+            pose_stamped_publisher_->unlock();
+        //}
+
 
         timer_ = nh_->create_wall_timer(
                 std::chrono::duration<double>(1.0 / frequency),
@@ -16,23 +56,42 @@ namespace mujoco_ros2_sensors {
     }
 
     void PoseSensor::update() {
-        if (pose_stamped_publisher_->trylock()) {
-            pose_stamped_publisher_->msg_.header.stamp = nh_->now();
-            pose_stamped_publisher_->msg_.header.frame_id = sensor_.frame_id;
-            if (sensor_.position) {
-                pose_stamped_publisher_->msg_.pose.position.x = mujoco_data_->sensordata[sensor_.position_sensor_adr];
-                pose_stamped_publisher_->msg_.pose.position.y = mujoco_data_->sensordata[sensor_.position_sensor_adr + 1];
-                pose_stamped_publisher_->msg_.pose.position.z = mujoco_data_->sensordata[sensor_.position_sensor_adr + 2];
-            }
+        //if (sensor_.position && sensor_.orientation) {
+            t_.header.stamp.sec = std::floor(mujoco_data_->time);
+            t_.header.stamp.nanosec = std::floor((mujoco_data_->time-std::floor(mujoco_data_->time))*1e9);
+            t_.header.frame_id = sensor_.frame_id;
+            t_.child_frame_id = sensor_.body_name;
 
-            if (sensor_.orientation) {
-                pose_stamped_publisher_->msg_.pose.orientation.w = mujoco_data_->sensordata[sensor_.orientation_sensor_adr];
-                pose_stamped_publisher_->msg_.pose.orientation.x = mujoco_data_->sensordata[sensor_.orientation_sensor_adr + 1];
-                pose_stamped_publisher_->msg_.pose.orientation.y = mujoco_data_->sensordata[sensor_.orientation_sensor_adr + 2];
-                pose_stamped_publisher_->msg_.pose.orientation.z = mujoco_data_->sensordata[sensor_.orientation_sensor_adr + 3];
-            }
+            t_.transform.translation.x = mujoco_data_->sensordata[sensor_.position_sensor_adr];
+            t_.transform.translation.y = mujoco_data_->sensordata[sensor_.position_sensor_adr + 1];
+            t_.transform.translation.z = mujoco_data_->sensordata[sensor_.position_sensor_adr + 2];
 
-            pose_stamped_publisher_->unlockAndPublish();
-        }
+            t_.transform.rotation.x = mujoco_data_->sensordata[sensor_.orientation_sensor_adr + 1];
+            t_.transform.rotation.y = mujoco_data_->sensordata[sensor_.orientation_sensor_adr + 2];
+            t_.transform.rotation.z = mujoco_data_->sensordata[sensor_.orientation_sensor_adr + 3];
+            t_.transform.rotation.w = mujoco_data_->sensordata[sensor_.orientation_sensor_adr];
+            tf_broadcaster_->sendTransform(t_);
+        //} else {
+            if (pose_stamped_publisher_->trylock()) {
+                pose_stamped_publisher_->msg_.header.stamp.sec = std::floor(mujoco_data_->time);
+                pose_stamped_publisher_->msg_.header.stamp.nanosec = std::floor((mujoco_data_->time-std::floor(mujoco_data_->time))*1e9);
+                //pose_stamped_publisher_->msg_.header.frame_id = sensor_.frame_id;
+                if (sensor_.position) {
+                    pose_stamped_publisher_->msg_.pose.position.x = mujoco_data_->sensordata[sensor_.position_sensor_adr];
+                    pose_stamped_publisher_->msg_.pose.position.y = mujoco_data_->sensordata[sensor_.position_sensor_adr + 1];
+                    pose_stamped_publisher_->msg_.pose.position.z = mujoco_data_->sensordata[sensor_.position_sensor_adr + 2];
+                }
+
+                if (sensor_.orientation) {
+                    pose_stamped_publisher_->msg_.pose.orientation.w = mujoco_data_->sensordata[sensor_.orientation_sensor_adr];
+                    pose_stamped_publisher_->msg_.pose.orientation.x = mujoco_data_->sensordata[sensor_.orientation_sensor_adr + 1];
+                    pose_stamped_publisher_->msg_.pose.orientation.y = mujoco_data_->sensordata[sensor_.orientation_sensor_adr + 2];
+                    pose_stamped_publisher_->msg_.pose.orientation.z = mujoco_data_->sensordata[sensor_.orientation_sensor_adr + 3];
+                }
+
+                pose_stamped_publisher_->unlockAndPublish();
+            }
+        //}
+
     }
 }

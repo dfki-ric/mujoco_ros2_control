@@ -2,27 +2,45 @@
 import subprocess
 
 import rclpy
+from ament_index_python.packages import get_package_share_directory
 from rclpy.node import Node
 import xml.etree.ElementTree as ET
 import os
 import uuid
 import collections
+import copy
+
+from urdf2mjcf import create_mjcf_from_urdf
 
 
-## @file xacro2mjcf.py
+# @file xacro2mjcf.py
 # @brief Converts Xacro and URDF files into Mujoco MJCF XML file.
 # @author Adrian Danzglock
 # @date 2023
 #
-# @license GNU General Public License, version 3 (GPL-3.0)
+# @license BSD 3-Clause License
 # @copyright Copyright (c) 2023, DFKI GmbH
 #
-# This file is governed by the GNU General Public License, version 3 (GPL-3.0).
-# The GPL-3.0 is a copyleft license that allows users to use, modify, and distribute software
-# while ensuring that these freedoms are passed on to subsequent users. It requires that any
-#  derivative works or modifications of the software be licensed under the GPL-3.0 as well.
-# You should have received a copy of the GNU General Public License along with this program.
-# If not, see https://www.gnu.org/licenses/gpl-3.0.html.
+# Redistribution and use in source and binary forms, with or without modification, are permitted
+# provided that the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice, this list of conditions
+#    and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions
+#    and the following disclaimer in the documentation and/or other materials provided with the distribution.
+#
+# 3. Neither the name of DFKI GmbH nor the names of its contributors may be used to endorse or promote
+#    products derived from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
+# IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+# FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+# IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
+# THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # This script is a ROS node that converts Xacro and URDF files into a Mujoco MJCF (MuJoCo Composite Format) XML file.
 # It takes a list of input files, including Xacro and URDF files, and a target output file path as parameters. Additionally,
@@ -69,18 +87,29 @@ class Xacro2Mjcf(Node):
             parameters=[
                 ('input_files', rclpy.Parameter.Type.STRING_ARRAY),
                 ('output_file', rclpy.Parameter.Type.STRING),
-                ('compile_executable', 'compile'),
                 ('robot_descriptions', rclpy.Parameter.Type.STRING_ARRAY),
                 ('mujoco_files_path', "/tmp/mujoco/"),
+                ('floating', False),
+                ('initial_position', "0 0 0"),
+                ('initial_orientation', "0 0 0"),
+                ('base_link', "")
             ]
         )
 
         # Get parameters
         input_files = self.get_parameter('input_files').value
         output_file = self.get_parameter('output_file').value
-        compile_executable = self.get_parameter('compile_executable').value
         robot_descriptions = self.get_parameter('robot_descriptions').value
         mujoco_files_path = self.get_parameter('mujoco_files_path').value
+
+        initial_position = self.get_parameter('initial_position').value # x y z
+        if len(initial_position.split(" ")) != 3:
+            initial_position = "0 0 0"
+        initial_orientation = self.get_parameter('initial_orientation').value # r p y
+        if len(initial_orientation.split(" ")) != 3:
+            initial_orientation = "0 0 0"
+        base_link = self.get_parameter('base_link').value
+        floating = self.get_parameter('floating').value
 
         # Remove trailing slash from mujoco_files_path
         if mujoco_files_path.split("/")[-1] == '':
@@ -127,6 +156,20 @@ class Xacro2Mjcf(Node):
                     urdf_tree = ET.parse(mujoco_files_path + '/tmp_' + name + '.urdf')
                     tmp_urdf_root = urdf_tree.getroot()
 
+                    if len(base_link) > 0:
+                        robot = tmp_urdf_root
+                        link = ET.Element("link", {"name": "world"})
+                        joint = ET.Element("joint", {"name": "world_to_base", "type": "floating" if floating else "fixed"})
+
+                        parent = ET.Element("parent", {"link": "world"})
+                        child = ET.Element("child", {"link": base_link})
+                        origin = ET.Element("origin", {"rpy": initial_orientation, "xyz": initial_position})
+                        joint.append(parent)
+                        joint.append(child)
+                        joint.append(origin)
+                        robot.insert(0, link)
+                        robot.insert(1, joint)
+
                     self.convert_camera_links(tmp_urdf_root)
                     self.correct_visual_mesh(tmp_urdf_root)
                     self.create_symlinks(tmp_urdf_root, mujoco_files_path)
@@ -135,12 +178,24 @@ class Xacro2Mjcf(Node):
                     ET.indent(output_tree, space="\t", level=0)
                     output_tree.write(mujoco_files_path + '/tmp_' + name + '.urdf')
 
-                    os.system(
-                        compile_executable + ' ' + mujoco_files_path + '/tmp_' + name + '.urdf ' +
-                        mujoco_files_path + '/tmp_' + name + '.xml')
+                    create_mjcf_from_urdf(mujoco_files_path + '/tmp_' + name + '.urdf', mujoco_files_path + '/tmp_' + name + '.xml')
                 else:
                     urdf_tree = ET.parse(filename)
                     tmp_urdf_root = urdf_tree.getroot()
+
+                    if base_link:
+                        robot = tmp_urdf_root
+                        link = ET.Element("link", {"name": "world"})
+                        joint = ET.Element("joint", {"name": "world_to_base", "type": "floating" if floating else "fixed"})
+
+                        parent = ET.Element("parent", {"link": "world"})
+                        child = ET.Element("child", {"link": base_link})
+                        origin = ET.Element("origin", {"rpy": initial_orientation, "xyz": initial_position})
+                        joint.append(parent)
+                        joint.append(child)
+                        joint.append(origin)
+                        robot.insert(0, link)
+                        robot.insert(1, joint)
 
                     self.convert_camera_links(tmp_urdf_root)
                     self.correct_visual_mesh(tmp_urdf_root)
@@ -149,13 +204,18 @@ class Xacro2Mjcf(Node):
                     output_tree = ET.ElementTree(tmp_urdf_root)
                     ET.indent(output_tree, space="\t", level=0)
                     output_tree.write(mujoco_files_path + '/tmp_' + filename.split('/')[-1])
-                    os.system(compile_executable + ' ' + mujoco_files_path + '/tmp_' + filename.split('/')[-1] + ' ' +
-                              mujoco_files_path + '/tmp_' + name + '.xml')
+                    create_mjcf_from_urdf(mujoco_files_path + '/tmp_' + filename.split('/')[-1], mujoco_files_path + '/tmp_' + name + '.xml')
 
                 self.urdf_root = urdf_tree.getroot()
                 mjcf_tree = ET.parse(mujoco_files_path + '/tmp_' + name + '.xml')
 
                 self.mjcf_root = mjcf_tree.getroot()
+
+
+                # if base_link and floating:
+                #     base_link_body = self.mjcf_root.find(".//body[@name='{}']".format(base_link))
+                #     joint = ET.Element("joint", {"name": "world_to_base", "type": "free"})
+                #     base_link_body.insert(1, joint)
 
                 # Add limited=true to all joints with range (limits)
                 joints = self.get_elements(self.mjcf_root, 'joint', 'range')
@@ -167,15 +227,20 @@ class Xacro2Mjcf(Node):
                 parent_map = {c: p for p in mjcf_tree.iter() for c in p}
                 if mujoco is not None:
                     for element in mujoco:
+                        # TODO: reference for geom by name
                         if element.tag == 'reference':
                             reference_name = element.attrib['name']
                             mj_elements = self.get_elements(self.mjcf_root, 'body', 'name', reference_name)
                             if mj_elements:
                                 for child in element:
+                                    if 'camera' in child.tag:
+                                        mj_elements[0].insert(0, child)
                                     if 'body' in child.tag:
                                         for attrib in child.attrib:
                                             mj_elements[0].set(attrib, child.attrib[attrib])
-                                            self.get_logger().info("added attrib " + str(child.tag))
+                                            self.get_logger().debug("added attrib " + str(child.tag))
+                                    if 'site' in child.tag:
+                                        mj_elements[0].insert(0, child)
 
                                     else:
                                         if 'name' in child.attrib:
@@ -188,7 +253,7 @@ class Xacro2Mjcf(Node):
                                                 for tag_element in tag_elements:
                                                     if parent_map.get(tag_element) == mj_elements[0]:
                                                         tag_element.set(attrib, child.attrib[attrib])
-                                                        self.get_logger().info("added attrib " + str(child.attrib) + " to " + str(child.tag))
+                                                        self.get_logger().debug("added attrib " + str(child.attrib) + " to " + str(child.tag))
                                         elif not 'name' in child.attrib:
                                             mj_elements[0].insert(0, child)
                             else:
@@ -215,7 +280,6 @@ class Xacro2Mjcf(Node):
                                 # If the child element doesn't exist in the second element, add it to the second element
                                 out_option.append(child)
 
-
                 if mjcf_tree.find('asset') is not None:
                     for element in mjcf_tree.find('asset'):
                         exist = False
@@ -240,7 +304,7 @@ class Xacro2Mjcf(Node):
                 self.destroy_node()
                 rclpy.shutdown()
 
-        self.get_logger().info(str([item for item, count in collections.Counter(out_assets).items() if count > 1]))
+        self.get_logger().debug(str([item for item, count in collections.Counter(out_assets).items() if count > 1]))
         # mesh_names = []
         # assets = []
         # for mesh in out_assets:
@@ -259,9 +323,33 @@ class Xacro2Mjcf(Node):
         ET.indent(output_tree, space="\t", level=0)
         output_tree.write(output_file)
 
-        self.get_logger().info("Saved mjcf xml file under " + output_file)
+        self.get_logger().debug(f"Saved mjcf xml file under {output_file}")
         self.destroy_node()
         exit(0)
+
+    def add_composite_collisions(self, urdf_root):
+        for link in self.get_elements(urdf_root, "link"):
+            collisions_to_replace = []
+            filenames = []
+            for collision in self.get_elements(link, "collision"):
+                meshes = self.get_elements(collision, "mesh")
+                for mesh in meshes:
+                    mesh_filename = mesh.get('filename')
+                    if mesh_filename:
+                        folder_path = mesh_filename[7:-4]
+                        if os.path.exists(folder_path):
+                            collisions_to_replace.append(collision)
+                            filenames.append([os.path.join(folder_path, filename) for filename in os.listdir(folder_path)])
+            for i, collision in enumerate(collisions_to_replace):
+                for filename in filenames[i]:
+                    self.get_logger().debug(filename)
+                    collision_replacement_template = copy.deepcopy(collision)
+                    mesh = self.get_elements(collision_replacement_template, "mesh")[-1]
+                    mesh.attrib['filename'] = "file://" + filename
+                    link.append(collision_replacement_template)
+                link.remove(collision)
+
+
 
     def get_elements(self, parent, tag, attrib=None, value=None):
         elements = []
@@ -278,14 +366,24 @@ class Xacro2Mjcf(Node):
         return elements
 
     def create_symlinks(self, urdf_root, mujoco_files_path):
+        self.add_composite_collisions(urdf_root)
         # Create symlinks to used meshes in the tmp folder
         for mesh in self.get_elements(urdf_root, "mesh"):
             filename = mesh.get('filename')
             if filename:
-                source_file = filename[7:]
-                target_file = mujoco_files_path + "/meshes/" + source_file.replace("/", "_")
+                source_file = None
+                if filename[:7] == "file://":
+                    source_file = filename[7:]
+                elif filename[:10] == "package://":
+                    file_name = filename[10:].split('/')
+                    package_path = get_package_share_directory(file_name[0])
+                    source_file = os.path.join(package_path, *file_name[1:])
+                target_file = mujoco_files_path + "/meshes/" + source_file.replace("/", "_").replace(":", "_")
+
                 if source_file[-3:] == "stl" or source_file[-3:] == "STL" or \
-                   source_file[-3:] == "msh" or source_file[-3] == "MSH":
+                   source_file[-3:] == "obj" or source_file[-3:] == "OBJ" or \
+                   source_file[-3:] == "msh" or source_file[-3:] == "MSH":
+                    self.get_logger().debug(f'mesh source file: {source_file}, target_file: {target_file}')
                     if not os.path.exists(target_file):
                         os.symlink(source_file, target_file)
                     mesh.attrib['filename'] = "file://" + target_file
@@ -326,7 +424,7 @@ class Xacro2Mjcf(Node):
             if len(mujoco_elements) > 1:
                 for mujoco_element in self.get_elements(tmp_urdf_root, "mujoco")[1:]:
                     for element in mujoco_element:
-                        self.get_logger().info(str(element))
+                        self.get_logger().debug(str(element))
                         mujoco_elements[0].append(element)
                     tmp_urdf_root.remove(mujoco_element)
 
@@ -335,7 +433,7 @@ class Xacro2Mjcf(Node):
             reference_elements = self.get_elements(mujoco, "reference")
             if reference_elements is not None:
                 for reference in reference_elements:
-                    self.get_logger().info(str(reference.get("name")))
+                    self.get_logger().debug(str(reference.get("name")))
                     if reference.find("camera") is not None:
                         camera_links.append(reference.get("name"))
 

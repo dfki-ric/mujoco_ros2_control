@@ -1,8 +1,10 @@
 .idea/
 .vscode/
+__pycache__/
 */build/
 cmake-build-debug/
 */old/
+*/__pycache__/
 venv/
 docs/html
 docs/man

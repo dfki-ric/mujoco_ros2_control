@@ -12,8 +12,11 @@ if(NOT CMAKE_CXX_STANDARD)
 endif()
 
 add_compile_options(-g)
+
 set(CMAKE_BUILD_TYPE Debug)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0")
+
+set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 
 set(OpenGL_GL_PREFERENCE LEGACY)
 
@@ -35,13 +38,28 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
         cv_bridge
         generate_parameter_library
         Eigen3
+        tf2_ros
         )
 foreach(Dependency IN ITEMS ${THIS_PACKAGE_INCLUDE_DEPENDS})
     find_package(${Dependency} REQUIRED)
 endforeach()
 
-find_package(mujoco 3.0.0 REQUIRED)
-add_subdirectory(${CMAKE_SOURCE_DIR}/libsimulate)
+find_package(mujoco 3.2.7 REQUIRED)
+
+# find_package(mujoco_ros2_control_simulate_gui QUIET)
+# if(mujoco_ros2_control_simulate_gui_FOUND)
+#     set(USE_LIBSIMULATE ON CACHE BOOL "Use LibSimulate" FORCE)
+#     message("Setting USE_LIBSIMULATE to: ${USE_LIBSIMULATE}")
+# endif()
+
+# Add libsimulate
+set(USE_LIBSIMULATE ON CACHE BOOL "Use LibSimulate" FORCE)
+message("Setting USE_LIBSIMULATE to: ${USE_LIBSIMULATE}")
+
+
+# Configure the header file with CMake variables
+configure_file(cmake/config.h.in ${CMAKE_BINARY_DIR}/config.h)
+
 ## Specify additional locations of header files
 add_definitions(
         ${rclcpp_DEFINITIONS}
@@ -58,6 +76,7 @@ include_directories(
         ${OpenCV_INCLUDE_DIRS}
         ${PCL_INCLUDE_DIRS}
         ${pcl_conversions_INCLUDE_DIRS}
+        ${CMAKE_CURRENT_SOURCE_DIR}/libsimulate
 )
 
 generate_parameter_library(${PROJECT_NAME}_parameters
@@ -78,22 +97,13 @@ ament_target_dependencies(mujoco_system_plugins
         urdf
         )
 
-
-add_library(mujoco_visualization src/mujoco_visualization.cpp)
-ament_target_dependencies(mujoco_visualization
-        rclcpp
-        glfw3
-        )
-#target_link_libraries(mujoco_visualization
-#        mujoco::libsimulate
-#        )
-
-
 add_executable(${PROJECT_NAME}
         src/mujoco_ros2_control_plugin.cpp
         src/mujoco_depth_camera.cpp
-        src/pose_sensor.cpp src/mujoco_ros2_sensors.cpp
-        src/simulate_gui.cpp)
+        src/pose_sensor.cpp 
+        src/wrench_sensor.cpp
+        src/mujoco_ros2_sensors.cpp
+        )
 ament_target_dependencies(${PROJECT_NAME}
         controller_manager
         hardware_interface
@@ -106,17 +116,59 @@ ament_target_dependencies(${PROJECT_NAME}
         cv_bridge
         PCL
         pcl_conversions
+        tf2_ros
         )
-target_link_libraries(
-        mujoco_ros2_control
-        mujoco_visualization
+
+target_link_libraries(${PROJECT_NAME}
         mujoco
         glfw
         ${PCL_LIBRARIES}
         ${PROJECT_NAME}_parameters
         mujoco_rgbd_camera_parameters
-        mujoco::libsimulate
+        )
+
+#if(...)
+add_subdirectory(libsimulate)
+# Build shared library
+add_library(simulate_gui SHARED src/simulate_gui.cpp)
+
+target_include_directories(simulate_gui PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/libsimulate
 )
+
+target_link_libraries(simulate_gui PUBLIC
+    glfw
+)
+
+target_link_libraries(simulate_gui PRIVATE
+    mujoco::libsimulate
+    mujoco::platform_ui_adapter
+)
+target_link_libraries(${PROJECT_NAME} simulate_gui)
+
+
+install(TARGETS
+        simulate_gui
+        DESTINATION lib
+        )
+# else()
+#     add_library(mujoco_visualization
+#             src/mujoco_visualization.cpp)
+#     ament_target_dependencies(mujoco_visualization
+#             rclcpp
+#             glfw3
+#             )
+#     target_link_libraries(${PROJECT_NAME}
+#             mujoco_visualization
+#             )
+
+#     install(TARGETS
+#             mujoco_visualization
+#             DESTINATION lib
+#             )
+# endif()
+
+target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR})
 
 ## Install
 install(TARGETS
@@ -131,17 +183,13 @@ install(TARGETS
         RUNTIME DESTINATION bin
         )
 
-install(TARGETS
-        mujoco_visualization
-        DESTINATION lib
-        )
-
 install(DIRECTORY mjcf DESTINATION share/${PROJECT_NAME}/)
 
 ament_python_install_package(scripts)
 
 install(PROGRAMS
         scripts/xacro2mjcf.py
+        scripts/urdf2mjcf.py
         DESTINATION lib/${PROJECT_NAME})
 
 ament_export_include_directories(

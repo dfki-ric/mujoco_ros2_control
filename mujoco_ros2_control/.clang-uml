@@ -1,0 +1,20 @@
+# Change to directory where compile_commands.json is
+compilation_database_dir: .
+# Change to directory where diagram should be written
+output_directory: docs/diagrams
+diagrams:
+  example_class_diagram:
+    type: class
+    glob:
+      - src/*.cpp
+    using_namespace:
+      - mujoco_ros2_control
+    include:
+      namespaces:
+        - mujoco_ros2_control
+        - mujoco_rgbd_camera
+        - mujoco_rgbd_sensors
+        - mujoco_ros2_control_simulate_gui
+    exclude:
+      namespaces:
+        - mujoco_ros2_contro::rclcpp::rclcpp

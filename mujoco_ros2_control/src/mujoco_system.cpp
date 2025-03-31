@@ -5,15 +5,29 @@
  * @author Adrian Danzglock
  * @date 2023
  *
- * @license GNU General Public License, version 3 (GPL-3.0)
+ * @license BSD 3-Clause License
  * @copyright Copyright (c) 2023, DFKI GmbH
  *
- * This file is governed by the GNU General Public License, version 3 (GPL-3.0).
- * The GPL-3.0 is a copyleft license that allows users to use, modify, and distribute software
- * while ensuring that these freedoms are passed on to subsequent users. It requires that any
- *  derivative works or modifications of the software be licensed under the GPL-3.0 as well.
- * You should have received a copy of the GNU General Public License along with this program.
- * If not, see https://www.gnu.org/licenses/gpl-3.0.html.
+ * Redistribution and use in source and binary forms, with or without modification, are permitted
+ * provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, this list of conditions
+ *    and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions
+ *    and the following disclaimer in the documentation and/or other materials provided with the distribution.
+ *
+ * 3. Neither the name of DFKI GmbH nor the names of its contributors may be used to endorse or promote
+ *    products derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+ * FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+ * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
+ * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
  * This code is a modified version of the original code from Open Source Robotics Foundation, Inc.
@@ -32,7 +46,7 @@
  * limitations under the License.
  */
 
-#include "mujoco_ros2_control/mujoco_system.hpp"
+#include <mujoco_ros2_control/mujoco_system.hpp>
 
 namespace mujoco_ros2_control {
 
@@ -45,6 +59,16 @@ namespace mujoco_ros2_control {
         this->mujoco_data_ = mujoco_data;
 
         registerJoints(hardware_info, urdf_model_ptr->joints_);
+
+        std::vector<std::string> joints_to_remove = {};
+        for (const auto &joint : joints_) {
+            if (joint.first != joint.second.name) {
+                joints_to_remove.push_back(joint.first);
+            }
+        }
+        for (const auto &joint : joints_to_remove) {
+            joints_.erase(joint);
+        }
         return true;
     }
 
@@ -58,8 +82,11 @@ namespace mujoco_ros2_control {
                 return default_value;
             }
         };
+        name_ = hardware_info.name;
 
+        RCLCPP_INFO(rclcpp::get_logger(hardware_info.name.c_str()), "Initializing Hardware Interface");
         for (auto& joint_info : hardware_info.joints) {
+            RCLCPP_INFO(rclcpp::get_logger(hardware_info.name.c_str()), "  %s", joint_info.name.c_str());
             if (joints.find(joint_info.name) == joints.end()) {
                 RCLCPP_WARN(rclcpp::get_logger("mujoco_system"),
                             "Joint %s was not found in the URDF, registration of joint failed", joint_info.name.c_str());
@@ -82,18 +109,21 @@ namespace mujoco_ros2_control {
                 joint.lower_limit = joints.at(joint.name)->limits->lower;
             }
 
-            if (joint.type == urdf::Joint::REVOLUTE || joint.type == urdf::Joint::PRISMATIC ||
-                joint.type == urdf::Joint::CONTINUOUS || joint.type == urdf::Joint::FLOATING ||
-                joint.type == urdf::Joint::PLANAR) {
+            // Limiting actuators like this can add a joint limit margin
+            /*if (joint.type == urdf::Joint::REVOLUTE || joint.type == urdf::Joint::PRISMATIC ||
+                joint.type == urdf::Joint::CONTINUOUS) {
                 if (joints.at(joint.name)->limits != nullptr) {
                     joint.velocity_limit = joints.at(joint.name)->limits->velocity;
                     joint.effort_limit = joints.at(joint.name)->limits->effort;
                     if (joint.effort_limit != 0.0) {
+                        // FIx the joint margin
                         mujoco_model_->jnt_actfrclimited[joint.mujoco_dofadr] = 1;
+                        mujoco_model_->jnt_actfrcrange[joint.mujoco_dofadr*2] = -joint.effort_limit;
                         mujoco_model_->jnt_actfrcrange[joint.mujoco_dofadr*2+1] = joint.effort_limit;
+                        //mujoco_model_->jnt_margin[joint.mujoco_dofadr] = 0;
                     }
                 }
-            }
+            }*/
 
             for (auto& param : joint_info.parameters) {
                 if (param.first == "p" || param.first == "kp") {
@@ -192,6 +222,7 @@ namespace mujoco_ros2_control {
                             hardware_interface::HW_IF_VELOCITY,
                             &joint.velocity_command));
                     joint.velocity_command = string_to_double(command_interface.initial_value);
+                    joint.control_methods.push_back(VELOCITY);
                 } else if (command_interface.name == "acceleration") {
                     joint.acceleration = string_to_double(command_interface.initial_value);
                     joint.command_interfaces.emplace_back(&command_interfaces_.emplace_back(
@@ -199,6 +230,7 @@ namespace mujoco_ros2_control {
                             hardware_interface::HW_IF_ACCELERATION,
                             &joint.acceleration_command));
                     joint.effort_command = string_to_double(command_interface.initial_value);
+                    joint.control_methods.push_back(ACCELERATION);
                 } else if (command_interface.name == "effort") {
                     joint.effort = string_to_double(command_interface.initial_value);
                     joint.command_interfaces.emplace_back(&command_interfaces_.emplace_back(
@@ -206,6 +238,7 @@ namespace mujoco_ros2_control {
                             hardware_interface::HW_IF_EFFORT,
                             &joint.effort_command));
                     joint.effort_command = string_to_double(command_interface.initial_value);
+                    joint.control_methods.push_back(EFFORT);
                 }
             }
 
@@ -230,6 +263,7 @@ namespace mujoco_ros2_control {
 
             mj_forward(mujoco_model_, mujoco_data_);
         }
+        
 
         for (int mujoco_actuator_id = 0; mujoco_actuator_id < mujoco_model_->nu; mujoco_actuator_id++) {
             std::string joint_name = mj_id2name(mujoco_model_, mjOBJ_JOINT, mujoco_model_->actuator_trnid[mujoco_actuator_id*2]);
@@ -312,7 +346,6 @@ namespace mujoco_ros2_control {
     MujocoSystem::perform_command_mode_switch(
             const std::vector<std::string> &start_interfaces,
             const std::vector<std::string> &stop_interfaces) {
-
         for (auto& joint : joints_) {
             std::vector<ControlMethod> & control_methods = joint.second.control_methods;
             for (const std::string &interface_name : stop_interfaces) {
@@ -383,11 +416,16 @@ namespace mujoco_ros2_control {
         }
 
         for (auto &joint_data: joints_) {
+            if (joint_data.first != joint_data.second.name) {
+                continue;
+            }
             auto &joint = joint_data.second;
             auto & actuators = joint.actuators;
             auto & control_methods = joint.control_methods;
             auto &pid = joint.pid;
             double tau = 0.0;
+            pid.position = false;
+            pid.velocity = false;
 
             // Position Control
             if (std::find(control_methods.begin(), control_methods.end(), POSITION) != control_methods.end()) {
@@ -416,7 +454,6 @@ namespace mujoco_ros2_control {
                     tau = pid.kp * position_error + pid.ki * pid.integral + pid.kd * derivative;
                     pid.prev_error = position_error;
                 }
-
             }
 
             // Velocity Control
@@ -470,7 +507,6 @@ namespace mujoco_ros2_control {
 
                 // Reset flags for used input commands to calculate tau
                 pid.position = pid.velocity = false;
-
             }
 
             // Effort Control
@@ -482,6 +518,7 @@ namespace mujoco_ros2_control {
                 // check if an actuator is available
                 if (actuators.find(EFFORT) != actuators.end()) {
                     mujoco_data_->ctrl[actuators[EFFORT]] = effort;
+                    continue;
                 } else {
                     // write to effort address from the joint
                     mujoco_data_->qfrc_applied[joint.mujoco_dofadr] = effort;

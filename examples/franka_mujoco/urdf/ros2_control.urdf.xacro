@@ -1,0 +1,61 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+<xacro:macro name="franka_arm_ros2_control" 
+             params="arm_id 
+                     ee_id
+                     robot_ip
+                     mujoco
+                     mujoco_effort
+                     use_fake_hardware
+                     fake_sensor_commands">
+    <ros2_control name="FrankaHardwareInterface" type="system">
+        <hardware>
+          <param name="arm_id">${arm_id}</param>
+          <xacro:if value="${use_fake_hardware}">
+            <plugin>fake_components/GenericSystem</plugin>
+            <param name="fake_sensor_commands">${fake_sensor_commands}</param>
+            <param name="state_following_offset">0.0</param>
+          </xacro:if>
+          <xacro:if value="${mujoco}">
+            <plugin>mujoco_ros2_control/MujocoSystem</plugin>
+          </xacro:if>
+          <xacro:if value="${use_fake_hardware == 0 and mujoco == 0}">
+            <plugin>franka_hardware/FrankaHardwareInterface</plugin>
+            <param name="robot_ip">${robot_ip}</param>
+          </xacro:if>
+        </hardware>
+
+      <xacro:macro name="configure_joint" params="joint_name initial_position">
+        <joint name="${joint_name}">
+          <xacro:if value="${mujoco == 0 or mujoco_effort == 1}">
+            <command_interface name="effort"/>
+          </xacro:if>
+          <command_interface name="velocity"/>
+          <command_interface name="position"/>
+          <state_interface name="position">
+            <param name="initial_value">${initial_position}</param>
+          </state_interface>
+          <state_interface name="velocity"/>
+            <param name="initial_value">0.0</param>
+          <state_interface name="effort"/>
+        </joint>
+      </xacro:macro>
+
+      <xacro:configure_joint joint_name="${arm_id}_joint1" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="${arm_id}_joint2" initial_position="${-pi/4}"/>
+      <xacro:configure_joint joint_name="${arm_id}_joint3" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="${arm_id}_joint4" initial_position="${-3*pi/4}"/>
+      <xacro:configure_joint joint_name="${arm_id}_joint5" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="${arm_id}_joint6" initial_position="${pi/2}"/>
+      <xacro:configure_joint joint_name="${arm_id}_joint7" initial_position="${pi/4}"/>
+      <xacro:if value="${mujoco and ee_id == 'franka_hand'}">
+        <xacro:configure_joint joint_name="${arm_id}_finger_joint1" initial_position="0.0" />
+        <!-- Mimiced joints must also be included in ros2_control, then they are mimiced -->
+        <xacro:configure_joint joint_name="${arm_id}_finger_joint2" initial_position="0.0" />
+      </xacro:if>
+
+    </ros2_control>
+
+  </xacro:macro>
+</robot>

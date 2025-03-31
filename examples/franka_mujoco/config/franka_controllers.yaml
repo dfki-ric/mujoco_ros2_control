@@ -1,0 +1,134 @@
+controller_manager:
+  ros__parameters:
+    update_rate: 500  # Hz
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+    fer_joint_trajectory_controller:
+      type: "joint_trajectory_controller/JointTrajectoryController"
+
+    fp3_joint_trajectory_controller:
+      type: "joint_trajectory_controller/JointTrajectoryController"
+
+    fr3_joint_trajectory_controller:
+      type: "joint_trajectory_controller/JointTrajectoryController"
+
+    fer_franka_hand_joint_trajectory_controller:
+      type: "joint_trajectory_controller/JointTrajectoryController"
+
+    fp3_franka_hand_joint_trajectory_controller:
+      type: "joint_trajectory_controller/JointTrajectoryController"
+
+    fr3_franka_hand_joint_trajectory_controller:
+      type: "joint_trajectory_controller/JointTrajectoryController"
+
+fer_joint_trajectory_controller:
+  ros__parameters:
+    joints:
+      - fer_joint1
+      - fer_joint2
+      - fer_joint3
+      - fer_joint4
+      - fer_joint5
+      - fer_joint6
+      - fer_joint7
+
+    command_interfaces:
+      - position
+      - velocity
+
+    state_interfaces:
+      - position
+      - velocity
+
+    open_loop_control: true
+
+fp3_joint_trajectory_controller:
+  ros__parameters:
+    joints:
+      - fp3_joint1
+      - fp3_joint2
+      - fp3_joint3
+      - fp3_joint4
+      - fp3_joint5
+      - fp3_joint6
+      - fp3_joint7
+
+    command_interfaces:
+      - position
+      - velocity
+
+    state_interfaces:
+      - position
+      - velocity
+
+    open_loop_control: true
+
+fr3_joint_trajectory_controller:
+  ros__parameters:
+    joints:
+      - fr3_joint1
+      - fr3_joint2
+      - fr3_joint3
+      - fr3_joint4
+      - fr3_joint5
+      - fr3_joint6
+      - fr3_joint7
+
+    command_interfaces:
+      - position
+      - velocity
+
+    state_interfaces:
+      - position
+      - velocity
+
+    open_loop_control: true
+
+fer_franka_hand_joint_trajectory_controller:
+  ros__parameters:
+    joints:
+      - fer_finger_joint1
+
+    command_interfaces:
+      - position
+      - velocity
+
+    state_interfaces:
+      - position
+      - velocity
+
+    open_loop_control: true
+
+fp3_franka_hand_joint_trajectory_controller:
+  ros__parameters:
+    joints:
+      - fp3_finger_joint1
+
+    command_interfaces:
+      - position
+      - velocity
+
+    state_interfaces:
+      - position
+      - velocity
+
+    open_loop_control: true
+
+fr3_franka_hand_joint_trajectory_controller:
+  ros__parameters:
+    joints:
+      - fr3_finger_joint1
+
+    command_interfaces:
+      - position
+      - velocity
+
+    state_interfaces:
+      - position
+      - velocity
+
+    open_loop_control: true
+
+    

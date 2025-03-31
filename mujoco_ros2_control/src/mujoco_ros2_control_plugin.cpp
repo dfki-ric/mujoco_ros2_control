@@ -5,16 +5,29 @@
 *
 * @author Adrian Danzglock
 * @date 2023
- *
- * @license GNU General Public License, version 3 (GPL-3.0)
- * @copyright Copyright (c) 2023, DFKI GmbH
- *
- * This file is governed by the GNU General Public License, version 3 (GPL-3.0).
- * The GPL-3.0 is a copyleft license that allows users to use, modify, and distribute software
- * while ensuring that these freedoms are passed on to subsequent users. It requires that any
- *  derivative works or modifications of the software be licensed under the GPL-3.0 as well.
- * You should have received a copy of the GNU General Public License along with this program.
- * If not, see https://www.gnu.org/licenses/gpl-3.0.html.
+* @license BSD 3-Clause License
+* @copyright Copyright (c) 2023, DFKI GmbH
+*
+* Redistribution and use in source and binary forms, with or without modification, are permitted
+* provided that the following conditions are met:
+*
+* 1. Redistributions of source code must retain the above copyright notice, this list of conditions
+*    and the following disclaimer.
+*
+* 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions
+*    and the following disclaimer in the documentation and/or other materials provided with the distribution.
+*
+* 3. Neither the name of DFKI GmbH nor the names of its contributors may be used to endorse or promote
+*    products derived from this software without specific prior written permission.
+*
+* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
+* IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+* FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+* CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+* DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+* IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
+* THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *
 *
 * The init_controller_manager method contains a modified version of the original code from Cyberbotics Ltd.
@@ -74,14 +87,17 @@ namespace mujoco_ros2_control {
         mujoco_start_time_ = mujoco_data_->time;
 
         clock_gettime(CLOCK_MONOTONIC, &startTime_);
-        //mj_vis_.init(mujoco_model_, mujoco_data_, show_gui_);
+#ifdef USE_LIBSIMULATE
         mj_vis_.init(mujoco_model_, mujoco_data_);
+#else
+        mj_vis_.init(mujoco_model_, mujoco_data_, show_gui_);
+#endif
 
         registerSensors();
         RCLCPP_INFO(nh_->get_logger(), "Sim environment setup complete");
     }
 
-    MujocoRos2Control::~MujocoRos2Control() 
+    MujocoRos2Control::~MujocoRos2Control()
     {
         stop_.store(true);
         for (auto &thread : camera_threads_) {
@@ -95,6 +111,7 @@ namespace mujoco_ros2_control {
 
         // deallocate existing mjData
         mj_deleteData(mujoco_data_);
+
         mj_vis_.terminate();
     }
 
@@ -104,28 +121,33 @@ namespace mujoco_ros2_control {
         param_listener_->refresh_dynamic_parameters();
         params_ = param_listener_->get_params();
         // run until the next frame must be rendered with 60Hz
-        while( mujoco_data_->time - simstart < 1.0/60.0 ) {
-            // check that mujoco is not faster than the expected realtime factor
-            clock_gettime(CLOCK_MONOTONIC, &currentTime);
-            if (double (currentTime.tv_sec-startTime_.tv_sec) + double (currentTime.tv_nsec-startTime_.tv_nsec) / 1e9 >= (mujoco_data_->time-mujoco_start_time_)*params_.real_time_factor) {
-                publish_sim_time();
-                rclcpp::Time sim_time_ros = rclcpp::Time((int64_t) (mujoco_data_->time * 1e+9), RCL_ROS_TIME);
-                rclcpp::Duration sim_period = sim_time_ros - last_update_sim_time_ros_;
+        if (mj_vis_.sim->run) {
+            while( mujoco_data_->time - simstart < 1.0/60.0 ) {
+                // check that mujoco is not faster than the expected realtime factor
+                clock_gettime(CLOCK_MONOTONIC, &currentTime);
+                if (double (currentTime.tv_sec-startTime_.tv_sec) + double (currentTime.tv_nsec-startTime_.tv_nsec) / 1e9 >= (mujoco_data_->time-mujoco_start_time_)*params_.real_time_factor) {
+                    publish_sim_time();
+                    rclcpp::Time sim_time_ros = rclcpp::Time((int64_t) (mujoco_data_->time * 1e+9), RCL_ROS_TIME);
+                    rclcpp::Duration sim_period = sim_time_ros - last_update_sim_time_ros_;
 
-                // check if we should update the controllers
-                if (sim_period >= control_period_) {
-                    // store simulation time
-                    last_update_sim_time_ros_ = sim_time_ros;
-                    // update the robot simulation with the state of the mujoco model
-                    controller_manager_->read(sim_time_ros, sim_period);
-                    // compute the controller commands
-                    controller_manager_->update(sim_time_ros, sim_period);
-                    // update the mujoco model with the result of the controller
-                    controller_manager_->write(sim_time_ros, sim_period);
+                    // check if we should update the controllers
+                    if (sim_period >= control_period_) {
+                        // store simulation time
+                        last_update_sim_time_ros_ = sim_time_ros;
+                        // update the robot simulation with the state of the mujoco model
+                        controller_manager_->read(sim_time_ros, sim_period);
+                        // compute the controller commands
+                        controller_manager_->update(sim_time_ros, sim_period);
+                        // update the mujoco model with the result of the controller
+                        controller_manager_->write(sim_time_ros, sim_period);
+                    }
+                    // Calculate the next mujoco step
+                    mj_step(mujoco_model_, mujoco_data_);
                 }
-                // Calculate the next mujoco step
-                mj_step(mujoco_model_, mujoco_data_);
             }
+        } else {
+            mj_forward(mujoco_model_, mujoco_data_);
+            mj_vis_.sim->speed_changed = true;
         }
         mj_vis_.update();
     }
@@ -148,11 +170,11 @@ namespace mujoco_ros2_control {
         // create mjModel
         mujoco_model_ = mj_loadXML(params_.robot_model_path.c_str(), NULL, error, 1000);
 
-        if (!mujoco_model_)
-        {
+        if (!mujoco_model_) {
             RCLCPP_FATAL(nh_->get_logger(), "Could not load mujoco model with error: %s.\n", error);
             return;
         } else {
+            // No problem with margins
             RCLCPP_INFO(nh_->get_logger(), "loaded mujoco model");
         }
 
@@ -190,7 +212,6 @@ namespace mujoco_ros2_control {
 
         try {
             urdf_string = params_.robot_description;
-
             urdf_model.initString(urdf_string);
             control_hardware = hardware_interface::parse_control_resources_from_urdf(urdf_string);
         } catch (const std::runtime_error & ex) {
@@ -198,15 +219,41 @@ namespace mujoco_ros2_control {
                          ex.what());
             rclcpp::shutdown();
         }
+
+        try {
+            resource_manager_->load_urdf(urdf_string, false, false);
+        } catch (...) {
+            // This error should be normal as the resource manager is not supposed to load and initialize
+            // them
+            RCLCPP_ERROR(nh_->get_logger(), "Error initializing URDF to resource manager!");
+        }
+
         for (auto & hw_info : control_hardware) {
             const std::string hardware_type = hw_info.hardware_class_type;
             auto system = std::unique_ptr<mujoco_ros2_control::MujocoSystemInterface>(robot_hw_sim_loader_->createUnmanagedInstance(hardware_type));
             system->initSim(mujoco_model_, mujoco_data_, hw_info, &urdf_model);
             resource_manager_->import_component(std::move(system), hw_info);
-            resource_manager_->activate_all_components();
+            // activate all components
+            rclcpp_lifecycle::State state(
+                    lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE,
+                    hardware_interface::lifecycle_state_names::ACTIVE);
+            resource_manager_->set_component_state(hw_info.name, state);
         }
+
+        if (resource_manager_->is_urdf_already_loaded()) {
+            RCLCPP_DEBUG(nh_->get_logger(), "URDF is already loaded");
+        }
+
         executor_ = std::make_shared<rclcpp::executors::MultiThreadedExecutor>();
-        controller_manager_.reset(new controller_manager::ControllerManager(std::move(resource_manager_), executor_, "controller_manager"));
+        controller_manager_.reset(
+            new controller_manager::ControllerManager(
+                std::move(resource_manager_), 
+                executor_, 
+                "controller_manager", 
+                nh_->get_namespace()));
+        
+        executor_->add_node(controller_manager_);
+        
         if (!controller_manager_->has_parameter("update_rate")) {
             RCLCPP_ERROR(nh_->get_logger(), "controller manager doesn't have an update_rate parameter");
             return;
@@ -228,7 +275,11 @@ namespace mujoco_ros2_control {
             }
         }
 
-        executor_->add_node(controller_manager_);
+        // Force setting of use_sime_time parameter
+        controller_manager_->set_parameter(
+        rclcpp::Parameter("use_sim_time", rclcpp::ParameterValue(true)));
+
+        stop_ = false;
         auto spin = [this]() {
             while(rclcpp::ok() && !stop_.load()) {
                 executor_->spin_once();
@@ -269,7 +320,7 @@ namespace mujoco_ros2_control {
             cameras_.resize(mujoco_model_->ncam);
             for (int id = 0; id < mujoco_model_->ncam; id++) {
                 std::string name = mj_id2name(mujoco_model_, mjOBJ_CAMERA, id);
-                auto node = camera_nodes_.emplace_back(rclcpp::Node::make_shared(name));
+                auto node = camera_nodes_.emplace_back(rclcpp::Node::make_shared(name, rclcpp::NodeOptions().parameter_overrides({{"use_sim_time", true}})));
                 executor_->add_node(node);
                 cameras_.at(id).reset(new mujoco_rgbd_camera::MujocoDepthCamera(node, mujoco_model_, mujoco_data_, id,
                                                                                 name, &stop_));
