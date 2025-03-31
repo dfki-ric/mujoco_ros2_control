@@ -11,10 +11,14 @@ RUN apt-get update && apt-get install -y \
     ros-humble-ros2-control \
     ros-humble-ros2-controllers \
     ros-humble-controller-manager \
+    ros-humble-pcl-ros \
+    ros-humble-perception-pcl \
+    ros-humble-urdfdom-py \
     libopencv-dev \
     ros-humble-pcl-conversions \
     ros-humble-cv-bridge \
-    libpcl-dev
+    libpcl-dev \
+    python3-scipy
     
 RUN mkdir /git
 WORKDIR /git
@@ -25,6 +29,7 @@ WORKDIR /git/mujoco
 RUN cmake .
 RUN cmake --build .
 RUN cmake --install .
+
 RUN mkdir -p /ros2_ws/src
 WORKDIR /ros2_ws
 RUN colcon build
@@ -37,7 +42,12 @@ COPY mujoco_ros2_control /ros2_ws/src/mujoco_ros2_control
 
 WORKDIR /ros2_ws
 #RUN rosdep init ||
-RUN rosdep update && rosdep install --from-paths src --ignore-src --rosdistro humble -y
-RUN . /opt/ros/$ROS_DISTRO/setup.sh && colcon build --packages-select mujoco_ros2_control_simulate_gui
+#RUN rosdep update && rosdep install --from-paths src --ignore-src --rosdistro humble -y
+#RUN . /opt/ros/$ROS_DISTRO/setup.sh && colcon build --packages-select mujoco_ros2_control_simulate_gui
 RUN . /opt/ros/$ROS_DISTRO/setup.sh && colcon build
 
+FROM base AS demo
+RUN apt-get update && apt-get install -y \
+    ros-humble-franka-description
+COPY examples /ros2_ws/src/mujoco_ros2_control_examples
+RUN . /opt/ros/$ROS_DISTRO/setup.sh && colcon build

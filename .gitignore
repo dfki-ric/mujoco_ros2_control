@@ -8,4 +8,5 @@ cmake-build-debug/
 venv/
 docs/html
 docs/man
-doc
+doc/
+compile_commands.json
