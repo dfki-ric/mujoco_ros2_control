@@ -12,7 +12,7 @@ Mujoco Ros2 Control was initiated and is currently developed at the
 [Robotics Innovation Center](http://robotik.dfki-bremen.de/en/startpage.html) of the
 [German Research Center for Artificial Intelligence (DFKI)](http://www.dfki.de) in Bremen.
 
-![DFKI Logo](image.png)
+![https://www.dfki.de/web](./images/dfki_logo.png)
 
 ## Motivation
 The development and testing of control algorithms for robotic systems is a crucial step in ensuring their reliability, safety, and efficiency. However, conducting these tests on physical hardware can be expensive, time-consuming, and prone to mechanical wear and tear. To overcome these challenges, accurate and efficient physical simulations have become an indispensable tool for researchers, engineers, and roboticists. These simulations enable comprehensive testing of robot controllers, planning algorithms, and perception systems in a controlled, repeatable, and risk-free environment.
