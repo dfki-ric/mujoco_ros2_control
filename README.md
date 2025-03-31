@@ -2,56 +2,35 @@
 
 [//]: <> (TODO description of the software)
 
-Software Name is good stuff.
+The MuJoCo ROS 2 control hardware interface is designed to enable seamless integration between MuJoCo, a high-performance physics engine, and ROS 2, a widely used middleware for robotic systems. This interface provides a robust and efficient solution for leveraging MuJoCo’s powerful simulation capabilities within the ROS 2 ecosystem, enabling realistic physics-based robot simulation and control.
 
 [//]: <> (TODO contribution of DFKI / other partners)
 
-**software name:** Software Name
-
-**describe contribution (select one of these or concatenate with 'and'):**
-
-* was initiated
-* is currently developed
-
-**link to DFKI and RIC websites:** at the
-[Robotics Innovation Center](http://robotik.dfki-bremen.de/en/startpage.html)
-of the [German Research Center for Artificial Intelligence (DFKI)](http://www.dfki.de) in Bremen
-
-**optional: list other partners involved** together with the
-
-* [Robotics Group](http://www.informatik.uni-bremen.de/robotik/index_en.php)
-  of the [University of Bremen](http://www.uni-bremen.de/en.html)
-* ...
-
-**Full example:**
+**software name:** Mujoco Ros2 Control
 
 Mujoco Ros2 Control was initiated and is currently developed at the
 [Robotics Innovation Center](http://robotik.dfki-bremen.de/en/startpage.html) of the
 [German Research Center for Artificial Intelligence (DFKI)](http://www.dfki.de) in Bremen.
 
-In addition, you should add the DFKI logo somewhere at the page. It can be found
-[https://www.dfki.de/web/presse/bildmaterial here]. The C&M recommends to use the logo
-with a text at the right side,
-[https://www.dfki.de/web/presse/bildmaterial/dfki-logo-e-schrift.jpg this one].
+![https://www.dfki.de/](image.png)
 
 ## Motivation
-This software 
-[//]: <> (TODO what does this software do, what problem does it solve?)
+The development and testing of control algorithms for robotic systems is a crucial step in ensuring their reliability, safety, and efficiency. However, conducting these tests on physical hardware can be expensive, time-consuming, and prone to mechanical wear and tear. To overcome these challenges, accurate and efficient physical simulations have become an indispensable tool for researchers, engineers, and roboticists. These simulations enable comprehensive testing of robot controllers, planning algorithms, and perception systems in a controlled, repeatable, and risk-free environment.
 
 ## Getting Started
 To use MuJoCo Ros2 control, you must create a launchfile (you can use the examples as reference):
-    - start the ```robot_state_publisher``` Node
-    - use the ```xacro2mjcf.py``` node to create the required mjcf file within the launchfile
-        - give absolute paths to the needed files or pass robot_descriptions as string as parameters
-        - define the path for the output file and the generated files (the output file must be in the files path)
-    - you must pass the following parameters to the node:
-        - ```robot_description``` robot_description (as string)
-        - ```robot_model_path``` the mujoco model file path
-        - a ros2_control parameter yaml file path
-    - you can provide the following parameters
-        - ```simulation_frequency``` simulation frequency (default 1000Hz)
-        - ```clock_publisher_frequency``` ros clock publish frequency (default 0Hz => no limitation)
-        - ```real_time_factor``` realtime factor for mujoco (1.0 is realtime)
+- start the ```robot_state_publisher``` Node
+- use the ```xacro2mjcf.py``` node to create the required mjcf file within the launchfile
+    - give absolute paths to the needed files or pass robot_descriptions as string as parameters
+    - define the path for the output file and the generated files (the output file must be in the files path)
+- you must pass the following parameters to the node:
+    - ```robot_description``` robot_description (as string)
+    - ```robot_model_path``` the mujoco model file path
+    - a ros2_control parameter yaml file path
+- you can provide the following parameters
+    - ```simulation_frequency``` simulation frequency (default 1000Hz)
+    - ```clock_publisher_frequency``` ros clock publish frequency (default 0Hz => no limitation)
+    - ```real_time_factor``` realtime factor for mujoco (1.0 is realtime)
 
 For the urdf creation you can take a look at ![URDF Configuration](./mujoco_ros2_control/README.md)
 
@@ -87,6 +66,7 @@ xhost -local:docker
 
 
 ## Requirements / Dependencies
+```
 libglfw3-dev
 libx11-dev
 xorg-dev
@@ -103,6 +83,7 @@ ros-humble-pcl-conversions
 ros-humble-cv-bridge
 libpcl-dev
 ros-humble-urdfdom-py
+```
 
 [//]: <> (TODO which dependencies do I need?)
 
@@ -192,13 +173,13 @@ documentation, etc.
 
 ## License
 
-[//]: <> (Note: This section is redundant with the LICENSE file. You can omit it if you want.)
+<!--[//]: <> (Note: This section is redundant with the LICENSE file. You can omit it if you want.)
 
 [//]: <> (TODO license)
 
 [//]: <> (The New BSD license is recommended by the software board
           ([source](http://wiki.dfki.uni-bremen.de/index.php/Open_Source_License_Recommendation source)).
-          This is the corresponding text for the README.md:)
+          This is the corresponding text for the README.md:)-->
 
 Mujoco Ros2 Control is distributed under the [3-clause BSD license](https://opensource.org/licenses/BSD-3-Clause).
 
@@ -208,7 +189,7 @@ Mujoco Ros2 Control is distributed under the [3-clause BSD license](https://open
 
 [//]: <> (Your employee has the copyright of your work. If you collaborate with other partners,
           the copyright is shared between involved institutes. You can write, for example,)
-Adrian Danzglock,       adrian.danzglock@dfki.de
+Adrian Danzglock,       adrian.danzglock@dfki.de \
 Vamsi Krishna Origanti, vamsi.origanti@dfki.de
 
 Copyright 2025, DFKI GmbH / Robotics Innovation Center
