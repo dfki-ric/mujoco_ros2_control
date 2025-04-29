@@ -1,0 +1,159 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="double_pendulum">
+    <xacro:arg name="mujoco_model_path" default="/tmp/mujoco" />
+    <xacro:arg name="autolimits" default="true" />
+    <xacro:arg name="balanceinertia" default="true" />
+    <!-- Mujoco options -->
+    <xacro:arg name="integrator" default="implicitfast" />
+    <xacro:arg name="gravity" default="0 0 -9.81" />
+    <xacro:arg name="impratio" default="1" />
+    <xacro:arg name="integrator" default="implicitfast" />
+    <xacro:arg name="cone" default="elliptic" />
+    <xacro:arg name="solver" default="Newton" />
+    <xacro:arg name="noslip_iterations" default="3" />
+    <xacro:arg name="multiccd" default="disable" />
+
+    <!-- ROS2 Control-->
+    <xacro:arg name="command_mode" default="effort" />
+
+  <link name="world" />
+  <link name="base_link"/>
+  <joint name="world_to_base" type="fixed">
+    <parent link="world"/>
+    <child link="base_link"/>
+    <origin xyz="0 0 2.5" rpy="0 3.14159 0"/>
+  </joint>
+
+  <!-- First link (upper arm) -->
+  <link name="link1">
+    <inertial>
+      <mass value="1.0"/>
+      <origin xyz="0 0 0.5" rpy="0 0 0"/>
+      <inertia ixx="0.01" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.01"/>
+    </inertial>
+    <visual>
+      <geometry>
+        <cylinder length="1.0" radius="0.05"/>
+      </geometry>
+      <origin xyz="0 0 0.5" rpy="0 0 0"/>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder length="1.0" radius="0.05"/>
+      </geometry>
+      <origin xyz="0 0 0.5" rpy="0 0 0"/>
+    </collision>
+  </link>
+
+  <!-- Second link (lower arm) -->
+  <link name="link2">
+    <inertial>
+      <mass value="1.0"/>
+      <origin xyz="0 0 0.5" rpy="0 0 0"/>
+      <inertia ixx="0.01" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.01"/>
+    </inertial>
+    <visual>
+      <geometry>
+        <cylinder length="1.0" radius="0.05"/>
+      </geometry>
+      <origin xyz="0 0 0.5" rpy="0 0 0"/>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder length="1.0" radius="0.05"/>
+      </geometry>
+      <origin xyz="0 0 0.5" rpy="0 0 0"/>
+    </collision>
+  </link>
+
+  <link name="link3">
+    <inertial>
+      <mass value="1.0"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia ixx="0.01" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.01"/>
+    </inertial>
+    <visual>
+      <geometry>
+        <sphere radius="0.1"/>
+      </geometry>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </visual>
+    <collision>
+      <geometry>
+        <sphere radius="0.1"/>
+      </geometry>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </collision>
+  </link>
+
+  <!-- Joint between the base and the first link -->
+  <joint name="joint1" type="revolute">
+    <parent link="base_link"/>
+    <child link="link1"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-3.14" upper="3.14" effort="10" velocity="1"/>
+  </joint>
+
+  <!-- Joint between the first link and the second link -->
+  <joint name="joint2" type="revolute">
+    <parent link="link1"/>
+    <child link="link2"/>
+    <origin xyz="0 0 1.0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-3.14" upper="3.14" effort="10" velocity="1"/>
+  </joint>
+  <joint name="joint3" type="fixed">
+    <parent link="link2"/>
+    <child link="link3"/>
+    <origin xyz="0 0 1.0" rpy="0 0 0"/>
+  </joint>
+
+  <mujoco>
+    <reference name="link3">
+        <site name="link3" size="0.01" pos="0 0 0" />
+    </reference>
+    <sensor>
+        <framepos name="link3_pos" objtype="body" objname="link3" reftype="body" refname="world"/>
+        <framequat name="link3_quat" objtype="body" objname="link3" reftype="body" refname="world"/>
+    </sensor>
+    <sensor>
+        <force name="link3_force" site="link3" />
+        <torque name="link3_torque" site="link3" />
+    </sensor>
+    <sensor>
+        <accelerometer name="link3-linear-acceleration" site="link3" noise="1e-2" cutoff="157"/>
+        <gyro name="link3-angular-velocity" site="link3" noise="5e-4" cutoff="34.9"/>
+    </sensor>
+  </mujoco>
+
+    <ros2_control name="Unitree_H1_HardwareInterface" type="system">
+        <hardware>
+            <plugin>mujoco_ros2_control/MujocoSystem</plugin>
+        </hardware>
+        <xacro:macro name="configure_joint" params="joint_name initial_position command_mode">
+          <joint name="${joint_name}">
+            <xacro:if value="${command_mode == 'effort'}">
+              <command_interface name="effort"/>
+            </xacro:if>
+            <xacro:if value="${command_mode == 'position'}">
+              <command_interface name="position"/>
+              <command_interface name="velocity"/>
+            </xacro:if>
+            <xacro:if value="${command_mode == 'velocity'}">
+              <command_interface name="velocity"/>
+            </xacro:if>
+            <state_interface name="position">
+              <param name="initial_value">${initial_position}</param>
+            </state_interface>
+            <state_interface name="velocity">
+              <param name="initial_value">0.0</param>
+            </state_interface>
+            <state_interface name="effort"/>
+          </joint>
+        </xacro:macro>
+      <xacro:configure_joint joint_name="joint1" initial_position="0.0" command_mode="$(arg command_mode)"/>
+      <xacro:configure_joint joint_name="joint2" initial_position="0.0" command_mode="$(arg command_mode)"/>
+
+    </ros2_control>
+</robot>

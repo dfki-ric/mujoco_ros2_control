@@ -43,10 +43,11 @@ namespace mujoco_ros2_sensors {
 
         std::vector<PoseSensorStruct> pose_sensors;
         std::vector<WrenchSensorStruct> wrench_sensors;
-
+        std::vector<ImuSensorStruct> imu_sensors;
         for (const auto &sensor : sensors_) {
             PoseSensorStruct pose_sensor;
             WrenchSensorStruct wrench_sensor;
+            ImuSensorStruct imu_sensor;
             if (sensor.second.sensor_types[0] == mjSENS_FRAMEPOS || sensor.second.sensor_types[0] == mjSENS_FRAMEQUAT) {
                 for (size_t i = 0; i < sensor.second.sensor_types.size(); i++) {
                     if (sensor.second.sensor_types[i] == mjSENS_FRAMEPOS) {
@@ -92,10 +93,35 @@ namespace mujoco_ros2_sensors {
                 }
                 wrench_sensors.push_back(wrench_sensor);
             }
+
+            if (sensor.second.sensor_types[0] == mjSENS_ACCELEROMETER || sensor.second.sensor_types[0] == mjSENS_GYRO) {
+                for (size_t i = 0; i < sensor.second.sensor_types.size(); i++) {
+                    const auto &sensor_id = sensor.second.sensor_ids[i];
+
+                    if (sensor.second.sensor_types[i] == mjSENS_ACCELEROMETER) {
+                        imu_sensor.body_name = sensor.first;
+                        imu_sensor.accel_sensor_adr = sensor.second.sensor_addresses[i];
+                        imu_sensor.accel = true;
+                    } else if (sensor.second.sensor_types[i] == mjSENS_GYRO) {
+                        imu_sensor.body_name = sensor.first;
+                        imu_sensor.gyro_sensor_adr = sensor.second.sensor_addresses[i];
+                        imu_sensor.gyro = true;
+                    }
+                    if (imu_sensor.frame_id.empty()) {
+                        imu_sensor.frame_id = get_frame_id(sensor.second.sensor_ids[i]);
+                    } else if (imu_sensor.frame_id != get_frame_id(sensor.second.sensor_ids[i])) {
+                        RCLCPP_WARN(rclcpp::get_logger("sensor_handler"), "Failed to create imu sensor, frames from gyro (%s) and accel (%s) sensors doesn't match", imu_sensor.frame_id.c_str(), get_frame_id(sensor.second.sensor_ids[i]).c_str());
+                        continue;
+                    }
+                    RCLCPP_INFO(rclcpp::get_logger("sensor_handler"), "Added Sensor %s in frame %s", imu_sensor.body_name.c_str(), imu_sensor.frame_id.c_str());
+                }
+                imu_sensors.push_back(imu_sensor);
+            }
         }
 
         register_pose_sensors(pose_sensors);
         register_wrench_sensors(wrench_sensors);
+        register_imu_sensors(imu_sensors);
     }
 
     MujocoRos2Sensors::~MujocoRos2Sensors() {
@@ -109,6 +135,12 @@ namespace mujoco_ros2_sensors {
             node.reset();
         }
         for (auto &obj : wrench_sensor_objs_) {
+            obj.reset();
+        }
+        for (auto &node : imu_sensor_nodes_) {
+            node.reset();
+        }
+        for (auto &obj : imu_sensor_objs_) {
             obj.reset();
         }
     }
@@ -172,6 +204,31 @@ namespace mujoco_ros2_sensors {
             executor_->add_node(node);
             wrench_sensor_objs_.at(i).reset(new WrenchSensor(node, mujoco_model_, mujoco_data_, sensor, stop_, 100.0));
             RCLCPP_INFO(rclcpp::get_logger("wrench_sensor_registration"), "[%s] frame: %s", sensor.body_name.c_str(), sensor.frame_id.c_str());
+        }
+    }
+
+    void MujocoRos2Sensors::register_imu_sensors(const std::vector<ImuSensorStruct> &sensors) {
+        imu_sensor_objs_.resize(sensors.size());
+
+        for (size_t i = 0; i < sensors.size(); i++) {
+            const auto &sensor = sensors[i];
+            if (!sensor.isValid()) {
+                std::string value;
+                if (sensor.gyro) {
+                    value = "Gyro";
+                } else if (sensor.accel) {
+                    value = "Accel";
+                } else {
+                    value = "Nothing";
+                }
+                RCLCPP_WARN(rclcpp::get_logger("imu_sensor_registration"), "IMU sensor have only %s", value.c_str());
+            }
+            std::string name = sensor.body_name;
+
+            auto node = imu_sensor_nodes_.emplace_back(rclcpp::Node::make_shared(name + "_imu_sensor", rclcpp::NodeOptions().parameter_overrides({{"use_sim_time", true}})));
+            executor_->add_node(node);
+            imu_sensor_objs_.at(i).reset(new ImuSensor(node, mujoco_model_, mujoco_data_, sensor, stop_, 1000.0));
+            RCLCPP_INFO(rclcpp::get_logger("imu_sensor_registration"), "[%s] frame: %s", sensor.body_name.c_str(), sensor.frame_id.c_str());
         }
     }
 }

@@ -44,6 +44,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include "mujoco_ros2_sensors/pose_sensor.hpp"
 #include "mujoco_ros2_sensors/wrench_sensor.hpp"
+#include "mujoco_ros2_sensors/imu_sensor.hpp"
 
 using namespace std::chrono_literals;
 
@@ -77,15 +78,21 @@ namespace mujoco_ros2_sensors {
 
         // Pose Sensor
         std::vector<PoseSensorStruct> pose_sensors_;
-        std::vector<rclcpp::Node::SharedPtr> pose_sensor_nodes_; ///< Nodes for the cameras (one Node per camera)
-        std::vector<std::shared_ptr<mujoco_ros2_sensors::PoseSensor>> pose_sensor_objs_; ///< Cameras Object vector
+        std::vector<rclcpp::Node::SharedPtr> pose_sensor_nodes_;
+        std::vector<std::shared_ptr<mujoco_ros2_sensors::PoseSensor>> pose_sensor_objs_;
         void register_pose_sensors(const std::vector<PoseSensorStruct> &sensors);
 
         // Wrench Sensor
         std::vector<WrenchSensorStruct> wrench_sensors_;
-        std::vector<rclcpp::Node::SharedPtr> wrench_sensor_nodes_; ///< Nodes for the cameras (one Node per camera)
-        std::vector<std::shared_ptr<mujoco_ros2_sensors::WrenchSensor>> wrench_sensor_objs_; ///< Cameras Object vector
+        std::vector<rclcpp::Node::SharedPtr> wrench_sensor_nodes_;
+        std::vector<std::shared_ptr<mujoco_ros2_sensors::WrenchSensor>> wrench_sensor_objs_;
         void register_wrench_sensors(const std::vector<WrenchSensorStruct> &sensors);
+
+        // IMU Sensor
+        std::vector<ImuSensorStruct> imu_sensors_;
+        std::vector<rclcpp::Node::SharedPtr> imu_sensor_nodes_;
+        std::vector<std::shared_ptr<mujoco_ros2_sensors::ImuSensor>> imu_sensor_objs_;
+        void register_imu_sensors(const std::vector<ImuSensorStruct> &sensors);
 
         std::string get_frame_id(int sensor_id);
     };
