@@ -293,7 +293,6 @@ namespace mujoco_ros2_control {
         // Add sensors
         if (mujoco_model_->nsensor > 0) {
             std::map<std::string, mujoco_ros2_sensors::MujocoRos2Sensors::Sensors> sensors;
-                RCLCPP_WARN(nh_->get_logger(), "Ttest %ld", mujoco_model_->nsensor);
             for (int id = 0; id < mujoco_model_->nsensor; id++) {
                 mujoco_ros2_sensors::MujocoRos2Sensors::Sensors sensor;
                 int obj_id = mujoco_model_->sensor_objid[id];

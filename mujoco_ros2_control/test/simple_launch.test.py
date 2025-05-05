@@ -1,5 +1,6 @@
 #!/bin/env python3
 
+from typing import List
 import os
 import time
 import unittest
@@ -24,6 +25,8 @@ from launch.event_handlers import (
     OnProcessStart,
     OnProcessExit
     )
+from sensor_msgs.msg import Imu
+from geometry_msgs.msg import WrenchStamped, PoseStamped
 
 import xacro
 
@@ -165,8 +168,31 @@ class TestNode(rclpy.node.Node):
         while time.time() - start < timeout:
             if node_name in self.get_node_names():
                 return True
+        return False
+
+    def wait_for_topic(self, topic_name, message_types, timeout=10.0):
+        start = time.time()
+        while time.time() - start < timeout:
+            if (topic_name, message_types) in self.get_topic_names_and_types():
+                return True
+        return False
+
+    def wait_for_message(self, topic_name, message_type, target_frame=None, timeout=10.0):
+        msgs_rx = []
+        sub = self.create_subscription(
+            message_type, topic_name,
+            lambda msg: msgs_rx.append(msg), 1)
         
-        print(self.get_node_names())
+        start = time.time()
+        while time.time() - start < timeout:
+            rclpy.spin_once(self)
+            if msgs_rx:
+                break
+
+        print(msgs_rx)
+        if msgs_rx:
+            if target_frame is None or target_frame == msgs_rx[0].header.frame_id:
+                return True
         return False
 
 class TestBringup(unittest.TestCase):
@@ -174,14 +200,23 @@ class TestBringup(unittest.TestCase):
         rclpy.init()
         try:
             node = TestNode()
+            # Test startup and ros2 control
             assert node.wait_for_node('mujoco_ros2_control'), 'mujoco_ros2_control Node not found !'
             assert node.wait_for_node('controller_manager'), 'controller_manager Node not found !'
             assert node.wait_for_node('joint_state_broadcaster'), 'joint_state_broadcaster Node not found !'
             assert node.wait_for_node('robot_state_publisher'), 'robot_state_publisher Node not found !'
             assert node.wait_for_node('joint_effort_controller'), 'effort controller Node not found !'
+            # Test Sensors
             assert node.wait_for_node('link3_pose_sensor'), 'pose Node not found !'
-            #assert node.wait_for_node('link3_imu_sensor'), 'imu Node not found !'
+            assert node.wait_for_node('link3_imu_sensor'), 'imu Node not found !'
             assert node.wait_for_node('link3_wrench_sensor'), 'wrench Node not found !'
-            time.sleep(1)
+            # Test Sensor Topics
+            assert node.wait_for_topic('/link3_pose_sensor/pose', ['geometry_msgs/msg/PoseStamped']), 'pose topic not found !'
+            assert node.wait_for_topic('/link3_imu_sensor/imu', ['sensor_msgs/msg/Imu']), 'imu topic not found !'
+            assert node.wait_for_topic('/link3_wrench_sensor/wrench', ['geometry_msgs/msg/WrenchStamped']), 'wrench topic not found !'
+            # Test Sensor Header
+            assert node.wait_for_message('/link3_pose_sensor/pose', PoseStamped, 'world'), 'pose message not found !'
+            assert node.wait_for_message('/link3_imu_sensor/imu', Imu, 'link3'), 'imu message not found !'
+            assert node.wait_for_message('/link3_wrench_sensor/wrench', WrenchStamped, 'link3'), 'wrench message not found !'
         finally:
             rclpy.shutdown()
