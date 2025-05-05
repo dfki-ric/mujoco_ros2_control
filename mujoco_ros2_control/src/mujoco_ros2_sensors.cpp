@@ -43,59 +43,82 @@ namespace mujoco_ros2_sensors {
 
         std::vector<PoseSensorStruct> pose_sensors;
         std::vector<WrenchSensorStruct> wrench_sensors;
-
+        std::vector<ImuSensorStruct> imu_sensors;
         for (const auto &sensor : sensors_) {
             PoseSensorStruct pose_sensor;
             WrenchSensorStruct wrench_sensor;
-            if (sensor.second.sensor_types[0] == mjSENS_FRAMEPOS || sensor.second.sensor_types[0] == mjSENS_FRAMEQUAT) {
-                for (size_t i = 0; i < sensor.second.sensor_types.size(); i++) {
-                    if (sensor.second.sensor_types[i] == mjSENS_FRAMEPOS) {
-                        pose_sensor.body_name = sensor.first;
-                        pose_sensor.position_sensor_adr = sensor.second.sensor_addresses[i];
-                        pose_sensor.position = true;
-                    } else if (sensor.second.sensor_types[i] == mjSENS_FRAMEQUAT) {
-                        pose_sensor.body_name = sensor.first;
-                        pose_sensor.orientation_sensor_adr = sensor.second.sensor_addresses[i];
-                        pose_sensor.orientation = true;
-                    }
-                    if (pose_sensor.frame_id.empty()) {
-                        pose_sensor.frame_id = get_frame_id(sensor.second.sensor_ids[i]);
-                    } else if (pose_sensor.frame_id != get_frame_id(sensor.second.sensor_ids[i])) {
-                        RCLCPP_WARN(rclcpp::get_logger("sensor_handler"), "Failed to create pose sensor, frames from position and orientation sensors doesn't match");
+            ImuSensorStruct imu_sensor;
+            for (int i = 0; i < sensor.second.sensor_ids.size(); i++) {
+                auto &sensor_id = sensor.second.sensor_ids[i];
+                auto &sensor_type = sensor.second.sensor_types[i];
+                auto &sensor_name = sensor.second.sensor_names[i];
+                auto &sensor_address = sensor.second.sensor_addresses[i];
+                auto &dimension = sensor.second.sensor_dimensions[i];
+                if (sensor_type == mjSENS_FRAMEPOS) {
+                    if (pose_sensor.position) {
+                        RCLCPP_WARN(rclcpp::get_logger("pose_sensor_registration"), "Position sensor with address %d already registered, ignoring second sensor with address %d", pose_sensor.position_sensor_adr, sensor_address);
                         continue;
                     }
-                }
-                pose_sensors.push_back(pose_sensor);
-            }
-
-            if (sensor.second.sensor_types[0] == mjSENS_FORCE || sensor.second.sensor_types[0] == mjSENS_TORQUE) {
-                for (size_t i = 0; i < sensor.second.sensor_types.size(); i++) {
-                    const auto &sensor_id = sensor.second.sensor_ids[i];
-                    
-
-                    if (sensor.second.sensor_types[i] == mjSENS_FORCE) {
-                        wrench_sensor.body_name = sensor.first;
-                        wrench_sensor.force_sensor_adr = sensor.second.sensor_addresses[i];
-                        wrench_sensor.force = true;
-                    } else if (sensor.second.sensor_types[i] == mjSENS_TORQUE) {
-                        wrench_sensor.body_name = sensor.first;
-                        wrench_sensor.torque_sensor_adr = sensor.second.sensor_addresses[i];
-                        wrench_sensor.torque = true;
-                    }
-                    if (wrench_sensor.frame_id.empty()) {
-                        wrench_sensor.frame_id = get_frame_id(sensor.second.sensor_ids[i]);
-                    } else if (wrench_sensor.frame_id != get_frame_id(sensor.second.sensor_ids[i])) {
-                        RCLCPP_WARN(rclcpp::get_logger("sensor_handler"), "Failed to create wrench sensor, frames from position and orientation sensors doesn't match");
+                    pose_sensor.body_name = sensor.first;
+                    pose_sensor.position_sensor_adr = sensor_address;
+                    pose_sensor.position = true;
+                } else if (sensor_type == mjSENS_FRAMEQUAT) {
+                    if (pose_sensor.orientation) {
+                        RCLCPP_WARN(rclcpp::get_logger("pose_sensor_registration"), "Orientation sensor with address %d already registered, ignoring second sensor with address %d", pose_sensor.orientation_sensor_adr, sensor_address);
                         continue;
                     }
-                    RCLCPP_INFO(rclcpp::get_logger("sensor_handler"), "Added Sensor %s in frame %s", wrench_sensor.body_name.c_str(), wrench_sensor.frame_id.c_str());
+                    pose_sensor.body_name = sensor.first;
+                    pose_sensor.orientation_sensor_adr = sensor_address;
+                    pose_sensor.orientation = true;
+                } else if (sensor.second.sensor_types[i] == mjSENS_FORCE) {
+                    if (wrench_sensor.force) {
+                        RCLCPP_WARN(rclcpp::get_logger("wrench_sensor_registration"), "Force sensor with address %d already registered, ignoring second sensor with address %d", wrench_sensor.force_sensor_adr, sensor_address);
+                        continue;
+                    }
+                    wrench_sensor.body_name = sensor.first;
+                    wrench_sensor.force_sensor_adr = sensor_address;
+                    wrench_sensor.force = true;
+                } else if (sensor.second.sensor_types[i] == mjSENS_TORQUE) {
+                    if (wrench_sensor.torque) {
+                        RCLCPP_WARN(rclcpp::get_logger("wrench_sensor_registration"), "Torque sensor with address %d already registered, ignoring second sensor with address %d", wrench_sensor.torque_sensor_adr, sensor_address);
+                        continue;
+                    }
+                    wrench_sensor.body_name = sensor.first;
+                    wrench_sensor.torque_sensor_adr = sensor_address;
+                    wrench_sensor.torque = true;
+                } else  if (sensor.second.sensor_types[i] == mjSENS_ACCELEROMETER) {
+                    if (imu_sensor.accel) {
+                        RCLCPP_WARN(rclcpp::get_logger("imu_sensor_registration"), "Accel sensor with address %d already registered, ignoring second sensor with address %d", imu_sensor.accel_sensor_adr, sensor_address);
+                        continue;
+                    }
+                    imu_sensor.body_name = sensor.first;
+                    imu_sensor.accel_sensor_adr = sensor_address;
+                    imu_sensor.accel = true;
+                } else if (sensor.second.sensor_types[i] == mjSENS_GYRO) {
+                    if (imu_sensor.gyro) {
+                        RCLCPP_WARN(rclcpp::get_logger("imu_sensor_registration"), "Gyro sensor with address %d already registered, ignoring second sensor with address %d", imu_sensor.gyro_sensor_adr, sensor_address);
+                        continue;
+                    }
+                    imu_sensor.body_name = sensor.first;
+                    imu_sensor.gyro_sensor_adr = sensor_address;
+                    imu_sensor.gyro = true;
                 }
-                wrench_sensors.push_back(wrench_sensor);
+                if ((sensor_type == mjSENS_FRAMEPOS || sensor_type == mjSENS_FRAMEQUAT) && pose_sensor.frame_id.empty()) {
+                    pose_sensor.frame_id = get_frame_id(sensor_id);
+                } else if ((sensor_type == mjSENS_FORCE || sensor_type == mjSENS_TORQUE) && wrench_sensor.frame_id.empty()) {
+                    wrench_sensor.frame_id = get_frame_id(sensor_id);
+                } else if ((sensor_type == mjSENS_ACCELEROMETER || sensor_type == mjSENS_GYRO) && imu_sensor.frame_id.empty()) {
+                    imu_sensor.frame_id = get_frame_id(sensor_id);
+                }
             }
+            pose_sensors.push_back(pose_sensor);
+            wrench_sensors.push_back(wrench_sensor);
+            imu_sensors.push_back(imu_sensor);
         }
 
         register_pose_sensors(pose_sensors);
         register_wrench_sensors(wrench_sensors);
+        register_imu_sensors(imu_sensors);
     }
 
     MujocoRos2Sensors::~MujocoRos2Sensors() {
@@ -109,6 +132,12 @@ namespace mujoco_ros2_sensors {
             node.reset();
         }
         for (auto &obj : wrench_sensor_objs_) {
+            obj.reset();
+        }
+        for (auto &node : imu_sensor_nodes_) {
+            node.reset();
+        }
+        for (auto &obj : imu_sensor_objs_) {
             obj.reset();
         }
     }
@@ -172,6 +201,31 @@ namespace mujoco_ros2_sensors {
             executor_->add_node(node);
             wrench_sensor_objs_.at(i).reset(new WrenchSensor(node, mujoco_model_, mujoco_data_, sensor, stop_, 100.0));
             RCLCPP_INFO(rclcpp::get_logger("wrench_sensor_registration"), "[%s] frame: %s", sensor.body_name.c_str(), sensor.frame_id.c_str());
+        }
+    }
+
+    void MujocoRos2Sensors::register_imu_sensors(const std::vector<ImuSensorStruct> &sensors) {
+        imu_sensor_objs_.resize(sensors.size());
+
+        for (size_t i = 0; i < sensors.size(); i++) {
+            const auto &sensor = sensors[i];
+            if (!sensor.isValid()) {
+                std::string value;
+                if (sensor.gyro) {
+                    value = "Gyro";
+                } else if (sensor.accel) {
+                    value = "Accel";
+                } else {
+                    value = "Nothing";
+                }
+                RCLCPP_WARN(rclcpp::get_logger("imu_sensor_registration"), "IMU sensor have only %s", value.c_str());
+            }
+            std::string name = sensor.body_name;
+
+            auto node = imu_sensor_nodes_.emplace_back(rclcpp::Node::make_shared(name + "_imu_sensor", rclcpp::NodeOptions().parameter_overrides({{"use_sim_time", true}})));
+            executor_->add_node(node);
+            imu_sensor_objs_.at(i).reset(new ImuSensor(node, mujoco_model_, mujoco_data_, sensor, stop_, 1000.0));
+            RCLCPP_INFO(rclcpp::get_logger("imu_sensor_registration"), "[%s] frame: %s", sensor.body_name.c_str(), sensor.frame_id.c_str());
         }
     }
 }

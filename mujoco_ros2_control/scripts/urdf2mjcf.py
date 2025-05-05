@@ -166,7 +166,7 @@ def create_mjcf(robot, robot_tree, mujoco_element):
                 elif type(collision.geometry) == urdf.Cylinder:
                     radius = collision.geometry.radius
                     length = collision.geometry.length
-                    geom.set("type", "sphere")
+                    geom.set("type", "cylinder")
                     geom.set("size", f"{radius} {length/2}")
                 else:
                     print(type(collision.geometry))
@@ -194,6 +194,15 @@ def create_mjcf(robot, robot_tree, mujoco_element):
                     size = visual.geometry.size
                     geom.set("type", "box")
                     geom.set("size", f"{size[0]/2} {size[1]/2} {size[2]/2}")
+                elif type(visual.geometry) == urdf.Sphere:
+                    radius = visual.geometry.radius
+                    geom.set("type", "sphere")
+                    geom.set("size", f"{radius}")
+                elif type(visual.geometry) == urdf.Cylinder:
+                    radius = visual.geometry.radius
+                    length = visual.geometry.length
+                    geom.set("type", "cylinder")
+                    geom.set("size", f"{radius} {length/2}")
                 else:
                     print(type(visual.geometry))
         

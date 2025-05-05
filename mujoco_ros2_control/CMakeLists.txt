@@ -86,8 +86,6 @@ generate_parameter_library(mujoco_rgbd_camera_parameters
         src/mujoco_rgbd_camera_parameters.yaml
         )
 
-ament_lint_auto_find_test_dependencies()
-
 add_library(mujoco_system_plugins SHARED
         src/mujoco_system.cpp)
 ament_target_dependencies(mujoco_system_plugins
@@ -99,6 +97,7 @@ ament_target_dependencies(mujoco_system_plugins
 add_executable(${PROJECT_NAME}
         src/mujoco_ros2_control_plugin.cpp
         src/mujoco_depth_camera.cpp
+        src/imu_sensor.cpp 
         src/pose_sensor.cpp 
         src/wrench_sensor.cpp
         src/mujoco_ros2_sensors.cpp
@@ -206,3 +205,43 @@ ament_export_libraries(
 pluginlib_export_plugin_description_file(mujoco_ros2_control mujoco_system_plugins.xml)
 
 ament_package()
+
+
+
+#############
+## Testing ##
+#############
+if(BUILD_TESTING)
+# Integration tests
+ament_lint_auto_find_test_dependencies()
+find_package(ament_cmake_ros REQUIRED)
+find_package(launch_testing_ament_cmake REQUIRED)
+install(DIRECTORY test/data/ DESTINATION share/${PROJECT_NAME}/test_data)
+
+function(add_ros_isolated_launch_test path)
+  set(RUNNER "${ament_cmake_ros_DIR}/run_test_isolated.py")
+  add_launch_test("${path}" RUNNER "${RUNNER}" ${ARGN})
+endfunction()
+add_ros_isolated_launch_test(test/simple_launch.test.py)
+endif()
+
+#############
+## Doxygen ##
+#############
+find_package(Doxygen)
+if(BUILD_DOC)
+  if(DOXYGEN_FOUND)
+    set(doxyfile_in ${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile.in)
+    set(doxyfile ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile)
+    configure_file(${doxyfile_in} ${doxyfile} @ONLY)
+    message("Doxygen build started.")
+    add_custom_target(doc ALL
+                      COMMAND ${DOXYGEN_EXECUTABLE} ${doxyfile}
+                      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+                     COMMENT "Generating API documentation with Doxygen"
+                      VERBATIM)
+   install(DIRECTORY doc/images DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/doc)
+  else(DOXYGEN_FOUND)
+     message("Doxygen needs to be installed to generate the doxygen documentation")
+  endif(DOXYGEN_FOUND)
+endif (BUILD_DOC)

@@ -73,11 +73,11 @@
             </contact>
 
             <reference name="torso_link">
-                <site name="imu" size="0.01" pos="-0.04452 -0.01891 0.27756" />
+                <site name="torso_link" size="0.01" pos="-0.04452 -0.01891 0.27756" />
             </reference>
             <sensor>
-                <gyro name="imu-angular-velocity" site="imu" noise="5e-4" cutoff="34.9"/>
-                <accelerometer name="imu-linear-acceleration" site="imu" noise="1e-2" cutoff="157"/>
+                <gyro name="test-angular-velocity" site="torso_link" noise="5e-4" cutoff="34.9"/>
+                <accelerometer name="test-linear-acceleration" site="torso_link" noise="1e-2" cutoff="157"/>
                 <framepos name="gears_large_pose" objtype="body" objname="pelvis" reftype="body" refname="world"/>
                 <framequat name="gears_medium_quat" objtype="body" objname="pelvis" reftype="body" refname="world"/>
             </sensor>

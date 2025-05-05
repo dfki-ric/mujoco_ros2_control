@@ -42,7 +42,7 @@ namespace mujoco_ros2_sensors {
         //if (sensor_.position and sensor_.orientation) {
             tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(this->nh_);
         //} else {
-            this->publisher_ = nh_->create_publisher<geometry_msgs::msg::PoseStamped>("~/position", rclcpp::SystemDefaultsQoS());
+            this->publisher_ = nh_->create_publisher<geometry_msgs::msg::PoseStamped>("~/pose", rclcpp::SystemDefaultsQoS());
             this->pose_stamped_publisher_ = std::make_unique<PoseStampedPublisher>(publisher_);
             pose_stamped_publisher_->lock();
             pose_stamped_publisher_->msg_.header.frame_id = sensor_.frame_id;
