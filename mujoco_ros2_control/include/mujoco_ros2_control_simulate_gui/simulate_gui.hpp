@@ -60,7 +60,7 @@
 #include <thread>
 
 #include <mujoco/mujoco.h>
-#include "simulate.h"
+#include <simulate.h>
 #include "glfw_adapter.h"
 
 extern "C" {

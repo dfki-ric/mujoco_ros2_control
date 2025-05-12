@@ -78,8 +78,8 @@
             <sensor>
                 <gyro name="test-angular-velocity" site="torso_link" noise="5e-4" cutoff="34.9"/>
                 <accelerometer name="test-linear-acceleration" site="torso_link" noise="1e-2" cutoff="157"/>
-                <framepos name="gears_large_pose" objtype="body" objname="pelvis" reftype="body" refname="world"/>
-                <framequat name="gears_medium_quat" objtype="body" objname="pelvis" reftype="body" refname="world"/>
+                <framepos name="pelvis_pose" objtype="body" objname="pelvis" reftype="body" refname="world"/>
+                <framequat name="pelvis_quat" objtype="body" objname="pelvis" reftype="body" refname="world"/>
             </sensor>
         </mujoco>
     </xacro:if>
