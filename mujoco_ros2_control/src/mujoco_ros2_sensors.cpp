@@ -111,9 +111,15 @@ namespace mujoco_ros2_sensors {
                     imu_sensor.frame_id = get_frame_id(sensor_id);
                 }
             }
-            pose_sensors.push_back(pose_sensor);
-            wrench_sensors.push_back(wrench_sensor);
-            imu_sensors.push_back(imu_sensor);
+            if (!pose_sensor.frame_id.empty()) {
+                pose_sensors.push_back(pose_sensor);
+            }
+            if (!wrench_sensor.frame_id.empty()) {
+                wrench_sensors.push_back(wrench_sensor);
+            }
+            if (!imu_sensor.frame_id.empty()) {
+                imu_sensors.push_back(imu_sensor);
+            }
         }
 
         register_pose_sensors(pose_sensors);

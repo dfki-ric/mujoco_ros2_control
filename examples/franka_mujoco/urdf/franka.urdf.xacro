@@ -81,8 +81,8 @@
                 <site name="$(arg arm_id)_link7" pos="0 0 0.107" quat="0.92388 0 0 -0.382683" />
             </reference>
             <sensor>
-                <force name="test_force" site="$(arg arm_id)_link7" />
-                <torque name="test_torque" site="$(arg arm_id)_link7" />
+                <force name="$(arg arm_id)_link7_force" site="$(arg arm_id)_link7" />
+                <torque name="$(arg arm_id)_link7_torque" site="$(arg arm_id)_link7" />
             </sensor>
         </mujoco>
         <!-- Add a camera -->
