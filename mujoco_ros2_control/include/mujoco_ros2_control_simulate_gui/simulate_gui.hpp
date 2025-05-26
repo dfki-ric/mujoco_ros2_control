@@ -116,6 +116,11 @@ namespace mujoco_simulate_gui {
         MujocoSimulateGui(MujocoSimulateGui const&);
 
     protected:
+        /**
+         * @brief Pointer to the glfw window object.
+         * Holds the gui glfw window window object pointer to manually activate the context.
+         */
+        GLFWwindow* ui_window = NULL;
 
         /**
          * @brief Pointer to the MuJoCo model.

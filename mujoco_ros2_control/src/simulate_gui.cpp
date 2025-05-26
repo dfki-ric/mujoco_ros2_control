@@ -133,6 +133,8 @@ namespace mujoco_simulate_gui {
         sim->platform_ui->SetVSync(sim->vsync);
 
         sim->LoadOnRenderThread();
+
+        ui_window = glfwGetCurrentContext();
     }
 
     void MujocoSimulateGui::terminate() {
@@ -140,7 +142,7 @@ namespace mujoco_simulate_gui {
     }
 
     void MujocoSimulateGui::update() {
-        //sim->platform_ui->UpdateMjuiState();
+        glfwMakeContextCurrent(ui_window);
         {
             const mujoco::MutexLock lock(sim->mtx);
             sim->platform_ui->PollEvents();
