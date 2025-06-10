@@ -52,7 +52,8 @@ The interface supports:
 
 Joint states and simulation time are published for synchronization with the ROS 2 system time (`/clock`). Sensors defined in the URDF (force-torque, IMU, pose, RGB-D camera) are exposed as individual ROS nodes using `realtime_tools` [@realtime_tools] to maintain real-time performance.
 
-# Examples
+# Examples (TODO: Add HARTU Papers where mujoco was used)
+
 
 ## Franka FR3 with IndustRealKit Gears
 
