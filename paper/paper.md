@@ -8,13 +8,18 @@ tags:
 authors:
   - name: Adrian Danzglock
     orcid: 0009-0004-4715-2973
-    affiliation: 1
+    affiliation: 1,2
   - name: Vamsi Krishna Origanti
     orcid: 0009-0007-1696-5201
     affiliation: 1
+  - name: Frank Kirchner
+    orcid: 0000-0002-1713-9784
+    affiliation: 1,2
 affiliations:
  - name: Robotics Innovation Center, German Research Center for Artificial Intelligence (DFKI), Bremen, Germany
    index: 1
+ - name: Universität Bremen, Bremen, Germany
+   index: 2
 date: "2025-03-03"
 bibliography: paper.bib
 ---
@@ -37,13 +42,34 @@ MuJoCo (Multi-Joint dynamics with Contact) is a fast and accurate physics engine
 - Sophisticated contact modeling and soft constraint handling,
 - Flexible actuator models and comprehensive sensor support.
 
-Despite these capabilities, MuJoCo lacks native support for ROS 2, limiting its adoption in modern robotic development pipelines. `MujocoROS2Control` addresses this gap, enabling users to simulate ROS 2-compatible robots in MuJoCo with minimal overhead.
+MuJoCo is ideal for reliable torque feedback due to its high-fidelity torque-controlled joints and smooth-contact soft constraint solver, which enables precise compliance behavior [@zhang2025wholebodymodelpredictivecontrollegged].
 
-Our framework has been successfully used to test components such as force-torque sensor gravity compensation, torque-based Cartesian controllers, and Dynamic Movement Primitives (DMP)-based skill reproduction [@Fabisch2024].
+Gazebo, on the other hand, typically relies on hard-constraint engines like ODE or Bullet, which struggle with compliant torque-based tasks unless carefully tuned. These engines often require smaller timesteps than MuJoCo to maintain stability [@gazebo_physics].
+
+Drake supports torque control, but due to its symbolic and rigid-body emphasis, tuning compliance can be computationally intensive [@drake_mit].
+
+<!-- Due to high-fidelity torque-controlled joints and its smooth-contact soft constraint solver is Mujoco ideal for a reliable torque feedback combined with precise compliance behavior.
+Gazebo relies typicaly on hard-contraint eingines like ODE or Bullet, with struggle with compliant torque based tasks unless they are carefully tuned (often require smaller timesteps than mujoco for stability).
+Drake on the other hand supports torque control, however due to its symbolic and rigid-body emphasis, tuning compliance can be more computationally heavy. -->
+
+| Controller Type | **MuJoCo** | **Gazebo/Ignition** | **Drake** |
+| :-- | :-: | :-: | :-: |
+| **Torque-based impedance** | High-fidelity, fast, stable | Accurate but tuning required | Accurate, symbolic, slower than mujoco |
+| | | |
+| **Admittance with wrench input** | Stable, smooth compliant | Plugin-lag, tuning required | precise, heavier computationally |
+| | | |
+| **Time-step flexibility** | Larger stable steps (e.g. 2-5ms) | Smaller steps required (1ms) | Variable but slower dynamics |
+
+Table: Comparison of usability of different Simulators for usage with Compliant controllers
+
+Despite these capabilities, MuJoCo lacks native support for ROS 2, limiting its adoption in modern robotic development pipelines. `MujocoROS2Control` addresses this gap, enabling users to simulate ROS 2-compatible robots in MuJoCo with minimal overhead.
 
 # Implementation
 
 `MujocoROS2Control` integrates MuJoCo with the `ros2_control` framework. A key component is the URDF-to-MJCF converter, which maintains fixed joints (which MuJoCo typically collapses), allows sensor and actuator tags within URDFs, and generates MJCF files compatible with MuJoCo’s expectations.
+
+![Overview of the MujocoRos2Control Structure](./figures/mujoco_ros2_control_overview.svg)
+
 
 The interface supports:
 - Direct torque control,
@@ -52,7 +78,12 @@ The interface supports:
 
 Joint states and simulation time are published for synchronization with the ROS 2 system time (`/clock`). Sensors defined in the URDF (force-torque, IMU, pose, RGB-D camera) are exposed as individual ROS nodes using `realtime_tools` [@realtime_tools] to maintain real-time performance.
 
-# Examples (TODO: Add HARTU Papers where mujoco was used)
+# Use Cases
+MujocoRos2Control was utilized for testing and validating various torque and admittance controllers within the scope of the HARTU project [@hartu_project]. The software also played a key role in conducting experiments for the publication "Look-Ahead Optimization for Managing Nullspace in Cartesian Impedance Control of Dual-Arm Robots" [@Origanti2025].
+
+Our framework has been successfully employed to test components such as force-torque sensor gravity compensation, torque-based Cartesian controllers, and Dynamic Movement Primitives (DMP)-based skill reproduction [@Fabisch2024].
+
+# Examples
 
 
 ## Franka FR3 with IndustRealKit Gears

@@ -68,7 +68,7 @@ namespace mujoco_rgbd_camera {
             RCLCPP_ERROR(nh_->get_logger(), "Could not initialize GLFW");
         }
 
-        glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+        glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
         window_ = glfwCreateWindow(width_, height_, name_.c_str(), NULL, NULL);
         glfwSetWindowAttrib(window_, GLFW_RESIZABLE, GLFW_FALSE);
         auto context = glfwGetCurrentContext();
