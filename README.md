@@ -111,17 +111,7 @@ To use the **MuJoCo ROS2 Control**, follow these steps:
         ros-humble-cv-bridge \
         libpcl-dev
    ```
-3. Install MuJoCo <br />
-   Because it comes to problems with cmake that mujoco files aren't found, it is recommended to build and install mujoco from source.
-   ``` bash
-   git clone https://github.com/deepmind/mujoco -b 3.2.7
-   mkdir mujoco/build
-   cd mujoco/build
-   cmake ..
-   cmake --build ..
-   cmake --install ..
-   ```
-4. Build the ros package.
+3. Build the ros package.
    ```bash
     git clone <package url>
     colcon build

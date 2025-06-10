@@ -19,16 +19,6 @@ RUN apt-get update && apt-get install -y \
     ros-humble-cv-bridge \
     libpcl-dev \
     python3-scipy
-    
-RUN mkdir /git
-WORKDIR /git
-
-RUN git clone https://github.com/deepmind/mujoco -b 3.2.7
-
-WORKDIR /git/mujoco
-RUN cmake .
-RUN cmake --build .
-RUN cmake --install .
 
 RUN mkdir -p /ros2_ws/src
 WORKDIR /ros2_ws

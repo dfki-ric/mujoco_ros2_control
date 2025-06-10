@@ -36,13 +36,6 @@ prepare:
 build:
   stage: build
   script:
-    - mkdir /git
-    - cd /git
-    - git clone https://github.com/deepmind/mujoco -b 3.2.7
-    - cd mujoco
-    - cmake .
-    - cmake --build .
-    - cmake --install .
     - mkdir -p /ros2_ws/src
     - cp -r $CI_PROJECT_DIR/mujoco_ros2_control /ros2_ws/src/
     - cd /ros2_ws
