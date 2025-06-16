@@ -62,6 +62,19 @@ Drake on the other hand supports torque control, however due to its symbolic and
 
 Table: Comparison of usability of different Simulators for usage with Compliant controllers
 
+
+| Feature | **Mujoco ROS2 Control** | **mujoco ros2 control [@mujoco_ros2_control]** | **gz ros2 control [@gz_ros2_control]** | **drake-ros [@drake_ros]** |
+| :-- | :-: | :-: | :-: |:-:|
+| Simulation Engine | MuJoCo | MuJoCo | Gazebo | Drake |
+| Sensor Support | Yes, IMU, Pose, Wrench, RGBD | No, Planned | Yes, Supports various sensors via Gazebo plugins | Yes, but aditional code is required |
+| URDF Support | Yes, direct loading from URDF via urdf to mjcf script in launchfile | No, Planned | Yes, Uses URDF/SDF for robot models | Yes, Supports URDF and custom formats |
+| Control System | ros2_control | ros2_control | ros2_control | Experimental API for ROS2 |
+| Control Methods | PID, Mujoco Actuators, Torque | PID, Torque, not integrated position and velocity control | PID, Effort, Position, Velocity | PID, Optimazation-based-control |
+| Mimic Joints | Yes | Yes | Yes, sometimes difficoult to setup [@gazebo_ros2_mimic_joints] | Yes |
+
+Table: Comparison of actual ros2 simulator wrappers
+
+
 Despite these capabilities, MuJoCo lacks native support for ROS 2, limiting its adoption in modern robotic development pipelines. `MujocoROS2Control` addresses this gap, enabling users to simulate ROS 2-compatible robots in MuJoCo with minimal overhead.
 
 # Implementation
