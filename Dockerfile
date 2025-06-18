@@ -24,7 +24,6 @@ RUN mkdir -p /ros2_ws/src
 WORKDIR /ros2_ws
 RUN colcon build
 
-RUN rm -rf /git
 
 RUN echo source /ros2_ws/install/setup.bash > /root/.bashrc
 
@@ -32,8 +31,8 @@ COPY mujoco_ros2_control /ros2_ws/src/mujoco_ros2_control
 
 WORKDIR /ros2_ws
 #RUN rosdep init ||
-#RUN rosdep update && rosdep install --from-paths src --ignore-src --rosdistro humble -y
-#RUN . /opt/ros/$ROS_DISTRO/setup.sh && colcon build --packages-select mujoco_ros2_control_simulate_gui
+RUN rosdep update && rosdep install --from-paths src --ignore-src --rosdistro humble -y
+RUN . /opt/ros/$ROS_DISTRO/setup.sh && colcon build --packages-select mujoco_ros2_control_simulate_gui
 RUN . /opt/ros/$ROS_DISTRO/setup.sh && colcon build
 
 FROM base AS demo

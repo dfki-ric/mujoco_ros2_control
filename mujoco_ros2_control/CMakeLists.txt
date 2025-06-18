@@ -95,6 +95,7 @@ include_directories(
     ${OpenCV_INCLUDE_DIRS}
     ${PCL_INCLUDE_DIRS}
     ${pcl_conversions_INCLUDE_DIRS}
+    ${CMAKE_BINARY_DIR}/_deps/mujoco-src/include
     ${CMAKE_BINARY_DIR}/_deps/mujoco-src/simulate
     ${CMAKE_BINARY_DIR}
 )

@@ -1,5 +1,6 @@
 .idea/
 .vscode/
+.cache/
 __pycache__/
 */build/
 cmake-build-debug/
@@ -10,3 +11,5 @@ docs/html
 docs/man
 doc/
 compile_commands.json
+build/
+*.bak/
