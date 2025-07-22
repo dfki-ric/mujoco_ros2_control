@@ -1,4 +1,6 @@
 #!/bin/env bash
+docker build -t "mujoco_ros2_control" .
+
 docker network create ros
 xhost +local:docker
 docker run \
@@ -7,5 +9,5 @@ docker run \
     --env DISPLAY=$DISPLAY \
     --volume /tmp/.Xdocker \
     -v /tmp/.X11-unix:/tmp/.X11-unix \
-    -it $1 $2
+    -it mujoco_ros2_control bash
 xhost -local:docker

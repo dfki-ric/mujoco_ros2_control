@@ -19,7 +19,6 @@ The development and testing of control algorithms for robotic systems is a cruci
 
 ## Getting Started
 To use MuJoCo Ros2 control, you must create a launchfile (you can use the examples as reference):
-- start the ```robot_state_publisher``` Node
 - use the ```xacro2mjcf.py``` node to create the required mjcf file within the launchfile
     - give absolute paths to the needed files or pass robot_descriptions as string as parameters
     - define the path for the output file and the generated files (the output file must be in the files path)
@@ -38,12 +37,12 @@ For the urdf creation you can take a look at ![URDF Configuration](./mujoco_ros2
 We provide one example with the franka description and the gears from the IndustRealKit that can be started with ```ros2 launch franka_mujoco franka.launch.py```
 ![RGBD Camera inside of MuJoCo](./paper/figures/franka_rgbd_example.png)
 
-and one example with a unitree H1 that can be started with ```ros2 launch unitree_mujoco unitree.launch.py```
+and one example with a unitree H1 that can be started with ```ros2 launch unitree_h1_mujoco unitree_h1.launch.py```
 ![Unitree H1 with floating joint between world and pelvis](./paper/figures/unitree_h1_example.png)
 
 ### Docker
 To start you can use the ![dockerfile](./Dockerfile) to create a docker container with MuJoCo Ros2 control and its examples.
-```docker build docker build -t "mujoco_ros2_control" .```
+```docker build -t "mujoco_ros2_control" .```
 
 To try out the examples you can follow this steps to run a container with mujoco_ros2_control and its examples:
 ```bash

@@ -1,0 +1,490 @@
+2,13d1
+< 
+<   <mujoco>
+<     <compiler meshdir="meshes" discardvisual="false"/>
+<   </mujoco>
+< 
+<   <!-- [CAUTION] uncomment when convert to mujoco -->
+<   <!-- <link name="world"></link>
+<   <joint name="floating_base_joint" type="floating">
+<     <parent link="world"/>
+<     <child link="pelvis"/>
+<   </joint> -->
+< 
+23c11
+<         <mesh filename="meshes/pelvis.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/pelvis.STL"/>
+32c20
+<         <sphere radius="0.05"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/pelvis.STL"/>
+47c35
+<         <mesh filename="meshes/left_hip_yaw_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/left_hip_yaw_link.STL"/>
+54c42
+<       <origin xyz="0.02 0 0" rpy="0 1.5707963267948966192313216916398 0"/>
+---
+>       <origin xyz="0 0 0" rpy="0 0 0"/>
+56c44
+<         <cylinder radius="0.01" length="0.02"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/left_hip_yaw_link.STL"/>
+76c64
+<         <mesh filename="meshes/left_hip_pitch_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/left_hip_pitch_link.STL"/>
+83c71
+<       <origin xyz="0 0 -0.2" rpy="0 0 0"/>
+---
+>       <origin xyz="0 0 0" rpy="0 0 0"/>
+85c73
+<         <cylinder radius="0.02" length="0.2"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/left_hip_pitch_link.STL"/>
+105c93
+<         <mesh filename="meshes/left_hip_roll_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/left_hip_roll_link.STL"/>
+112c100
+<       <origin xyz="0 0.06 0" rpy="1.5707963267948966192313216916398 0 0"/>
+---
+>       <origin xyz="0 0 0" rpy="0 0 0"/>
+114c102
+<         <cylinder radius="0.02" length="0.01"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/left_hip_roll_link.STL"/>
+134c122
+<         <mesh filename="meshes/left_knee_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/left_knee_link.STL"/>
+141c129
+<       <origin xyz="0 0 -0.2" rpy="0 0 0"/>
+---
+>       <origin xyz="0 0 0" rpy="0 0 0"/>
+143c131
+<         <cylinder radius="0.02" length="0.2"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/left_knee_link.STL"/>
+163c151
+<         <mesh filename="meshes/left_ankle_pitch_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/left_ankle_pitch_link.STL"/>
+172c160
+<         <mesh filename="meshes/left_ankle_pitch_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/left_ankle_pitch_link.STL"/>
+192c180
+<         <mesh filename="meshes/left_ankle_roll_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/left_ankle_roll_link.STL"/>
+201c189
+<         <mesh filename="meshes/left_ankle_roll_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/left_ankle_roll_link.STL"/>
+223c211
+<         <mesh filename="meshes/right_hip_yaw_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/right_hip_yaw_link.STL"/>
+230c218
+<       <origin xyz="0.02 0 0" rpy="0 1.5707963267948966192313216916398 0"/>
+---
+>       <origin xyz="0 0 0" rpy="0 0 0"/>
+232c220
+<         <cylinder radius="0.01" length="0.02"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/right_hip_yaw_link.STL"/>
+252c240
+<         <mesh filename="meshes/right_hip_pitch_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/right_hip_pitch_link.STL"/>
+259c247
+<       <origin xyz="0 0 -0.2" rpy="0 0 0"/>
+---
+>       <origin xyz="0 0 0" rpy="0 0 0"/>
+261c249
+<         <cylinder radius="0.02" length="0.2"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/right_hip_pitch_link.STL"/>
+281c269
+<         <mesh filename="meshes/right_hip_roll_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/right_hip_roll_link.STL"/>
+288c276
+<       <origin xyz="0 -0.06 0" rpy="1.5707963267948966192313216916398 0 0"/>
+---
+>       <origin xyz="0 0 0" rpy="0 0 0"/>
+290c278
+<         <cylinder radius="0.02" length="0.01"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/right_hip_roll_link.STL"/>
+310c298
+<         <mesh filename="meshes/right_knee_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/right_knee_link.STL"/>
+317c305
+<       <origin xyz="0 0 -0.2" rpy="0 0 0"/>
+---
+>       <origin xyz="0 0 0" rpy="0 0 0"/>
+319c307
+<         <cylinder radius="0.02" length="0.2"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/right_knee_link.STL"/>
+339c327
+<         <mesh filename="meshes/right_ankle_pitch_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/right_ankle_pitch_link.STL"/>
+348c336
+<         <mesh filename="meshes/right_ankle_pitch_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/right_ankle_pitch_link.STL"/>
+368c356
+<         <mesh filename="meshes/right_ankle_roll_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/right_ankle_roll_link.STL"/>
+377c365
+<         <mesh filename="meshes/right_ankle_roll_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/right_ankle_roll_link.STL"/>
+399c387
+<         <mesh filename="meshes/torso_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/torso_link.STL"/>
+406c394
+<       <origin xyz="0 0 0.15" rpy="0 0 0"/>
+---
+>       <origin xyz="0 0 0" rpy="0 0 0"/>
+408c396
+<         <box size="0.08 0.16 0.1"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/torso_link.STL"/>
+430c418
+<         <mesh filename="meshes/left_shoulder_pitch_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/left_shoulder_pitch_link.STL"/>
+439c427
+<         <mesh filename="meshes/left_shoulder_pitch_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/left_shoulder_pitch_link.STL"/>
+459c447
+<         <mesh filename="meshes/left_shoulder_roll_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/left_shoulder_roll_link.STL"/>
+468c456
+<         <mesh filename="meshes/left_shoulder_roll_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/left_shoulder_roll_link.STL"/>
+488c476
+<         <mesh filename="meshes/left_shoulder_yaw_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/left_shoulder_yaw_link.STL"/>
+497c485
+<         <mesh filename="meshes/left_shoulder_yaw_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/left_shoulder_yaw_link.STL"/>
+517c505
+<         <mesh filename="meshes/left_elbow_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/left_elbow_link.STL"/>
+526c514
+<         <mesh filename="meshes/left_elbow_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/left_elbow_link.STL"/>
+547c535
+<         <mesh filename="meshes/left_wrist_roll_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/left_wrist_roll_link.STL"/>
+555c543
+<         <mesh filename="meshes/left_wrist_roll_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/left_wrist_roll_link.STL"/>
+576c564
+<         <mesh filename="meshes/left_wrist_pitch_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/left_wrist_pitch_link.STL"/>
+584c572
+<         <mesh filename="meshes/left_wrist_pitch_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/left_wrist_pitch_link.STL"/>
+604c592
+<         <mesh filename="meshes/wrist_yaw_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/wrist_yaw_link.STL"/>
+613c601
+<         <mesh filename="meshes/wrist_yaw_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/wrist_yaw_link.STL"/>
+635c623
+<         <mesh filename="meshes/right_shoulder_pitch_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/right_shoulder_pitch_link.STL"/>
+644c632
+<         <mesh filename="meshes/right_shoulder_pitch_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/right_shoulder_pitch_link.STL"/>
+664c652
+<         <mesh filename="meshes/right_shoulder_roll_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/right_shoulder_roll_link.STL"/>
+673c661
+<         <mesh filename="meshes/right_shoulder_roll_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/right_shoulder_roll_link.STL"/>
+694c682
+<         <mesh filename="meshes/right_shoulder_yaw_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/right_shoulder_yaw_link.STL"/>
+703c691
+<         <mesh filename="meshes/right_shoulder_yaw_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/right_shoulder_yaw_link.STL"/>
+723c711
+<         <mesh filename="meshes/right_elbow_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/right_elbow_link.STL"/>
+732c720
+<         <mesh filename="meshes/right_elbow_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/right_elbow_link.STL"/>
+753c741
+<         <mesh filename="meshes/right_wrist_roll_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/right_wrist_roll_link.STL"/>
+761c749
+<         <mesh filename="meshes/right_wrist_roll_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/right_wrist_roll_link.STL"/>
+782c770
+<         <mesh filename="meshes/right_wrist_pitch_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/right_wrist_pitch_link.STL"/>
+790c778
+<         <mesh filename="meshes/right_wrist_pitch_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/right_wrist_pitch_link.STL"/>
+810c798
+<         <mesh filename="meshes/wrist_yaw_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/wrist_yaw_link.STL"/>
+819c807
+<         <mesh filename="meshes/wrist_yaw_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/wrist_yaw_link.STL"/>
+836c824
+<         <mesh filename="meshes/logo_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/logo_link.STL"/>
+887c875
+<         <mesh filename="meshes/L_hand_base_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/L_hand_base_link.STL"/>
+896c884
+<         <mesh filename="meshes/L_hand_base_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/L_hand_base_link.STL"/>
+909c897
+<         <mesh filename="meshes/link11_L.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link11_L.STL"/>
+918c906
+<         <mesh filename="meshes/link11_L.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link11_L.STL"/>
+938c926
+<         <mesh filename="meshes/link12_L.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link12_L.STL"/>
+947c935
+<         <mesh filename="meshes/link12_L.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link12_L.STL"/>
+967c955
+<         <mesh filename="meshes/link13_L.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link13_L.STL"/>
+976c964
+<         <mesh filename="meshes/link13_L.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link13_L.STL"/>
+997c985
+<         <mesh filename="meshes/link14_L.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link14_L.STL"/>
+1006c994
+<         <mesh filename="meshes/link14_L.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link14_L.STL"/>
+1027c1015
+<         <mesh filename="meshes/link15_L.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link15_L.STL"/>
+1036c1024
+<         <mesh filename="meshes/link15_L.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link15_L.STL"/>
+1056c1044
+<         <mesh filename="meshes/link16_L.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link16_L.STL"/>
+1065c1053
+<         <mesh filename="meshes/link16_L.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link16_L.STL"/>
+1086c1074
+<         <mesh filename="meshes/link17_L.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link17_L.STL"/>
+1095c1083
+<         <mesh filename="meshes/link17_L.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link17_L.STL"/>
+1115c1103
+<         <mesh filename="meshes/link18_L.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link18_L.STL"/>
+1124c1112
+<         <mesh filename="meshes/link18_L.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link18_L.STL"/>
+1145c1133
+<         <mesh filename="meshes/link19_L.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link19_L.STL"/>
+1154c1142
+<         <mesh filename="meshes/link19_L.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link19_L.STL"/>
+1174c1162
+<         <mesh filename="meshes/link20_L.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link20_L.STL"/>
+1183c1171
+<         <mesh filename="meshes/link20_L.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link20_L.STL"/>
+1204c1192
+<         <mesh filename="meshes/link21_L.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link21_L.STL"/>
+1213c1201
+<         <mesh filename="meshes/link21_L.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link21_L.STL"/>
+1233c1221
+<         <mesh filename="meshes/link22_L.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link22_L.STL"/>
+1242c1230
+<         <mesh filename="meshes/link22_L.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link22_L.STL"/>
+1270c1258
+<         <mesh filename="meshes/R_hand_base_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/R_hand_base_link.STL"/>
+1279c1267
+<         <mesh filename="meshes/R_hand_base_link.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/R_hand_base_link.STL"/>
+1292c1280
+<         <mesh filename="meshes/link11_R.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link11_R.STL"/>
+1301c1289
+<         <mesh filename="meshes/link11_R.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link11_R.STL"/>
+1321c1309
+<         <mesh filename="meshes/link12_R.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link12_R.STL"/>
+1330c1318
+<         <mesh filename="meshes/link12_R.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link12_R.STL"/>
+1350c1338
+<         <mesh filename="meshes/link13_R.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link13_R.STL"/>
+1359c1347
+<         <mesh filename="meshes/link13_R.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link13_R.STL"/>
+1380c1368
+<         <mesh filename="meshes/link14_R.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link14_R.STL"/>
+1389c1377
+<         <mesh filename="meshes/link14_R.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link14_R.STL"/>
+1410c1398
+<         <mesh filename="meshes/link15_R.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link15_R.STL"/>
+1419c1407
+<         <mesh filename="meshes/link15_R.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link15_R.STL"/>
+1439c1427
+<         <mesh filename="meshes/link16_R.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link16_R.STL"/>
+1448c1436
+<         <mesh filename="meshes/link16_R.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link16_R.STL"/>
+1469c1457
+<         <mesh filename="meshes/link17_R.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link17_R.STL"/>
+1478c1466
+<         <mesh filename="meshes/link17_R.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link17_R.STL"/>
+1498c1486
+<         <mesh filename="meshes/link18_R.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link18_R.STL"/>
+1507c1495
+<         <mesh filename="meshes/link18_R.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link18_R.STL"/>
+1528c1516
+<         <mesh filename="meshes/link19_R.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link19_R.STL"/>
+1537c1525
+<         <mesh filename="meshes/link19_R.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link19_R.STL"/>
+1557c1545
+<         <mesh filename="meshes/link20_R.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link20_R.STL"/>
+1566c1554
+<         <mesh filename="meshes/link20_R.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link20_R.STL"/>
+1587c1575
+<         <mesh filename="meshes/link21_R.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link21_R.STL"/>
+1596c1584
+<         <mesh filename="meshes/link21_R.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link21_R.STL"/>
+1616c1604
+<         <mesh filename="meshes/link22_R.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link22_R.STL"/>
+1625c1613
+<         <mesh filename="meshes/link22_R.STL"/>
+---
+>         <mesh filename="file://$(find unitree_h1_mujoco)/meshes/link22_R.STL"/>
+1637c1625
+< </robot>
+\ No newline at end of file
+---
+> </robot>
