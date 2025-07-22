@@ -19,21 +19,33 @@ The development and testing of control algorithms for robotic systems is a cruci
 
 ## Getting Started
 To use MuJoCo Ros2 control, you must create a launchfile (you can use the examples as reference):
-- use the ```xacro2mjcf.py``` node to create the required mjcf file within the launchfile
-    - give absolute paths to the needed files or pass robot_descriptions as string as parameters
-    - define the path for the output file and the generated files (the output file must be in the files path)
-- you must pass the following parameters to the node:
-    - ```robot_description``` robot_description (as string)
-    - ```robot_model_path``` the mujoco model file path
-    - a ros2_control parameter yaml file path
-- you can provide the following parameters
-    - ```simulation_frequency``` simulation frequency (default 1000Hz)
-    - ```clock_publisher_frequency``` ros clock publish frequency (default 0Hz => no limitation)
-    - ```real_time_factor``` realtime factor for mujoco (1.0 is realtime)
+### 1. Generate MJCF Using `xacro2mjcf.py` Node
+- Add the `xacro2mjcf.py` node in your launch file to create the MJCF file at launch time.
+- **Required setup:**
+  - Use **absolute paths** for all file references.
+  - Or pass `robot_description` as a **string parameter** (not a file path).
+  - Set:
+    - `output_file`: full path to the generated `.xml` MJCF file.
+    - `mujoco_files_path`: directory where MJCF and related files will be stored.
+      - **⚠️ `output_file` must be inside `mujoco_files_path`.**
+
+
+### 2. Required Parameters for `mujoco_ros2_control` Node
+| Parameter              | Description                                       |
+|------------------------|---------------------------------------------------|
+| `robot_description`    | URDF string (not a file path)                     |
+| `robot_model_path`     | Path to the generated MJCF `.xml` file            |
+| ROS 2 control YAML     | Path to controller config (e.g., `*.yaml`)        |
+
+
+### Launch Flow
+- Launch `xacro2mjcf.py` first.
+- After it exits, launch `mujoco_ros2_control`.
+- Then load controllers (e.g., via `spawner` nodes).
 
 For the urdf creation you can take a look at ![URDF Configuration](./mujoco_ros2_control/README.md)
 
-### Examples
+## Examples
 We provide one example with the franka description and the gears from the IndustRealKit that can be started with ```ros2 launch franka_mujoco franka.launch.py```
 ![RGBD Camera inside of MuJoCo](./paper/figures/franka_rgbd_example.png)
 
