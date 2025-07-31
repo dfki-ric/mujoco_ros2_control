@@ -44,11 +44,6 @@ request.
 
 ## Merge Policy
 
-[//]: <> (merge policy text block>)
-
-[//]: <> (option 1, summary: maintainer can push minor changes directly,
-                    pull request + 1 reviewer for everything else)
-
 Usually it is not possible to push directly to the master branch of Software Name
 for anyone. Only tiny changes, urgent bugfixes, and maintenance commits can
 be pushed directly to the master branch by the maintainer without a review.
@@ -60,14 +55,3 @@ one other developer and merged by the maintainer. New features must be
 documented and tested. Breaking changes must be discussed and announced
 in advance with deprecation warnings.
 
-## Project Roadmap
-
-[//]: <> (write about planned features, current state, roadmap of the project)
-
-## Funding
-
-[//]: <> (write about funding)
-MuJoCo ROS2 Control was initiated and developed at Robotics Innovation Center, German Research Center for Artificial Intelligence (DFKI GmbH) at Bremen, Germany as part of the HARTU Project. This project has received funding from the European Union’s research and innovation program Horizon Europe under grant agreement No. 101092100.
-
-[//]: <> (add logos of funding agencies / DFKI / University here)
-![!\[\]()](https://eufunds.me/wp-content/uploads/2021/09/EU-flag-Horizon-Europe.jpg)
