@@ -1,10 +1,6 @@
 # Mujoco Ros2 Control
 
-[//]: <> (TODO description of the software)
-
 The MuJoCo ROS 2 control hardware interface is designed to enable seamless integration between MuJoCo, a high-performance physics engine, and ROS 2, a widely used middleware for robotic systems. This interface provides a robust and efficient solution for leveraging MuJoCo’s powerful simulation capabilities within the ROS 2 ecosystem, enabling realistic physics-based robot simulation and control.
-
-[//]: <> (TODO contribution of DFKI / other partners)
 
 **software name:** Mujoco Ros2 Control
 
@@ -96,8 +92,6 @@ libpcl-dev
 ros-humble-urdfdom-py
 ```
 
-[//]: <> (TODO which dependencies do I need?)
-
 ## Installation
 To use the **MuJoCo ROS2 Control**, follow these steps:
 1. Install [ROS2 Humble](https://docs.ros.org/en/humble/Installation.html)
@@ -130,23 +124,6 @@ To use the **MuJoCo ROS2 Control**, follow these steps:
 
 ## Documentation
 Run ```doxygen Doxyfile``` in the mujoco_ros2_control directory
-[//]: <> (TODO complete documentation, a link to it, or instructions that tell the user how to build it)
-
-## Testing
-
-[//]: <> (TODO document how to run the tests)
-
-## Coverage (required by Stage 2)
-
-[//]: <> (TODO document how the code coverage can be accessed)
-
-## Deployment
-
-[//]: <> (TODO document how to deploy the software)
-
-## Current State
-
-[//]: <> (TODO is it actively developed?)
 
 ## Bug Reports
 
@@ -154,15 +131,7 @@ To search for bugs or report them, please use GitHubs issue tracker at:
 
 [//]: <> (TODO put a link to the issue tracker here)
 
-## Referencing
-
-[//]: <> (TODO preferred way of referencing this software, e.g., use publication ...)
-
 ## Releases
-
-[//]: <> (TODO release guidelines)
-
-[//]: <> (TODO describe the versioning approach, for example:)
 
 ### Semantic Versioning
 
@@ -173,26 +142,18 @@ compatible manner, and the patch version is incremented for bugfixes,
 documentation, etc.
 
 ## License
-
-<!--[//]: <> (Note: This section is redundant with the LICENSE file. You can omit it if you want.)
-
-[//]: <> (TODO license)
-
-[//]: <> (The New BSD license is recommended by the software board
-          ([source](http://wiki.dfki.uni-bremen.de/index.php/Open_Source_License_Recommendation source)).
-          This is the corresponding text for the README.md:)-->
-
 Mujoco Ros2 Control is distributed under the [3-clause BSD license](https://opensource.org/licenses/BSD-3-Clause).
 
 ## Maintainer / Authors / Contributers
-
-[//]: <> (TODO document who contributes to the software)
-
-[//]: <> (Your employee has the copyright of your work. If you collaborate with other partners,
-          the copyright is shared between involved institutes. You can write, for example,)
 Adrian Danzglock,       adrian.danzglock@dfki.de \
 Vamsi Krishna Origanti, vamsi.origanti@dfki.de
 
 Copyright 2025, DFKI GmbH / Robotics Innovation Center
 
 [//]: <> (if the software is a result of a cooperation of the DFKI  RIC and the Robotics Research Group.)
+t)
+
+## Funding
+MuJoCo ROS2 Control was initiated and developed at Robotics Innovation Center, German Research Center for Artificial Intelligence (DFKI GmbH) at Bremen, Germany as part of the HARTU Project. This project has received funding from the European Union’s research and innovation program Horizon Europe under grant agreement No. 101092100.
+
+![!\[\]()](https://eufunds.me/wp-content/uploads/2021/09/EU-flag-Horizon-Europe.jpg)
