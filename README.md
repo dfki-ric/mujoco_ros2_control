@@ -150,9 +150,6 @@ Vamsi Krishna Origanti, vamsi.origanti@dfki.de
 
 Copyright 2025, DFKI GmbH / Robotics Innovation Center
 
-[//]: <> (if the software is a result of a cooperation of the DFKI  RIC and the Robotics Research Group.)
-t)
-
 ## Funding
 MuJoCo ROS2 Control was initiated and developed at Robotics Innovation Center, German Research Center for Artificial Intelligence (DFKI GmbH) at Bremen, Germany as part of the HARTU Project. This project has received funding from the European Union’s research and innovation program Horizon Europe under grant agreement No. 101092100.
 
