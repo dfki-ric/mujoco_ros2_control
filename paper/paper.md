@@ -8,7 +8,7 @@ tags:
 authors:
   - name: Adrian Danzglock
     orcid: 0009-0004-4715-2973
-    affiliation: 1,2
+    affiliation: 1
   - name: Vamsi Krishna Origanti
     orcid: 0009-0007-1696-5201
     affiliation: 1
@@ -36,11 +36,7 @@ To support ROS-based workflows, we developed a dedicated URDF-to-MJCF conversion
 
 Developing and validating control algorithms for robotic systems often requires extensive testing, which on physical hardware can be expensive, time-consuming, and subject to wear. Accurate simulation environments are essential for safe and scalable development.
 
-MuJoCo (Multi-Joint dynamics with Contact) is a fast and accurate physics engine designed for robotics, control, biomechanics, and reinforcement learning. It provides:
-- Precise multi-body dynamics with advanced numerical integration,
-- High-speed simulation for real-time control and machine learning,
-- Sophisticated contact modeling and soft constraint handling,
-- Flexible actuator models and comprehensive sensor support.
+MuJoCo (Multi-Joint dynamics with Contact) is a fast and accurate physics engine designed for robotics, control, biomechanics, and reinforcement learning. It provides precise multi-body dynamics with advanced numerical integration, High-speed simulation for real-time control and machine learning, Sophisticated contact modeling and soft constraint handling, Flexible actuator models and comprehensive sensor support.
 
 MuJoCo is ideal for reliable torque feedback due to its high-fidelity torque-controlled joints and smooth-contact soft constraint solver, which enables precise compliance behavior [@zhang2025wholebodymodelpredictivecontrollegged].
 
@@ -79,17 +75,14 @@ Despite these capabilities, MuJoCo lacks native support for ROS 2, limiting its 
 
 # Implementation
 
-`MujocoROS2Control` integrates MuJoCo with the `ros2_control` framework. A key component is the URDF-to-MJCF converter, which maintains fixed joints (which MuJoCo typically collapses), allows sensor and actuator tags within URDFs, and generates MJCF files compatible with MuJoCo’s expectations.
+`MujocoROS2Control` integrates MuJoCo with the `ros2_control` framework. A key component is the URDF-to-MJCF converter, which maintains fixed joints which MuJoCo typically collapses, allows sensor and actuator tags within URDFs, and generates MJCF files compatible with MuJoCo’s expectations.
 
-![Overview of the MujocoRos2Control Structure](./figures/mujoco_ros2_control_overview.svg)
+![Overview of the MujocoRos2Control Structure](./figures/mujoco_ros2_control_overview.png)
 
 
-The interface supports:
-- Direct torque control,
-- PID-based position/velocity/acceleration control,
-- MuJoCo’s native actuator models.
+The interface supports direct torque control, PID-based position/velocity/acceleration control and MuJoCo’s native actuator models.
 
-Joint states and simulation time are published for synchronization with the ROS 2 system time (`/clock`). Sensors defined in the URDF (force-torque, IMU, pose, RGB-D camera) are exposed as individual ROS nodes using `realtime_tools` [@realtime_tools] to maintain real-time performance.
+Joint states and simulation time are published for synchronization with the ROS 2 system time (`/clock`). Sensors defined in the URDF are exposed as individual ROS nodes using `realtime_tools` [@realtime_tools] to maintain real-time performance.
 
 # Use Cases
 MujocoRos2Control was utilized for testing and validating various torque and admittance controllers within the scope of the HARTU project [@hartu_project]. The software also played a key role in conducting experiments for the publication "Look-Ahead Optimization for Managing Nullspace in Cartesian Impedance Control of Dual-Arm Robots" [@Origanti2025].
@@ -106,14 +99,19 @@ For the high-resolution collision modeling, we use CoaCD [@wei2022coacd] to crea
 
 ![Franka FR3 controlled with ROS 2 Joint Trajectory Controller](./figures/franka_rgbd_example.png)
 
+## Unitree H1
+
+This example uses the loads the Bipedal robot Unitree H1 [@unitree_ros] with a floating base and tf2 transformations from world to pelvis. All joints are controlled via ros2 control, with mujoco actuators for position and velocity control (PD Control).
+The 
+![Unitree H1 controlled with ROS 2 control and tf2 transformation, and IMU](./figures/unitree_h1_example.png)
 
 ## IMRK System
 
-In this example, we simulate the iMRK system developed at DFKI Bremen, consisting of two KUKA LBR iiwa 14 robots [@Mrongaimrk]. A ROS2 Cartesian impedance controller (migrated version of [@mayr2024cartesian]) is used for each arm. MuJoCo actuators manage the Robotiq 2F grippers, and force-torque sensors are simulated at both end-effectors.
+In this example, we simulate the iMRK system developed at DFKI Bremen, consisting of two KUKA LBR iiwa 14 robots [@Mrongaimrk]. A ROS2 Cartesian impedance controller (migrated version of [@mayr2024cartesian]) is used for each arm. MuJoCo actuators manage the Robotiq 2F grippers, and force-torque sensors are simulated at both end-effectors. 
+Because the robot description for the IMRK system is not public available, we cant provide the files for the examples.
 
 ![IMRK with Robotiq 2F Gripper and Robotiq FT300 Sensor](./figures/kuka_imrk_example.png)
 
-(Note: The IMRK robot description is internal and not included in the public examples.)
 
 # Conclusion
 

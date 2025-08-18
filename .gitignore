@@ -13,3 +13,4 @@ doc/
 compile_commands.json
 build/
 *.bak/
+paper/jats/

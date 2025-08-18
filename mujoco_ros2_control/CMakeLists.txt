@@ -12,7 +12,7 @@ if(NOT CMAKE_CXX_STANDARD)
 endif()
 
 # Enable debug build
-set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_BUILD_TYPE Release)
 
 # Export compile commands for IDEs
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
