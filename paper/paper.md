@@ -108,7 +108,7 @@ This example uses the loads the Bipedal robot Unitree H1 [@unitree_ros] with a f
 ## IMRK System
 
 In this example, we simulate the iMRK system developed at DFKI Bremen, consisting of two KUKA LBR iiwa 14 robots [@Mrongaimrk]. A ROS2 Cartesian impedance controller (migrated version of [@mayr2024cartesian]) is used for each arm. MuJoCo actuators manage the Robotiq 2F grippers, and force-torque sensors are simulated at both end-effectors. 
-Because the robot description for the IMRK system is not public available, we cant provide the files for the examples.
+Because the robot description for the IMRK system is not public available, we cant provide the files for this example.
 
 ![IMRK with Robotiq 2F Gripper and Robotiq FT300 Sensor](./figures/kuka_imrk_example.png)
 
