@@ -102,7 +102,7 @@ For the high-resolution collision modeling, we use CoaCD [@wei2022coacd] to crea
 ## Unitree H1
 
 This example uses the loads the Bipedal robot Unitree H1 [@unitree_ros] with a floating base and tf2 transformations from world to pelvis. All joints are controlled via ros2 control, with mujoco actuators for position and velocity control (PD Control).
-The 
+
 ![Unitree H1 controlled with ROS 2 control and tf2 transformation, and IMU](./figures/unitree_h1_example.png)
 
 ## IMRK System
