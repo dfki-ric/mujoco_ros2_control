@@ -1,5 +1,6 @@
 from urdf_parser_py import urdf
 import os
+import sys
 import xml.etree.ElementTree as ET
 import numpy as np
 from scipy.spatial.transform import Rotation as R
@@ -205,6 +206,11 @@ def create_mjcf(robot, robot_tree, mujoco_element):
                     geom.set("size", f"{radius} {length/2}")
                 else:
                     print(type(visual.geometry))
+
+                if visual.material:
+                    if visual.material.color:
+                        r, g, b, a = visual.material.color.rgba
+                        geom.set("rgba", f"{r} {g} {b} {a}")
         
         
         # Recursively add child links and their joints
