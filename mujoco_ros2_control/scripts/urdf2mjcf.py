@@ -136,7 +136,7 @@ def create_mjcf(robot, robot_tree, mujoco_element):
             ])
             # Compute eigenvalues and eigenvectors
             eigenvalues, _ = np.linalg.eigh(inertia_matrix)
-            inertial.set("diaginertia", f"{eigenvalues[2]} {eigenvalues[1]} {eigenvalues[0]}")
+            inertial.set("diaginertia", f"{eigenvalues[0]} {eigenvalues[1]} {eigenvalues[2]}")
         if robot.link_map[link_name].collisions:
             for i, collision in enumerate(robot.link_map[link_name].collisions):
                 geom = ET.SubElement(body, "geom", group="1", name=f"{link_name}_collision_{i}")
