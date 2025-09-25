@@ -127,7 +127,7 @@ Run ```doxygen Doxyfile``` in the mujoco_ros2_control directory
 
 ## Bug Reports
 
-To search for bugs or report them, please use GitHubs issue tracker at:
+To search for bugs or report them, please use GitHubs ![issue tracker](trhttps://github.com/dfki-ric/mujoco_ros2_control/issues)
 
 [//]: <> (TODO put a link to the issue tracker here)
 
