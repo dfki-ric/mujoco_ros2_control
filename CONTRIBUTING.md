@@ -8,19 +8,19 @@ what you are trying to do.
 ## Pull Requests
 
 The preferred way to contribute to MuJoCo ROS2 Control is to fork the
-[main repository](<github url>) on GitHub, then submit a "pull request"
+[main repository](https://github.com/dfki-ric/mujoco_ros2_control) on GitHub, then submit a "pull request"
 (PR):
 
 1. [Create an account](https://github.com/signup/free) on
    GitHub if you do not already have one.
 
-2. Fork the [project repository](<github url>):
+2. Fork the [project repository](https://github.com/dfki-ric/mujoco_ros2_control):
    click on the 'Fork' button near the top of the page. This creates a copy of
    the code under your account on the GitHub server.
 
 3. Clone this copy to your local disk:
 
-        $ git clone git@github.com:YourLogin/<software name>.git
+        $ git clone git@github.com:YourLogin/mujoco_ros2_control.git
 
 4. Create a branch to hold your changes:
 
