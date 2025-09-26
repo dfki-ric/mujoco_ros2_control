@@ -16,24 +16,162 @@
   address = "Sendai, Japan",
   month = "Sep",
   year = "2004",
+  doi={10.1109/IROS.2004.1389727}
 }
 
-@inproceedings{tang2023industreal,
-    author = {Bingjie Tang and Michael A Lin and Iretiayo Akinola and Ankur Handa and Gaurav S Sukhatme and Fabio Ramos and Dieter Fox and Yashraj Narang},
-    title = {IndustReal: Transferring contact-rich assembly tasks from simulation to reality},
-    booktitle = {Robotics: Science and Systems},
-    year = {2023}
+@misc{tang2023industreal,
+  title={IndustReal: Transferring Contact-Rich Assembly Tasks from Simulation to Reality}, 
+  author={Bingjie Tang and Michael A. Lin and Iretiayo Akinola and Ankur Handa and Gaurav S. Sukhatme and Fabio Ramos and Dieter Fox and Yashraj Narang},
+  year={2023},
+  eprint={2305.17110},
+  archivePrefix={arXiv},
+  primaryClass={cs.RO},
+  url={https://arxiv.org/abs/2305.17110}, 
 }
 
 @article{wei2022coacd,
-  title={Approximate convex decomposition for 3d meshes with collision-aware concavity and tree search},
-  author={Wei, Xinyue and Liu, Minghua and Ling, Zhan and Su, Hao},
-  journal={ACM Transactions on Graphics (TOG)},
-  volume={41},
-  number={4},
-  pages={1--18},
+  author = {Wei, Xinyue and Liu, Minghua and Ling, Zhan and Su, Hao},
+  title = {Approximate convex decomposition for 3D meshes with collision-aware concavity and tree search},
+  year = {2022},
+  issue_date = {July 2022},
+  publisher = {Association for Computing Machinery},
+  address = {New York, NY, USA},
+  volume = {41},
+  number = {4},
+  issn = {0730-0301},
+  url = {https://doi.org/10.1145/3528223.3530103},
+  doi = {10.1145/3528223.3530103},
+  abstract = {Approximate convex decomposition aims to decompose a 3D shape into a set of almost convex components, whose convex hulls can then be used to represent the input shape. It thus enables efficient geometry processing algorithms specifically designed for convex shapes and has been widely used in game engines, physics simulations, and animation. While prior works can capture the global structure of input shapes, they may fail to preserve fine-grained details (e.g., filling a toaster's slots), which are critical for retaining the functionality of objects in interactive environments. In this paper, we propose a novel method that addresses the limitations of existing approaches from three perspectives: (a) We introduce a novel collision-aware concavity metric that examines the distance between a shape and its convex hull from both the boundary and the interior. The proposed concavity preserves collision conditions and is more robust to detect various approximation errors. (b) We decompose shapes by directly cutting meshes with 3D planes. It ensures generated convex hulls are intersection-free and avoids voxelization errors. (c) Instead of using a one-step greedy strategy, we propose employing a multi-step tree search to determine the cutting planes, which leads to a globally better solution and avoids unnecessary cuttings. Through extensive evaluation on a large-scale articulated object dataset, we show that our method generates decompositions closer to the original shape with fewer components. It thus supports delicate and efficient object interaction in downstream applications.},
+  journal = {ACM Trans. Graph.},
+  month = jul,
+  articleno = {42},
+  numpages = {18},
+  keywords = {concavity, convex decomposition, geometry processing, shape decomposition, shape similarity, tree search}
+}
+
+@article{Fabisch2024,
+  doi = {10.21105/joss.06695},
+  url = {https://doi.org/10.21105/joss.06695},
+  year = {2024},
+  publisher = {The Open Journal},
+  volume = {9},
+  number = {97},
+  pages = {6695},
+  author = {Alexander Fabisch},
+  title = {movement_primitives: Imitation Learning of Cartesian Motion with Movement Primitives},
+  journal = {Journal of Open Source Software}
+}
+
+@article{mayr2024cartesian,
+    doi = {10.21105/joss.05194},
+    url = {https://doi.org/10.21105/joss.05194},
+    year = {2024},
+    publisher = {The Open Journal},
+    volume = {9},
+    number = {93},
+    pages = {5194},
+    author = {Matthias Mayr and Julian M. Salt-Ducaju},
+    title = {A C++ Implementation of a Cartesian Impedance Controller for Robotic Manipulators}, journal = {Journal of Open Source Software}
+}
+
+@INPROCEEDINGS{Origanti2025,
+  author={Origanti, Vamsi Krishna and Danzglock, Adrian and Kirchner, Frank},
+  booktitle={2025 IEEE/SICE International Symposium on System Integration (SII)}, 
+  title={Look Ahead Optimization for Managing Nullspace in Cartesian Impedance Control of Dual-Arm Robots}, 
+  year={2025},
+  volume={},
+  number={},
+  pages={990-997},
+  keywords={Robot kinematics;Kinematics;System integration;Aerospace electronics;End effectors;Trajectory;Impedance;Collision avoidance;Robots;Optimization},
+  doi={10.1109/SII59315.2025.10871056}
+}
+
+
+@ARTICLE{Acosta2022,
+  author={Acosta, Brian and Yang, William and Posa, Michael},
+  journal={IEEE Robotics and Automation Letters}, 
+  title={Validating Robotics Simulators on Real-World Impacts}, 
   year={2022},
-  publisher={ACM New York, NY, USA}
+  volume={7},
+  number={3},
+  pages={6471-6478},
+  keywords={Computational modeling;Robots;Trajectory;Mathematical models;Friction;Numerical models;Dynamics;Contact modeling;dynamics;simulation and animation},
+  doi={10.1109/LRA.2022.3174367}
+}
+
+@unknown{Körber2021,
+  author = {Körber, Marian and Christensen, Johann and Rediske, Stephan and Steinmann, Simon and Glück, R.},
+  year = {2021},
+  month = {03},
+  pages = {},
+  title = {Comparing Popular Simulation Environments in the Scope of Robotics and Reinforcement Learning},
+  doi = {10.48550/arXiv.2103.04616}
+}
+
+@misc{zhang2025wholebodymodelpredictivecontrollegged,
+      title={Whole-Body Model-Predictive Control of Legged Robots with MuJoCo}, 
+      author={John Z. Zhang and Taylor A. Howell and Zeji Yi and Chaoyi Pan and Guanya Shi and Guannan Qu and Tom Erez and Yuval Tassa and Zachary Manchester},
+      year={2025},
+      eprint={2503.04613},
+      archivePrefix={arXiv},
+      primaryClass={cs.RO},
+      url={https://arxiv.org/abs/2503.04613}, 
+}
+
+@misc{drake_mit,
+  author={Russ Tedrake and the Drake Development Team},
+  title={Drake: Model-based design and verification for robotics},
+  year={2019},
+  url={https://drake.mit.edu}
+}
+
+@misc{gazebo_physics,
+  title={Gazebo Physics Parameters},
+  author={Gazebo Simulation Team},
+  year={2025},
+  url={https://classic.gazebosim.org/tutorials?tut=physics_params&cat=physics}
+}
+
+@misc{mujoco_ros2_control,
+  author = {MoveIt},
+  title = {MuJoCo ROS2 Control},
+  year = {2025},
+  url = {https://github.com/moveit/mujoco_ros2_control}
+}
+
+@misc{gz_ros2_control,
+  author = {ROS Controls},
+  title = {Gazebo ROS2 Control},
+  year = {2025},
+  url = {https://github.com/ros-controls/gz_ros2_control}
+}
+
+@misc{drake_ros,
+  author = {Robot Locomotion},
+  title = {Drake ROS Integration},
+  year = {2025},
+  url = {https://github.com/RobotLocomotion/drake-ros}
+}
+
+@misc{gazebo_ros2_mimic_joints,
+  author = {Stack Exchange User},
+  title = {Gazebo ROS2 Control Mimic Joints Not Working As Expected},
+  year = {2025},
+  url = {https://robotics.stackexchange.com/questions/110622/gazebo-ros2-control-mimic-joints-not-working-as-expected}
+}
+
+@misc{unitree_ros,
+  author       = {Unitree Robotics},
+  title        = {unitree\_ros},
+  year         = {2025},
+  howpublished = {\url{https://raw.githubusercontent.com/unitreerobotics/unitree_ros}},
+  note         = {Accessed: 2025-08-18}
+}
+
+@misc{hartu_project,
+  title = {HARTU Project},
+  howpublished = {\url{https://www.hartu-project.eu/}},
+  note = {Accessed: 2025-06-10}
 }
 
 @misc{ros2_control,
@@ -74,29 +212,6 @@
   year = {2024},
   note = {Accessed: 2024-12-17}
 }
-@article{Fabisch2024,
-  doi = {10.21105/joss.06695},
-  url = {https://doi.org/10.21105/joss.06695},
-  year = {2024},
-  publisher = {The Open Journal},
-  volume = {9},
-  number = {97},
-  pages = {6695},
-  author = {Alexander Fabisch},
-  title = {movement_primitives: Imitation Learning of Cartesian Motion with Movement Primitives},
-  journal = {Journal of Open Source Software}
-}
-@article{mayr2024cartesian,
-    doi = {10.21105/joss.05194},
-    url = {https://doi.org/10.21105/joss.05194},
-    year = {2024},
-    publisher = {The Open Journal},
-    volume = {9},
-    number = {93},
-    pages = {5194},
-    author = {Matthias Mayr and Julian M. Salt-Ducaju},
-    title = {A C++ Implementation of a Cartesian Impedance Controller for Robotic Manipulators}, journal = {Journal of Open Source Software}
-}
 
 @misc{Mrongaimrk,
   author = {{Dennis Mronga}},
@@ -104,104 +219,4 @@
   howpublished = {\url{https://robotik.dfki-bremen.de/en/research/robot-systems/imrk/}},
   year = {2025},
   note = {Accessed: 2025-05-05}
-}
-
-
-@INPROCEEDINGS{Origanti2025,
-  author={Origanti, Vamsi Krishna and Danzglock, Adrian and Kirchner, Frank},
-  booktitle={2025 IEEE/SICE International Symposium on System Integration (SII)}, 
-  title={Look Ahead Optimization for Managing Nullspace in Cartesian Impedance Control of Dual-Arm Robots}, 
-  year={2025},
-  volume={},
-  number={},
-  pages={990-997},
-  keywords={Robot kinematics;Kinematics;System integration;Aerospace electronics;End effectors;Trajectory;Impedance;Collision avoidance;Robots;Optimization},
-  doi={10.1109/SII59315.2025.10871056}
-}
-
-@misc{hartu_project,
-  title = {HARTU Project},
-  howpublished = {\url{https://www.hartu-project.eu/}},
-  note = {Accessed: 2025-06-10}
-}
-
-@ARTICLE{Acosta2022,
-  author={Acosta, Brian and Yang, William and Posa, Michael},
-  journal={IEEE Robotics and Automation Letters}, 
-  title={Validating Robotics Simulators on Real-World Impacts}, 
-  year={2022},
-  volume={7},
-  number={3},
-  pages={6471-6478},
-  keywords={Computational modeling;Robots;Trajectory;Mathematical models;Friction;Numerical models;Dynamics;Contact modeling;dynamics;simulation and animation},
-  doi={10.1109/LRA.2022.3174367}
-}
-
-@unknown{Körber2021,
-  author = {Körber, Marian and Christensen, Johann and Rediske, Stephan and Steinmann, Simon and Glück, R.},
-  year = {2021},
-  month = {03},
-  pages = {},
-  title = {Comparing Popular Simulation Environments in the Scope of Robotics and Reinforcement Learning},
-  doi = {10.48550/arXiv.2103.04616}
-}
-
-@misc{zhang2025wholebodymodelpredictivecontrollegged,
-      title={Whole-Body Model-Predictive Control of Legged Robots with MuJoCo}, 
-      author={John Z. Zhang and Taylor A. Howell and Zeji Yi and Chaoyi Pan and Guanya Shi and Guannan Qu and Tom Erez and Yuval Tassa and Zachary Manchester},
-      year={2025},
-      eprint={2503.04613},
-      archivePrefix={arXiv},
-      primaryClass={cs.RO},
-      url={https://arxiv.org/abs/2503.04613}, 
-}
-
-@misc{gazebo_physics,
-  title={Gazebo Physics Parameters},
-  author={Gazebo Simulation Team},
-  year={2025},
-  url={https://classic.gazebosim.org/tutorials?tut=physics_params&cat=physics}
-}
-
-@misc{drake_mit,
-  author={Russ Tedrake and the Drake Development Team},
-  title={Drake: Model-based design and verification for robotics},
-  year={2019},
-  url={https://drake.mit.edu}
-}
-
-@misc{mujoco_ros2_control,
-  author = {MoveIt},
-  title = {MuJoCo ROS2 Control},
-  year = {2025},
-  url = {https://github.com/moveit/mujoco_ros2_control}
-}
-
-@misc{gz_ros2_control,
-  author = {ROS Controls},
-  title = {Gazebo ROS2 Control},
-  year = {2025},
-  url = {https://github.com/ros-controls/gz_ros2_control}
-}
-
-@misc{drake_ros,
-  author = {Robot Locomotion},
-  title = {Drake ROS Integration},
-  year = {2025},
-  url = {https://github.com/RobotLocomotion/drake-ros}
-}
-
-@misc{gazebo_ros2_mimic_joints,
-  author = {Stack Exchange User},
-  title = {Gazebo ROS2 Control Mimic Joints Not Working As Expected},
-  year = {2025},
-  url = {https://robotics.stackexchange.com/questions/110622/gazebo-ros2-control-mimic-joints-not-working-as-expected}
-}
-
-@misc{unitree_ros,
-  author       = {Unitree Robotics},
-  title        = {unitree\_ros},
-  year         = {2025},
-  howpublished = {\url{https://raw.githubusercontent.com/unitreerobotics/unitree_ros}},
-  note         = {Accessed: 2025-08-18}
 }
