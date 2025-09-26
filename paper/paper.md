@@ -14,7 +14,7 @@ authors:
     affiliation: 1
   - name: Frank Kirchner
     orcid: 0000-0002-1713-9784
-    affiliation: 1,2
+    affiliation: "1,2"
 affiliations:
  - name: Robotics Innovation Center, German Research Center for Artificial Intelligence (DFKI), Bremen, Germany
    index: 1
