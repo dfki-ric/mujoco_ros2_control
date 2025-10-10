@@ -41,7 +41,7 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include "urdf/urdf/model.h"
+#include "urdf/model.h"
 
 #include "mujoco/mujoco.h"
 #include "mujoco/mjdata.h"
