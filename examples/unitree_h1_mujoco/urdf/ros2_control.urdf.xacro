@@ -65,29 +65,29 @@
       <xacro:configure_joint joint_name="right_wrist_pitch_joint" initial_position="0.0"/>
       <xacro:configure_joint joint_name="right_wrist_yaw_joint" initial_position="0.0"/>
       <xacro:configure_joint joint_name="L_index_proximal_joint" initial_position="0.0"/>
-      <xacro:configure_joint joint_name="L_index_intermediate_joint" initial_position="0.0"/>
+      <!-- <xacro:configure_joint joint_name="L_index_intermediate_joint" initial_position="0.0"/> -->
       <xacro:configure_joint joint_name="L_middle_proximal_joint" initial_position="0.0"/>
-      <xacro:configure_joint joint_name="L_middle_intermediate_joint" initial_position="0.0"/>
+      <!-- <xacro:configure_joint joint_name="L_middle_intermediate_joint" initial_position="0.0"/> -->
       <xacro:configure_joint joint_name="L_ring_proximal_joint" initial_position="0.0"/>
-      <xacro:configure_joint joint_name="L_ring_intermediate_joint" initial_position="0.0"/>
+      <!-- <xacro:configure_joint joint_name="L_ring_intermediate_joint" initial_position="0.0"/> -->
       <xacro:configure_joint joint_name="L_pinky_proximal_joint" initial_position="0.0"/>
-      <xacro:configure_joint joint_name="L_pinky_intermediate_joint" initial_position="0.0"/>
+      <!-- <xacro:configure_joint joint_name="L_pinky_intermediate_joint" initial_position="0.0"/> -->
       <xacro:configure_joint joint_name="L_thumb_proximal_yaw_joint" initial_position="0.0"/>
       <xacro:configure_joint joint_name="L_thumb_proximal_pitch_joint" initial_position="0.0"/>
-      <xacro:configure_joint joint_name="L_thumb_intermediate_joint" initial_position="0.0"/>
-      <xacro:configure_joint joint_name="L_thumb_distal_joint" initial_position="0.0"/>
+      <!-- <xacro:configure_joint joint_name="L_thumb_intermediate_joint" initial_position="0.0"/> -->
+      <!-- <xacro:configure_joint joint_name="L_thumb_distal_joint" initial_position="0.0"/> -->
       <xacro:configure_joint joint_name="R_index_proximal_joint" initial_position="0.0"/>
-      <xacro:configure_joint joint_name="R_index_intermediate_joint" initial_position="0.0"/>
+      <!-- <xacro:configure_joint joint_name="R_index_intermediate_joint" initial_position="0.0"/> -->
       <xacro:configure_joint joint_name="R_middle_proximal_joint" initial_position="0.0"/>
-      <xacro:configure_joint joint_name="R_middle_intermediate_joint" initial_position="0.0"/>
+      <!-- <xacro:configure_joint joint_name="R_middle_intermediate_joint" initial_position="0.0"/> -->
       <xacro:configure_joint joint_name="R_ring_proximal_joint" initial_position="0.0"/>
-      <xacro:configure_joint joint_name="R_ring_intermediate_joint" initial_position="0.0"/>
+      <!-- <xacro:configure_joint joint_name="R_ring_intermediate_joint" initial_position="0.0"/> -->
       <xacro:configure_joint joint_name="R_pinky_proximal_joint" initial_position="0.0"/>
-      <xacro:configure_joint joint_name="R_pinky_intermediate_joint" initial_position="0.0"/>
+      <!-- <xacro:configure_joint joint_name="R_pinky_intermediate_joint" initial_position="0.0"/> -->
       <xacro:configure_joint joint_name="R_thumb_proximal_yaw_joint" initial_position="0.0"/>
       <xacro:configure_joint joint_name="R_thumb_proximal_pitch_joint" initial_position="0.0"/>
-      <xacro:configure_joint joint_name="R_thumb_intermediate_joint" initial_position="0.0"/>
-      <xacro:configure_joint joint_name="R_thumb_distal_joint" initial_position="0.0"/>
+      <!-- <xacro:configure_joint joint_name="R_thumb_intermediate_joint" initial_position="0.0"/> -->
+      <!-- <xacro:configure_joint joint_name="R_thumb_distal_joint" initial_position="0.0"/> -->
     </ros2_control>
 
   </xacro:macro>

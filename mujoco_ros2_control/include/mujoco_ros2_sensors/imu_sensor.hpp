@@ -41,7 +41,7 @@
 // ROS header
 #include "rclcpp/rclcpp.hpp"
 
-#include "realtime_tools/realtime_publisher.h"
+#include "realtime_tools/realtime_publisher.hpp"
 #include "sensor_msgs/msg/imu.hpp"
 
 // TODO: Make it possible to choose if want to use tf or pose stamped

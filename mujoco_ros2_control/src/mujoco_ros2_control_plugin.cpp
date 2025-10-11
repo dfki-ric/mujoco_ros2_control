@@ -197,60 +197,21 @@ namespace mujoco_ros2_control {
 
     void MujocoRos2Control::init_controller_manager() {
         RCLCPP_INFO(nh_->get_logger(), "init controller manager");
-        try {
-            robot_hw_sim_loader_.reset(
-                    new pluginlib::ClassLoader<mujoco_ros2_control::MujocoSystemInterface>
-                            ("mujoco_ros2_control", "mujoco_ros2_control::MujocoSystemInterface"));
-        } catch (pluginlib::LibraryLoadException &ex) {
-            RCLCPP_FATAL(nh_->get_logger() , "Failed to create robot sim interface loader: %s", ex.what());
-        }
 
-        std::string urdf_string;
-        urdf::Model urdf_model;
-        std::vector<hardware_interface::HardwareInfo> control_hardware;
-        resource_manager_ = std::make_unique<hardware_interface::ResourceManager>();
-
-        try {
-            urdf_string = params_.robot_description;
-            urdf_model.initString(urdf_string);
-            control_hardware = hardware_interface::parse_control_resources_from_urdf(urdf_string);
-        } catch (const std::runtime_error & ex) {
-            RCLCPP_ERROR(nh_->get_logger(), "Error parsing URDF in mujoco_ros2_control plugin: %s",
-                         ex.what());
-            rclcpp::shutdown();
-        }
-
-        try {
-            resource_manager_->load_urdf(urdf_string, false, false);
-        } catch (...) {
-            // This error should be normal as the resource manager is not supposed to load and initialize
-            // them
-            RCLCPP_ERROR(nh_->get_logger(), "Error initializing URDF to resource manager!");
-        }
-
-        for (auto & hw_info : control_hardware) {
-            const std::string hardware_type = hw_info.hardware_class_type;
-            auto system = std::unique_ptr<mujoco_ros2_control::MujocoSystemInterface>(robot_hw_sim_loader_->createUnmanagedInstance(hardware_type));
-            system->initSim(mujoco_model_, mujoco_data_, hw_info, &urdf_model);
-            resource_manager_->import_component(std::move(system), hw_info);
-            // activate all components
-            rclcpp_lifecycle::State state(
-                    lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE,
-                    hardware_interface::lifecycle_state_names::ACTIVE);
-            resource_manager_->set_component_state(hw_info.name, state);
-        }
-
-        if (resource_manager_->is_urdf_already_loaded()) {
-            RCLCPP_DEBUG(nh_->get_logger(), "URDF is already loaded");
-        }
+        resource_manager_ = std::make_unique<mujoco_ros2_control::MujocoResourceManager>(nh_, mujoco_model_, mujoco_data_);
 
         executor_ = std::make_shared<rclcpp::executors::MultiThreadedExecutor>();
+
+        rclcpp::NodeOptions cm_node_options = controller_manager::get_cm_node_options();
+        cm_node_options.parameter_overrides({{"use_sim_time", true}});
         controller_manager_.reset(
             new controller_manager::ControllerManager(
-                std::move(resource_manager_), 
-                executor_, 
-                "controller_manager", 
-                nh_->get_namespace()));
+            std::move(resource_manager_),
+            executor_, 
+            "controller_manager",
+            "",
+            cm_node_options
+        ));
         
         executor_->add_node(controller_manager_);
         
@@ -281,7 +242,7 @@ namespace mujoco_ros2_control {
 
         stop_ = false;
         auto spin = [this]() {
-            while(rclcpp::ok() && !stop_.load()) {
+            while(!stop_.load()) {
                 executor_->spin_once();
             }
         };

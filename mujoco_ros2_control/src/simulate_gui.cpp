@@ -30,7 +30,7 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * This code is a modified version of the original code from DeepMind Technologies Limited.
- * https://github.com/google-deepmind/mujoco/blob/main/simulate/main.cc
+ * https://github.com/google-deepmind/mujoco/blob/3.2.0/simulate/simulate.cc
  *
  * Original code licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.

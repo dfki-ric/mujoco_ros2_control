@@ -2,7 +2,7 @@
 <package format="2">
   <name>unitree_h1_mujoco</name>
   <version>1.0.0</version>
-  <description>Panda simulation package for gazebo ignition and mujoco</description>
+  <description>Unitree H1 simulation package for gazebo ignition and mujoco</description>
 
   <maintainer email="adrian.danzglock@dfki.de">Adrian Danzglock</maintainer>
 
@@ -14,8 +14,6 @@
   <exec_depend>mujoco_ros2_control</exec_depend>
   <exec_depend>urdf</exec_depend>
   <exec_depend>xacro</exec_depend>
-  <exec_depend>task_table_mujoco</exec_depend>
-  <exec_depend>wbc_ros</exec_depend>
   
   <export>
     <build_type>ament_cmake</build_type>

@@ -121,15 +121,17 @@ def create_nodes(context: LaunchContext):
             "joint_state_broadcaster",
             "--controller-manager",
             ["/", "controller_manager"],
+            '--param-file',
+            ros2_control_params_file,
         ],
     )
 
-    left_arm_position_controller = Node(package="controller_manager", executable="spawner", arguments=["left_arm_position_controller", "--controller-manager", ["/", "controller_manager"]], namespace="/")
-    left_hand_position_controller = Node(package="controller_manager", executable="spawner", arguments=["left_hand_position_controller", "--controller-manager", ["/", "controller_manager"]], namespace="/")
-    left_leg_position_controller = Node(package="controller_manager", executable="spawner", arguments=["left_leg_position_controller", "--controller-manager", ["/", "controller_manager"]], namespace="/")
-    right_arm_position_controller = Node(package="controller_manager", executable="spawner", arguments=["right_arm_position_controller", "--controller-manager", ["/", "controller_manager"]], namespace="/")
-    right_hand_position_controller = Node(package="controller_manager", executable="spawner", arguments=["right_hand_position_controller", "--controller-manager", ["/", "controller_manager"]], namespace="/")
-    right_leg_position_controller = Node(package="controller_manager", executable="spawner", arguments=["right_leg_position_controller", "--controller-manager", ["/", "controller_manager"]], namespace="/")
+    left_arm_position_controller = Node(package="controller_manager", executable="spawner", arguments=["left_arm_position_controller", "--controller-manager", ["/", "controller_manager"], '--param-file', ros2_control_params_file], namespace="/")
+    left_hand_position_controller = Node(package="controller_manager", executable="spawner", arguments=["left_hand_position_controller", "--controller-manager", ["/", "controller_manager"], '--param-file', ros2_control_params_file], namespace="/")
+    left_leg_position_controller = Node(package="controller_manager", executable="spawner", arguments=["left_leg_position_controller", "--controller-manager", ["/", "controller_manager"], '--param-file', ros2_control_params_file], namespace="/")
+    right_arm_position_controller = Node(package="controller_manager", executable="spawner", arguments=["right_arm_position_controller", "--controller-manager", ["/", "controller_manager"], '--param-file', ros2_control_params_file], namespace="/")
+    right_hand_position_controller = Node(package="controller_manager", executable="spawner", arguments=["right_hand_position_controller", "--controller-manager", ["/", "controller_manager"], '--param-file', ros2_control_params_file], namespace="/")
+    right_leg_position_controller = Node(package="controller_manager", executable="spawner", arguments=["right_leg_position_controller", "--controller-manager", ["/", "controller_manager"], '--param-file', ros2_control_params_file], namespace="/")
     # load_hand_pose_left_controller = Node(package="controller_manager", executable="spawner", arguments=["hand_pose_left_controller", "--controller-manager", ["/", "controller_manager"]], namespace="/")
     # load_hand_pose_right_controller = Node(package="controller_manager", executable="spawner", arguments=["hand_pose_right_controller", "--controller-manager", ["/", "controller_manager"]], namespace="/")
     # foot_pose_left_controller = Node(package="controller_manager", executable="spawner", arguments=["foot_pose_left_controller", "--controller-manager", ["/", "controller_manager"]], namespace="/")

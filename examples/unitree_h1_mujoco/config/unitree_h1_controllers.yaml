@@ -4,8 +4,6 @@ controller_manager:
 
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
-
-    
     left_arm_position_controller:
       type: "joint_trajectory_controller/JointTrajectoryController"
     left_hand_position_controller:
@@ -19,27 +17,9 @@ controller_manager:
     right_leg_position_controller:
       type: "joint_trajectory_controller/JointTrajectoryController"
 
-    #### WBC ####
-    # whole_body_controller:
-    #   type: wbc_ros/WholeBodyController
-
-    # com_controller:
-    #  type: wbc_ros/CartesianPositionController
-
-    # hand_pose_left_controller:
-    #   type: wbc_ros/CartesianPositionController
-
-    # hand_pose_right_controller:
-    #   type: wbc_ros/CartesianPositionController
-
-    # foot_pose_left_controller:
-    #   type: wbc_ros/CartesianPositionController
-
-    # foot_pose_right_controller:
-    #   type: wbc_ros/CartesianPositionController
-
 left_arm_position_controller:
   ros__parameters:
+    type: "joint_trajectory_controller/JointTrajectoryController"
     joints:
         - left_shoulder_pitch_joint
         - left_shoulder_roll_joint
@@ -58,19 +38,20 @@ left_arm_position_controller:
 
 left_hand_position_controller:
   ros__parameters:
+    type: "joint_trajectory_controller/JointTrajectoryController"
     joints:
         - L_index_proximal_joint
-        - L_index_intermediate_joint
+        # - L_index_intermediate_joint
         - L_middle_proximal_joint
-        - L_middle_intermediate_joint
+        # - L_middle_intermediate_joint
         - L_ring_proximal_joint
-        - L_ring_intermediate_joint
+        # - L_ring_intermediate_joint
         - L_pinky_proximal_joint
-        - L_pinky_intermediate_joint
+        # - L_pinky_intermediate_joint
         - L_thumb_proximal_yaw_joint
         - L_thumb_proximal_pitch_joint
-        - L_thumb_intermediate_joint
-        - L_thumb_distal_joint
+        # - L_thumb_intermediate_joint
+        # - L_thumb_distal_joint
     command_interfaces:
       - position
       #- velocity
@@ -81,6 +62,7 @@ left_hand_position_controller:
 
 left_leg_position_controller:
   ros__parameters:
+    type: "joint_trajectory_controller/JointTrajectoryController"
     joints:
         - left_hip_yaw_joint
         - left_hip_pitch_joint
@@ -99,6 +81,7 @@ left_leg_position_controller:
 
 right_arm_position_controller:
   ros__parameters:
+    type: "joint_trajectory_controller/JointTrajectoryController"
     joints:
         - right_shoulder_pitch_joint
         - right_shoulder_roll_joint
@@ -117,19 +100,20 @@ right_arm_position_controller:
 
 right_hand_position_controller:
   ros__parameters:
+    type: "joint_trajectory_controller/JointTrajectoryController"
     joints:
         - R_index_proximal_joint
-        - R_index_intermediate_joint
+        # - R_index_intermediate_joint
         - R_middle_proximal_joint
-        - R_middle_intermediate_joint
+        # - R_middle_intermediate_joint
         - R_ring_proximal_joint
-        - R_ring_intermediate_joint
+        # - R_ring_intermediate_joint
         - R_pinky_proximal_joint
-        - R_pinky_intermediate_joint
+        # - R_pinky_intermediate_joint
         - R_thumb_proximal_yaw_joint
         - R_thumb_proximal_pitch_joint
-        - R_thumb_intermediate_joint
-        - R_thumb_distal_joint
+        # - R_thumb_intermediate_joint
+        # - R_thumb_distal_joint
     command_interfaces:
       - position
       #- velocity
@@ -140,6 +124,7 @@ right_hand_position_controller:
 
 right_leg_position_controller:
   ros__parameters:
+    type: "joint_trajectory_controller/JointTrajectoryController"
     joints:
         - right_hip_yaw_joint
         - right_hip_pitch_joint

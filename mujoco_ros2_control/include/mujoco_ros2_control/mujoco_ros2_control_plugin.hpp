@@ -92,6 +92,7 @@
 
 // Package header
 #include "mujoco_ros2_control/mujoco_system.hpp"
+#include "mujoco_ros2_control/mujoco_resource_manager.hpp"
 #include "mujoco_ros2_control/mujoco_system_interface.hpp"
 #include "mujoco_rgbd_camera/mujoco_depth_camera.hpp"
 
@@ -105,7 +106,7 @@
 #include "mujoco_visualization/mujoco_visualization.hpp"
 #endif
 
-#include "mujoco_ros2_control_parameters.hpp"
+#include <mujoco_ros2_control/mujoco_ros2_control_parameters.hpp>
 
 namespace mujoco_ros2_control
 {

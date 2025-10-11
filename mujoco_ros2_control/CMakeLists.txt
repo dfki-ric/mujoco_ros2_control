@@ -39,6 +39,7 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
     generate_parameter_library
     Eigen3
     tf2_ros
+    pluginlib
 )
 
 foreach(Dependency IN ITEMS ${THIS_PACKAGE_INCLUDE_DEPENDS})

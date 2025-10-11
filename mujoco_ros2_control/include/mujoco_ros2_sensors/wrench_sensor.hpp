@@ -41,7 +41,7 @@
 // ROS header
 #include "rclcpp/rclcpp.hpp"
 
-#include "realtime_tools/realtime_publisher.h"
+#include "realtime_tools/realtime_publisher.hpp"
 #include "geometry_msgs/msg/wrench_stamped.hpp"
 
 namespace mujoco_ros2_sensors {
