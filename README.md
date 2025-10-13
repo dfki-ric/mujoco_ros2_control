@@ -77,24 +77,24 @@ xhost -local:docker
 libglfw3-dev
 libx11-dev
 xorg-dev
-ros-humble-urdf
-ros-humble-xacro
-ros-humble-rviz2
-ros-humble-ros2-control
-ros-humble-ros2-controllers
-ros-humble-controller-manager
-ros-humble-pcl-ros
-ros-humble-perception-pcl
+ros-jazzy-urdf
+ros-jazzy-xacro
+ros-jazzy-rviz2
+ros-jazzy-ros2-control
+ros-jazzy-ros2-controllers
+ros-jazzy-controller-manager
+ros-jazzy-pcl-ros
+ros-jazzy-perception-pcl
 libopencv-dev
-ros-humble-pcl-conversions
-ros-humble-cv-bridge
+ros-jazzy-pcl-conversions
+ros-jazzy-cv-bridge
 libpcl-dev
-ros-humble-urdfdom-py
+ros-jazzy-urdfdom-py
 ```
 
 ## Installation
 To use the **MuJoCo ROS2 Control**, follow these steps:
-1. Install [ROS2 Humble](https://docs.ros.org/en/humble/Installation.html)
+1. Install [ROS2 Jazzy](https://docs.ros.org/en/jazzy/Installation.html)
 2. Install the Dependencies <br />
    ``` bash
    $ apt-get update && apt-get install -y \
@@ -102,18 +102,18 @@ To use the **MuJoCo ROS2 Control**, follow these steps:
         libglfw3-dev \
         libx11-dev \
         xorg-dev \
-        ros-humble-urdf \
-        ros-humble-xacro \
-        ros-humble-rviz2 \
-        ros-humble-ros2-control \
-        ros-humble-ros2-controllers \
-        ros-humble-controller-manager \
-        ros-humble-pcl-ros \
-        ros-humble-perception-pcl \
-        ros-humble-urdfdom-py \
+        ros-jazzy-urdf \
+        ros-jazzy-xacro \
+        ros-jazzy-rviz2 \
+        ros-jazzy-ros2-control \
+        ros-jazzy-ros2-controllers \
+        ros-jazzy-controller-manager \
+        ros-jazzy-pcl-ros \
+        ros-jazzy-perception-pcl \
+        ros-jazzy-urdfdom-py \
         libopencv-dev \
-        ros-humble-pcl-conversions \
-        ros-humble-cv-bridge \
+        ros-jazzy-pcl-conversions \
+        ros-jazzy-cv-bridge \
         libpcl-dev
    ```
 3. Build the ros package.
