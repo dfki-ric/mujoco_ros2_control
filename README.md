@@ -1,3 +1,4 @@
+[![status](https://joss.theoj.org/papers/390ea08b16519c6913a9bd4e516ed08b/status.svg)](https://joss.theoj.org/papers/390ea08b16519c6913a9bd4e516ed08b)
 # Mujoco Ros2 Control
 
 The MuJoCo ROS 2 control hardware interface is designed to enable seamless integration between MuJoCo, a high-performance physics engine, and ROS 2, a widely used middleware for robotic systems. This interface provides a robust and efficient solution for leveraging MuJoCo’s powerful simulation capabilities within the ROS 2 ecosystem, enabling realistic physics-based robot simulation and control.
