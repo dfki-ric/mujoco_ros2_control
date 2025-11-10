@@ -51,7 +51,6 @@ and one example with a unitree H1 that can be started with ```ros2 launch unitre
 
 ### Docker
 To start you can use the ![dockerfile](./Dockerfile) to create a docker container with MuJoCo Ros2 control and its examples.
-```docker build -t "mujoco_ros2_control" .```
 
 To try out the examples you can follow this steps to run a container with mujoco_ros2_control and its examples:
 ```bash
