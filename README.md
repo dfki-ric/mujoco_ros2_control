@@ -44,10 +44,12 @@ For the urdf creation you can take a look at ![URDF Configuration](./mujoco_ros2
 
 ## Examples
 We provide one example with the franka description and the gears from the IndustRealKit that can be started with ```ros2 launch franka_mujoco franka.launch.py```
-![RGBD Camera inside of MuJoCo](./paper/figures/franka_rgbd_example.png)
+![](./paper/figures/franka_rgbd_example.png)
+*RGBD Camera inside of MuJoCo ([MuJoCo Visualizer](https://github.com/google-deepmind/mujoco/tree/main/simulate) \[left\], [rviz2](https://index.ros.org/p/rviz2/) \[right\])*
 
 and one example with a unitree H1 that can be started with ```ros2 launch unitree_h1_mujoco unitree_h1.launch.py```
-![Unitree H1 with floating joint between world and pelvis](./paper/figures/unitree_h1_example.png)
+![](./paper/figures/unitree_h1_example.png)
+*Unitree H1 with floating joint between world and pelvis ([MuJoCo Visualizer](https://github.com/google-deepmind/mujoco/tree/main/simulate) \[left\], [rqt_joint_trajectory_controller](https://index.ros.org/p/rqt_joint_trajectory_controller/)/[rviz2](https://index.ros.org/p/rviz2/) \[right\])*
 
 ### Docker
 To start you can use the ![dockerfile](./Dockerfile) to create a docker container with MuJoCo Ros2 control and its examples.
@@ -58,7 +60,7 @@ To try out the examples you can follow this steps to run a container with mujoco
 docker build docker build -t "mujoco_ros2_control" .
 # create the network for the container
 docker network create ros
-#give permissions to use X11 with docker 
+# give permissions to use X11 with docker 
 xhost +local:docker
 # starts the container with the franka example
 docker run \
@@ -68,6 +70,7 @@ docker run \
     --volume /tmp/.Xdocker \
     -v /tmp/.X11-unix:/tmp/.X11-unix \
     -it mujoco_ros2_control bash
+# remove the permissions to use X11 with docker 
 xhost -local:docker
 ```
 
@@ -97,7 +100,7 @@ To use the **MuJoCo ROS2 Control**, follow these steps:
 1. Install [ROS2 Humble](https://docs.ros.org/en/humble/Installation.html)
 2. Install the Dependencies <br />
    ``` bash
-   $ apt-get update && apt-get install -y \
+   apt-get update && apt-get install -y \
         git \
         libglfw3-dev \
         libx11-dev \
@@ -114,6 +117,7 @@ To use the **MuJoCo ROS2 Control**, follow these steps:
         libopencv-dev \
         ros-humble-pcl-conversions \
         ros-humble-cv-bridge \
+        ros-humble-franka-description \
         libpcl-dev
    ```
 3. Build the ros package.
