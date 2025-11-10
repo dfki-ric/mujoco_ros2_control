@@ -73,18 +73,10 @@ namespace mujoco_rgbd_camera {
         glfwSetWindowAttrib(window_, GLFW_RESIZABLE, GLFW_FALSE);
         auto context = glfwGetCurrentContext();
         glfwMakeContextCurrent(window_);
-        //glfwSwapInterval(1);
 
         // Set camera parameters
         rgbd_camera_.type = mjCAMERA_FIXED;
         rgbd_camera_.fixedcamid = id; // Set the ID of the fixed camera you want to use
-        // rgbd_camera_.lookat[0] = 0.0;
-        // rgbd_camera_.lookat[1] = 0.0;
-        // rgbd_camera_.lookat[2] = 0.0;
-        // rgbd_camera_.distance = 2.0; // Set a reasonable distance for the camera
-        // rgbd_camera_.azimuth = 90.0; // Set the azimuth angle
-        // rgbd_camera_.elevation = 20.0; // Set the elevation angle
-        // rgbd_camera_.orthographic = 0; // Set to 1 if you want an orthographic view, otherwise 0
 
         mjr_defaultContext(&sensor_context_);
         mjv_defaultOption(&sensor_option_);
@@ -148,8 +140,6 @@ namespace mujoco_rgbd_camera {
                 release_buffer();
                 glfwMakeContextCurrent(context);
             }
-            // glfwSwapBuffers(window_);
-            // glfwPollEvents();
         }
     }
 
@@ -259,10 +249,6 @@ namespace mujoco_rgbd_camera {
         camera_info.p = {f_, 0.0, cx_, 0,
                          0.0, f_, cy_, 0,
                          0.0, 0.0, 1.0, 0.0};
-
-//        camera_info.r = {1.0, 0.0, 0.0,
-//                         0.0, -1.0, 0.0,
-//                         0.0, 0.0, -1.0};
 
         if (params_.color_image) {
             color_camera_info_publisher_->publish(camera_info);
