@@ -122,10 +122,13 @@ To use the **MuJoCo ROS2 Control**, follow these steps:
    ```
 3. Build the ros package.
    ```bash
-    git clone <package url>
+    git clone https://github.com/dfki-ric/mujoco_ros2_control
     colcon build
    ```
-
+4. Test the ros package.
+   ```bash
+   launch_test src/mujoco_ros2_pkgs/mujoco_ros2_control/test/simple_launch.test.py 
+   ```
 ## Documentation
 Run ```doxygen Doxyfile``` in the mujoco_ros2_control directory
 
