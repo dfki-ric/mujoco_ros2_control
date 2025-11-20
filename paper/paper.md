@@ -65,7 +65,7 @@ Drake on the other hand supports torque control, however due to its symbolic and
 Table: Comparison of usability of different Simulators for usage with Compliant controllers
 
 
-| Feature | **Mujoco ROS2 Control** | **mujoco ros2 control [@mujoco_ros2_control]** | **gz ros2 control [@gz_ros2_control]** | **drake-ros [@drake_ros]** | **mujoco_ros2 [@mujoco_ros2]** | **mujoco_ros [@mujoco_ros]** |
+| Feature | **Mujoco ROS2 Control** | **mujoco ros2 control [@mujoco_ros2_control]** | **gz ros2 control [@gz_ros2_control]** | **drake-ros [@drake_ros]** | **mujoco ros2 [@mujoco_ros2]** | **mujoco ros [@mujoco_ros]** |
 | :-- | :-: | :-: | :-: |:-:| :-: | :-: |
 | Simulation Engine | MuJoCo | MuJoCo | Gazebo | Drake | MuJoCo | MuJoCo |
 | Sensor Support | Yes, IMU, Pose, Wrench, RGBD | Yes, IMU, Wrench, RGBD | Yes, Supports various sensors via Gazebo plugins | Yes, but aditional code is required | No | Must be implemented in the env |
