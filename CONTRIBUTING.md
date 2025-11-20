@@ -44,7 +44,7 @@ request.
 
 ## Merge Policy
 
-Usually it is not possible to push directly to the master branch of Software Name
+Usually it is not possible to push directly to the master branch of Mujoco Ros2 Control
 for anyone. Only tiny changes, urgent bugfixes, and maintenance commits can
 be pushed directly to the master branch by the maintainer without a review.
 "Tiny" means backwards compatibility is mandatory and all tests must succeed.
