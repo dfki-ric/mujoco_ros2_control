@@ -208,6 +208,7 @@ ament_package()
 #############
 ## Testing ##
 #############
+set(BUILD_TESTING ON CACHE BOOL "" FORCE) # Set to off/ comment out to disable building tests
 if(BUILD_TESTING)
     ament_lint_auto_find_test_dependencies()
     find_package(ament_cmake_ros REQUIRED)
