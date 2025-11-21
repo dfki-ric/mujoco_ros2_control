@@ -91,14 +91,14 @@ The interface supports direct torque control, PID-based position/velocity/accele
 Joint states and simulation time are published for synchronization with the ROS 2 system time (`/clock`). Sensors defined in the URDF are exposed as individual ROS nodes using `realtime_tools` [@realtime_tools] to maintain real-time performance.
 
 # Use Cases
-- This package is intended as a drop-in replacement for Gazebo/Ignition for users who need fast and accurate dynamics. Typical applications include:
+This package provides a fast and accurate dynamics simulation environment that can serve as a drop-in alternative to Gazebo/Ignition. Robots can be integrated by supplying a URDF model, which is automatically converted to MJCF. The framework also supports extensibility through a sensor interface that allows users to implement custom sensing modules.
+
+Typical application domains include:
 - contact-rich manipulation tasks (e.g., interactions with grippers and multiple high-resolution rigid bodies),
 - testing controllers in position, velocity, or torque mode,
 - evaluating controllers that rely on wrench feedback (e.g., admittance control),
 - simulating underactuated systems (such as robots with free-floating bases),
 - visual-perception tasks (although this was not the primary focus).
-- Users can integrate their own robots by providing a URDF, which is automatically converted to MJCF, and can extend the system with custom sensors using our sensor interface.
-
 
 ## Usage in projects
 MujocoRos2Control was utilized for testing and validating various torque and admittance controllers within the scope of the HARTU project [@hartu_project]. The software also played a key role in conducting experiments for the publication "Look-Ahead Optimization for Managing Nullspace in Cartesian Impedance Control of Dual-Arm Robots" [@Origanti2025].
