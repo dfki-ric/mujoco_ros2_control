@@ -103,8 +103,6 @@ namespace mujoco_ros2_control {
         for (auto &thread : camera_threads_) {
             thread.join();
         }
-        executor_->remove_node(controller_manager_);
-        executor_->cancel();
         thread_executor_spin_.join();
         // deallocate existing mjModel
         mj_deleteModel(mujoco_model_);
