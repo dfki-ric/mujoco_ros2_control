@@ -30,7 +30,7 @@ bibliography: paper.bib
 
 `MuJoCo` (Multi-Joint dynamics with Contact) is a high-performance physics engine designed for accurate simulation of articulated bodies, contacts, and constraints. Widely used in robotics and machine learning research, it emphasizes both simulation speed and physical fidelity. MuJoCo is implemented in C/C++ and also offers a JAX-based version optimized for GPU-accelerated reinforcement-learning workflows.
 
-The `MujocoROS2Control` hardware interface enables seamless integration between MuJoCo [@todorov2012mujoco], a high-performance physics engine, and ROS 2 [@ros2_control], a widely adopted middleware for robotic systems. This interface provides an efficient solution for simulating and controlling robots using MuJoCo’s physics capabilities within the ROS 2 ecosystem.
+The `MujocoROS2Control` hardware interface enables seamless integration between MuJoCo [@todorov2012mujoco], a high-performance physics engine, and ROS 2 [@ros2_control], widely adopted middleware for robotic systems. This interface provides an efficient solution for simulating and controlling robots using MuJoCo’s physics capabilities within the ROS 2 ecosystem.
 
 To support ROS-based workflows, we developed a dedicated URDF-to-MJCF conversion script. This tool translates URDF models into MJCF (MuJoCo XML format), preserving kinematic and dynamic properties and allowing custom MuJoCo-specific parameters such as sensors, actuators, and collision definitions to be specified directly in the URDF. This conversion ensures compatibility and adaptability for simulation.
 
@@ -38,7 +38,7 @@ To support ROS-based workflows, we developed a dedicated URDF-to-MJCF conversion
 
 # Statement of Need
 
-ROS2 is widely used across robotics, but its associated simulator—Gazebo/Ignition—is generally not as fast or as convenient for dynamic simulation as MuJoCo. MuJoCo, in turn, is widely used in robotics-focused machine learning. Establishing a MuJoCo interface for ROS 2 therefore enables developers to use the same simulator both for training and for validating policies before deployment on real systems, or test ROS2 components without a physical system, helping unify robotics development pipelines.
+ROS2 is widely used across robotics, but its associated simulator—Gazebo/Ignition—is generally not as fast or as convenient for dynamic simulation as MuJoCo. MuJoCo, in turn, is widely used in robotics-focused machine learning. Establishing a MuJoCo interface for ROS 2 therefore enables developers to use the same simulator both for training and for validating policies before deployment on real systems, or to test ROS2 components without a physical system, helping unify robotics development pipelines.
 
 Developing and validating control algorithms for robotic systems often requires extensive testing, which on physical hardware can be expensive, time-consuming, and subject to wear. Accurate simulation environments are essential for safe and scalable development.
 
@@ -94,11 +94,12 @@ Joint states and simulation time are published for synchronization with the ROS 
 This package provides a fast and accurate dynamics simulation environment that can serve as a drop-in alternative to Gazebo/Ignition. Robots can be integrated by supplying a URDF model, which is automatically converted to MJCF. The framework also supports extensibility through a sensor interface that allows users to implement custom sensing modules.
 
 Typical application domains include:
-- contact-rich manipulation tasks (e.g., interactions with grippers and multiple high-resolution rigid bodies),
-- testing controllers in position, velocity, or torque mode,
-- evaluating controllers that rely on wrench feedback (e.g., admittance control),
-- simulating underactuated systems (such as robots with free-floating bases),
-- visual-perception tasks (although this was not the primary focus).
+
+* contact-rich manipulation tasks (e.g., interactions with grippers and multiple high-resolution rigid bodies),
+* testing controllers in position, velocity, or torque mode,
+* evaluating controllers that rely on wrench feedback (e.g., admittance control),
+* simulating underactuated systems (such as robots with free-floating bases), and
+* visual-perception tasks (although this was not the primary focus).
 
 ## Usage in projects
 MujocoRos2Control was utilized for testing and validating various torque and admittance controllers within the scope of the HARTU project [@hartu_project]. The software also played a key role in conducting experiments for the publication "Look-Ahead Optimization for Managing Nullspace in Cartesian Impedance Control of Dual-Arm Robots" [@Origanti2025].
@@ -125,7 +126,7 @@ This example uses the loads the Bipedal robot Unitree H1 [@unitree_ros] with a f
 ## IMRK System
 
 In this example, we simulate the iMRK system developed at DFKI Bremen, consisting of two KUKA LBR iiwa 14 robots [@Mrongaimrk]. A ROS2 Cartesian impedance controller (migrated version of [@mayr2024cartesian]) is used for each arm. MuJoCo actuators manage the Robotiq 2F grippers, and force-torque sensors are simulated at both end-effectors. 
-Because the robot description for the IMRK system is not public available, we cant provide the files for this example.
+Because the robot description for the IMRK system is not public available, we can't provide the files for this example.
 
 ![IMRK with Robotiq 2F Gripper and Robotiq FT300 Sensor](./figures/kuka_imrk_example.png)
 
