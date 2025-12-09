@@ -1,11 +1,11 @@
 [![status](https://joss.theoj.org/papers/390ea08b16519c6913a9bd4e516ed08b/status.svg)](https://joss.theoj.org/papers/390ea08b16519c6913a9bd4e516ed08b)
-# Mujoco Ros2 Control
+# Mujoco ROS2 Control
 
-The MuJoCo ROS 2 control hardware interface is designed to enable seamless integration between MuJoCo, a high-performance physics engine, and ROS 2, a widely used middleware for robotic systems. This interface provides a robust and efficient solution for leveraging MuJoCo’s powerful simulation capabilities within the ROS 2 ecosystem, enabling realistic physics-based robot simulation and control.
+The MuJoCo ROS2 Control hardware interface is designed to enable seamless integration between MuJoCo, a high-performance physics engine, and ROS 2, a widely used middleware for robotic systems. This interface provides a robust and efficient solution for leveraging MuJoCo’s powerful simulation capabilities within the ROS 2 ecosystem, enabling realistic physics-based robot simulation and control.
 
-**software name:** Mujoco Ros2 Control
+**software name:** Mujoco ROS2 Control
 
-Mujoco Ros2 Control was initiated and is currently developed at the
+Mujoco ROS2 Control was initiated and is currently developed at the
 [Robotics Innovation Center](http://robotik.dfki-bremen.de/en/startpage.html) of the
 [German Research Center for Artificial Intelligence (DFKI)](http://www.dfki.de) in Bremen.
 
@@ -15,7 +15,7 @@ Mujoco Ros2 Control was initiated and is currently developed at the
 The development and testing of control algorithms for robotic systems is a crucial step in ensuring their reliability, safety, and efficiency. However, conducting these tests on physical hardware can be expensive, time-consuming, and prone to mechanical wear and tear. To overcome these challenges, accurate and efficient physical simulations have become an indispensable tool for researchers, engineers, and roboticists. These simulations enable comprehensive testing of robot controllers, planning algorithms, and perception systems in a controlled, repeatable, and risk-free environment.
 
 ## Compatibility
-| ROS2 Version           | Branch | Status |
+| ROS 2 Version           | Branch | Status |
 |------------------------|--------|--------|
 | Humble                 | [main](https://github.com/dfki-ric/mujoco_ros2_control)   | stable |
 | Jazzy                  | [jazzy](https://github.com/dfki-ric/mujoco_ros2_control/tree/jazzy)  | unstable|
@@ -36,7 +36,7 @@ and one example with a unitree H1 that can be started with
 *Unitree H1 with floating joint between world and pelvis ([MuJoCo Visualizer](https://github.com/google-deepmind/mujoco/tree/main/simulate) \[left\], [rqt_joint_trajectory_controller](https://index.ros.org/p/rqt_joint_trajectory_controller/)/[rviz2](https://index.ros.org/p/rviz2/) \[right\])*
 
 ### Docker
-To start you can use the ![dockerfile](./Dockerfile) to create a docker container with MuJoCo Ros2 control and its examples.
+To start you can use the ![dockerfile](./Dockerfile) to create a docker container with MuJoCo ROS2 control and its examples.
 
 To try it out you can build and start the Docker image by execute the [run_docker_gui.sh](https://github.com/dfki-ric/mujoco_ros2_control/blob/main/run_docker_gui.sh) script.
 
@@ -89,7 +89,7 @@ To use the **MuJoCo ROS2 Control**, follow these steps:
         libpcl-dev
    ```
 3. Build the ros package.
-   1. Create a ros2 workspace (can be skipped when a workspace exist)
+   1. Create a ROS 2 workspace (can be skipped when a workspace exist)
    ```bash
     mkdir -p ~/mujoco_ws/src
    ```
@@ -113,7 +113,7 @@ To use the **MuJoCo ROS2 Control**, follow these steps:
 
 
 ## Getting Started
-To use MuJoCo Ros2 control, you must create a launchfile (you can use the examples as reference):
+To use MuJoCo ROS2 control, you must create a launchfile (you can use the examples as reference):
 ### 1. Generate MJCF Using `xacro2mjcf.py` Node
 - Add the `xacro2mjcf.py` node in your launch file to create the MJCF file at launch time.
   - ```python
@@ -292,7 +292,7 @@ compatible manner, and the patch version is incremented for bugfixes,
 documentation, etc.
 
 ## License
-Mujoco Ros2 Control is distributed under the [3-clause BSD license](https://opensource.org/licenses/BSD-3-Clause).
+Mujoco ROS2 Control is distributed under the [3-clause BSD license](https://opensource.org/licenses/BSD-3-Clause).
 
 ## Maintainer / Authors / Contributers
 Adrian Danzglock,       adrian.danzglock@dfki.de \
