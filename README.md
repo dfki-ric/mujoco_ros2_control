@@ -1,4 +1,3 @@
-[![status](https://joss.theoj.org/papers/390ea08b16519c6913a9bd4e516ed08b/status.svg)](https://joss.theoj.org/papers/390ea08b16519c6913a9bd4e516ed08b)
 # Mujoco ROS2 Control
 
 The MuJoCo ROS2 Control hardware interface is designed to enable seamless integration between MuJoCo, a high-performance physics engine, and ROS 2, a widely used middleware for robotic systems. This interface provides a robust and efficient solution for leveraging MuJoCo’s powerful simulation capabilities within the ROS 2 ecosystem, enabling realistic physics-based robot simulation and control.
@@ -277,9 +276,7 @@ Run ```doxygen Doxyfile``` in the mujoco_ros2_control directory
 
 ## Bug Reports
 
-To search for bugs or report them, please use GitHubs ![issue tracker](trhttps://github.com/dfki-ric/mujoco_ros2_control/issues)
-
-[//]: <> (TODO put a link to the issue tracker here)
+To search for bugs or report them, please use GitHubs ![issue tracker](https://github.com/dfki-ric/mujoco_ros2_control/issues)
 
 ## Releases
 
@@ -299,6 +296,33 @@ Adrian Danzglock,       adrian.danzglock@dfki.de \
 Vamsi Krishna Origanti, vamsi.origanti@dfki.de
 
 Copyright 2025, DFKI GmbH / Robotics Innovation Center
+
+
+## Citation
+
+If you use mujoco_ros2_control for a scientific publication, we would appreciate citation of the following paper:
+
+Danzglock et al., (2025). MujocoROS2Control: Seamless MuJoCo Integration with ROS 2 for Robot Simulation and Control.  
+Journal of Open Source Software, 10(116), 9140  
+[![Paper DOI](https://joss.theoj.org/papers/10.21105/joss.09140/status.svg)](https://doi.org/10.21105/joss.09140)
+
+
+Bibtex entry:
+
+```bibtex
+@article{Danzglock2025,
+  doi = {10.21105/joss.09140},
+  url = {https://doi.org/10.21105/joss.09140},
+  year = {2025},
+  publisher = {The Open Journal},
+  volume = {10},
+  number = {116},
+  pages = {9140},
+  author = {Danzglock, Adrian and Origanti, Vamsi Krishna and Kirchner, Frank},
+  title = {MujocoROS2Control: Seamless MuJoCo Integration with ROS 2 for Robot Simulation and Control},
+  journal = {Journal of Open Source Software}
+}
+```
 
 ## Funding
 MuJoCo ROS2 Control was initiated and developed at Robotics Innovation Center, German Research Center for Artificial Intelligence (DFKI GmbH) at Bremen, Germany as part of the HARTU Project. This project has received funding from the European Union’s research and innovation program Horizon Europe under grant agreement No. 101092100.
