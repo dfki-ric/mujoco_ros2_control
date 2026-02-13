@@ -68,6 +68,7 @@
 #include "rclcpp/executors/multi_threaded_executor.hpp"
 #include "realtime_tools/realtime_buffer.hpp"
 #include "realtime_tools/realtime_publisher.hpp"
+#include "realtime_tools/realtime_helpers.hpp"
 
 // Mujoco dependencies
 #include "mujoco/mujoco.h"
@@ -164,6 +165,8 @@ namespace mujoco_ros2_control
          */
         void update();
 
+        void update_controls();
+
     private:
         /**
          * @brief Publishes the current simulation time.
@@ -224,7 +227,7 @@ namespace mujoco_ros2_control
 
         // Mujoco-related variables
         mjModel* mujoco_model_{}; ///< Pointer to the Mujoco model
-        mjData* mujoco_data_{}; ///< Pointer to the Mujoco data
+        mjData* mujoco_data_{}; ///< Pointer to the Mujoco data (Real-Time)
         double mujoco_start_time_; ///< Start time of the Mujoco simulation
         struct timespec startTime_; ///< Start time for the real-time clock
         rclcpp::Duration mujoco_period_ = rclcpp::Duration(1, 0); ///< Update period of the mujoco simulation
@@ -241,6 +244,10 @@ namespace mujoco_ros2_control
         std::thread thread_executor_spin_; ///< Thread for the controller manager executor
 
         // Visualization class
+        std::thread thread_rendering_; ///< Thread for the graphics update
+        mjData mjdata_to_render_{}; ///< Pointer to the data to be rendered, non-RT
+        std::mutex mjdata_mtx_; ///< Mutex protecting mjdata
+        std::atomic<bool> has_new_mjdata_{false};
 
 #ifdef USE_LIBSIMULATE
         mujoco_simulate_gui::MujocoSimulateGui& mj_vis_ = mujoco_simulate_gui::MujocoSimulateGui::getInstance(); ///< MuJoCo visualizer object

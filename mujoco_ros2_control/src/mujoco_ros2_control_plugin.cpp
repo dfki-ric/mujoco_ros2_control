@@ -48,6 +48,11 @@
 
 #include "mujoco_ros2_control/mujoco_ros2_control_plugin.hpp"
 
+// Reference: https://man7.org/linux/man-pages/man2/sched_setparam.2.html
+// This value is used when configuring the main loop to use SCHED_FIFO scheduling
+// We use a midpoint RT priority to allow maximum flexibility to users
+int const kSchedPriority = 50;
+
 namespace mujoco_ros2_control {
     MujocoRos2Control::MujocoRos2Control(rclcpp::Node::SharedPtr &node) : nh_(node) {
         // set up the parameter listener
@@ -87,13 +92,20 @@ namespace mujoco_ros2_control {
         mujoco_start_time_ = mujoco_data_->time;
 
         clock_gettime(CLOCK_MONOTONIC, &startTime_);
-#ifdef USE_LIBSIMULATE
-        mj_vis_.init(mujoco_model_, mujoco_data_);
-#else
-        mj_vis_.init(mujoco_model_, mujoco_data_, show_gui_);
-#endif
 
         registerSensors();
+
+        // setup visualization
+        mjdata_to_render_ = *mujoco_data_;
+#ifdef USE_LIBSIMULATE
+        mj_vis_.init(mujoco_model_, &mjdata_to_render_);
+#else
+        mj_vis_.init(mujoco_model_, &mjdata_to_render_, show_gui_);
+#endif
+
+        // rendering thread
+        thread_rendering_ = std::thread(&MujocoRos2Control::update_controls, this);
+
         RCLCPP_INFO(nh_->get_logger(), "Sim environment setup complete");
     }
 
@@ -110,44 +122,91 @@ namespace mujoco_ros2_control {
         // deallocate existing mjData
         mj_deleteData(mujoco_data_);
 
+        // stop rendering thread
         mj_vis_.terminate();
+        thread_rendering_.join();
     }
 
     void MujocoRos2Control::update() {
-        mjtNum simstart = mujoco_data_->time;
+        while (true) {
+            if (!mj_vis_.sim->run) break;
+            std::lock_guard<std::mutex> guard(mjdata_mtx_);
+            if (has_new_mjdata_.exchange(false, std::memory_order_acq_rel)) {
+                mj_vis_.update();
+            }
+        }
+    }
+
+    void MujocoRos2Control::update_controls() {
+        while (true) {
+            mjtNum simstart = mujoco_data_->time;
         timespec currentTime{};
         param_listener_->refresh_dynamic_parameters();
         params_ = param_listener_->get_params();
-        // run until the next frame must be rendered with 60Hz
-        if (mj_vis_.sim->run) {
-            while( mujoco_data_->time - simstart < 1.0/60.0 ) {
-                // check that mujoco is not faster than the expected realtime factor
-                clock_gettime(CLOCK_MONOTONIC, &currentTime);
-                if (double (currentTime.tv_sec-startTime_.tv_sec) + double (currentTime.tv_nsec-startTime_.tv_nsec) / 1e9 >= (mujoco_data_->time-mujoco_start_time_)*params_.real_time_factor) {
-                    publish_sim_time();
-                    rclcpp::Time sim_time_ros = rclcpp::Time((int64_t) (mujoco_data_->time * 1e+9), RCL_ROS_TIME);
-                    rclcpp::Duration sim_period = sim_time_ros - last_update_sim_time_ros_;
 
-                    // check if we should update the controllers
-                    if (sim_period >= control_period_) {
-                        // store simulation time
-                        last_update_sim_time_ros_ = sim_time_ros;
-                        // update the robot simulation with the state of the mujoco model
-                        controller_manager_->read(sim_time_ros, sim_period);
-                        // compute the controller commands
-                        controller_manager_->update(sim_time_ros, sim_period);
-                        // update the mujoco model with the result of the controller
-                        controller_manager_->write(sim_time_ros, sim_period);
-                    }
-                    // Calculate the next mujoco step
-                    mj_step(mujoco_model_, mujoco_data_);
-                }
+        // check that mujoco is not faster than the expected realtime factor
+        clock_gettime(CLOCK_MONOTONIC, &currentTime);
+        if (double (currentTime.tv_sec-startTime_.tv_sec) + double (currentTime.tv_nsec-startTime_.tv_nsec) / 1e9 >= (mujoco_data_->time-mujoco_start_time_)*params_.real_time_factor) {
+            publish_sim_time();
+            rclcpp::Time sim_time_ros = rclcpp::Time((int64_t) (mujoco_data_->time * 1e+9), RCL_ROS_TIME);
+            rclcpp::Duration sim_period = sim_time_ros - last_update_sim_time_ros_;
+
+            // check if we should update the controllers
+            if (sim_period >= control_period_) {
+                // store simulation time
+                last_update_sim_time_ros_ = sim_time_ros;
+                // update the robot simulation with the state of the mujoco model
+                controller_manager_->read(sim_time_ros, sim_period);
+                // compute the controller commands
+                controller_manager_->update(sim_time_ros, sim_period);
+                // update the mujoco model with the result of the controller
+                controller_manager_->write(sim_time_ros, sim_period);
             }
-        } else {
-            mj_forward(mujoco_model_, mujoco_data_);
-            mj_vis_.sim->speed_changed = true;
+
+            // Calculate the next mujoco step
+            mj_step(mujoco_model_, mujoco_data_);
+
+            // save data for rendering
+            std::unique_lock<std::mutex> guard(mjdata_mtx_, std::try_to_lock);
+            if (guard.owns_lock()) {
+                mjdata_to_render_ = *mujoco_data_;
+                has_new_mjdata_.store(true, std::memory_order_release);
+            }
         }
-        mj_vis_.update();
+
+        }
+        
+
+        // run until the next frame must be rendered with 60Hz
+        // if (mj_vis_.sim->run) {
+        //     while( mujoco_data_->time - simstart < 1.0/60.0 ) {
+        //         // check that mujoco is not faster than the expected realtime factor
+        //         clock_gettime(CLOCK_MONOTONIC, &currentTime);
+        //         if (double (currentTime.tv_sec-startTime_.tv_sec) + double (currentTime.tv_nsec-startTime_.tv_nsec) / 1e9 >= (mujoco_data_->time-mujoco_start_time_)*params_.real_time_factor) {
+        //             publish_sim_time();
+        //             rclcpp::Time sim_time_ros = rclcpp::Time((int64_t) (mujoco_data_->time * 1e+9), RCL_ROS_TIME);
+        //             rclcpp::Duration sim_period = sim_time_ros - last_update_sim_time_ros_;
+
+        //             // check if we should update the controllers
+        //             if (sim_period >= control_period_) {
+        //                 // store simulation time
+        //                 last_update_sim_time_ros_ = sim_time_ros;
+        //                 // update the robot simulation with the state of the mujoco model
+        //                 controller_manager_->read(sim_time_ros, sim_period);
+        //                 // compute the controller commands
+        //                 controller_manager_->update(sim_time_ros, sim_period);
+        //                 // update the mujoco model with the result of the controller
+        //                 controller_manager_->write(sim_time_ros, sim_period);
+        //             }
+        //             // Calculate the next mujoco step
+        //             mj_step(mujoco_model_, mujoco_data_);
+        //         }
+        //     }
+        // } else {
+        //     mj_forward(mujoco_model_, mujoco_data_);
+        //     mj_vis_.sim->speed_changed = true;
+        // }
+        //mj_vis_.update();
     }
 
     void MujocoRos2Control::publish_sim_time() {
@@ -277,8 +336,68 @@ namespace mujoco_ros2_control {
         controller_manager_->set_parameter(
         rclcpp::Parameter("use_sim_time", rclcpp::ParameterValue(true)));
 
+        // TODO (Dmitrii): Controller manager parameters
+        // - Thread priority
+        // - CPU Affinity
+        // Pass it to the thread below
+
         stop_ = false;
         auto spin = [this]() {
+            // TODO (Dmitrii): Controller manager parameters
+            // - Thread priority
+            // - CPU Affinity
+            // Pass it to the thread below
+
+            // read CPU affinity
+            rclcpp::Parameter cpu_affinity_param;
+            if (controller_manager_->get_parameter("cpu_affinity", cpu_affinity_param))
+            {
+                std::vector<int> cpus = {};
+                if (cpu_affinity_param.get_type() == rclcpp::ParameterType::PARAMETER_INTEGER)
+                {
+                cpus = {static_cast<int>(cpu_affinity_param.as_int())};
+                }
+                else if (cpu_affinity_param.get_type() == rclcpp::ParameterType::PARAMETER_INTEGER_ARRAY)
+                {
+                const auto cpu_affinity_param_array = cpu_affinity_param.as_integer_array();
+                std::for_each(
+                    cpu_affinity_param_array.begin(), cpu_affinity_param_array.end(),
+                    [&cpus](int cpu) { cpus.push_back(static_cast<int>(cpu)); });
+                }
+                const auto affinity_result = realtime_tools::set_current_thread_affinity(cpus);
+                if (!affinity_result.first)
+                {
+                RCLCPP_WARN(
+                    controller_manager_->get_logger(), "Unable to set the CPU affinity : '%s'",
+                    affinity_result.second.c_str());
+                }
+            }
+
+            // read thread priority
+            const int thread_priority = controller_manager_->get_parameter_or<int>("thread_priority", kSchedPriority);
+            RCLCPP_INFO(
+                controller_manager_->get_logger(),
+                "Spawning %s RT thread with scheduler priority: %d",
+                controller_manager_->get_name(),
+                thread_priority);
+
+            if (!realtime_tools::configure_sched_fifo(thread_priority))
+            {
+                RCLCPP_WARN(
+                controller_manager_->get_logger(),
+                "Could not enable FIFO RT scheduling policy: with error number <%i>(%s). See "
+                "[https://control.ros.org/master/doc/ros2_control/controller_manager/doc/userdoc.html] "
+                "for details on how to enable realtime scheduling.",
+                errno, strerror(errno));
+            }
+            else
+            {
+                RCLCPP_INFO(
+                controller_manager_->get_logger(), "Successful set up FIFO RT scheduling policy with priority %i.",
+                thread_priority);
+            }
+            
+            // execute the executor of the controller_manager_
             while(rclcpp::ok() && !stop_.load()) {
                 executor_->spin_once();
             }
