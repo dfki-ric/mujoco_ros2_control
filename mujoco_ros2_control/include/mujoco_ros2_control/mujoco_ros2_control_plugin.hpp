@@ -162,10 +162,18 @@ namespace mujoco_ros2_control
          * the duration of the simulation step. It performs the necessary computations and updates the internal variables and
          * components of the `MujocoRos2Control`, including publishing the simulation time, updating the controllers, and
          * updating the Mujoco model.
+         * 
+         * Physics simulation runs on the dedicated real-time thread with FIFO scheduling policy based on the provided settings for the controller_manager. Thus, rendering pipeline should not block this thread.
+         * This function will provide rendering pipeline with the latest available state of the mujoco_data_ in the real-time safe manner: std::unique_lock + atomic_bool flag protected by the appropriate memory order
          */
         void update();
 
-        void update_controls();
+        /**
+         * @brief Calls the graphics pipeline render based on the latest available data.
+         *
+         * This method is responsible for calling the renderer based on the latest available data. Data is acquired in a RT-safe manner with appropriate mutex guarding and memory ordering
+         */
+        void render();
 
     private:
         /**
@@ -242,9 +250,9 @@ namespace mujoco_ros2_control
         rclcpp::Duration control_period_ = rclcpp::Duration(1, 0); ///< Control period of the controller manager
         std::atomic<bool> stop_ = false; ///< Flag to stop the execution of the controller manager
         std::thread thread_executor_spin_; ///< Thread for the controller manager executor
+        std::thread thread_sim_; ///< RT thread to run simulation on
 
         // Visualization class
-        std::thread thread_rendering_; ///< Thread for the graphics update
         mjData mjdata_to_render_{}; ///< Pointer to the data to be rendered, non-RT
         std::mutex mjdata_mtx_; ///< Mutex protecting mjdata
         std::atomic<bool> has_new_mjdata_{false};
