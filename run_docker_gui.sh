@@ -8,6 +8,7 @@ xhost +local:docker
 # starts the container with the franka example
 docker run \
     --network="ros" \
+    --gpus="all" \
     --device="/dev/dri:/dev/dri" \
     --env DISPLAY=$DISPLAY \
     --volume /tmp/.Xdocker \
