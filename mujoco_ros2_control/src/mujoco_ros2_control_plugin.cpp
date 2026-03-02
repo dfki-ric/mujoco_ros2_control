@@ -53,10 +53,8 @@
 // We use a midpoint RT priority to allow maximum flexibility to users
 int const kSchedPriority = 50;
 
-namespace mujoco_ros2_control
-{
-MujocoRos2Control::MujocoRos2Control(rclcpp::Node::SharedPtr & node) : nh_(node)
-{
+namespace mujoco_ros2_control {
+MujocoRos2Control::MujocoRos2Control(rclcpp::Node::SharedPtr &node) : nh_(node) {
   // set up the parameter listener
   param_listener_ = std::make_shared<ParamListener>(nh_);
   param_listener_->refresh_dynamic_parameters();
@@ -70,8 +68,7 @@ MujocoRos2Control::MujocoRos2Control(rclcpp::Node::SharedPtr & node) : nh_(node)
   }
 
   // create publisher for the Clock
-  publisher_ =
-    nh_->create_publisher<rosgraph_msgs::msg::Clock>("/clock", rclcpp::SystemDefaultsQoS());
+  publisher_ = nh_->create_publisher<rosgraph_msgs::msg::Clock>("/clock", rclcpp::SystemDefaultsQoS());
   clock_publisher_ = std::make_unique<ClockPublisher>(publisher_);
 
   // mujoco related parameters
@@ -112,7 +109,7 @@ MujocoRos2Control::MujocoRos2Control(rclcpp::Node::SharedPtr & node) : nh_(node)
 MujocoRos2Control::~MujocoRos2Control()
 {
   stop_.store(true);
-  for (auto & thread : camera_threads_) {
+  for (auto &thread : camera_threads_) {
     thread.join();
   }
   thread_executor_spin_.join();
@@ -129,8 +126,7 @@ MujocoRos2Control::~MujocoRos2Control()
   thread_sim_.join();
 }
 
-void MujocoRos2Control::render()
-{
+void MujocoRos2Control::render() {
   if (!mj_vis_.sim->run) return;
   std::lock_guard<std::mutex> guard(mjdata_mtx_);
   if (has_new_mjdata_.exchange(false, std::memory_order_acq_rel)) {
@@ -138,8 +134,7 @@ void MujocoRos2Control::render()
   }
 }
 
-void MujocoRos2Control::update()
-{
+void MujocoRos2Control::update() {
   while (mj_vis_.sim->run) {
     mjtNum simstart = mujoco_data_->time;
     timespec currentTime{};
@@ -148,12 +143,11 @@ void MujocoRos2Control::update()
 
     // check that mujoco is not faster than the expected realtime factor
     clock_gettime(CLOCK_MONOTONIC, &currentTime);
-    if (
-      double(currentTime.tv_sec - startTime_.tv_sec) +
+    if (double(currentTime.tv_sec - startTime_.tv_sec) +
         double(currentTime.tv_nsec - startTime_.tv_nsec) / 1e9 >=
       (mujoco_data_->time - mujoco_start_time_) * params_.real_time_factor) {
       publish_sim_time();
-      rclcpp::Time sim_time_ros = rclcpp::Time((int64_t)(mujoco_data_->time * 1e+9), RCL_ROS_TIME);
+      rclcpp::Time sim_time_ros = rclcpp::Time((int64_t) (mujoco_data_->time * 1e+9), RCL_ROS_TIME);
       rclcpp::Duration sim_period = sim_time_ros - last_update_sim_time_ros_;
 
       // check if we should update the controllers
@@ -181,8 +175,7 @@ void MujocoRos2Control::update()
   }
 }
 
-void MujocoRos2Control::publish_sim_time()
-{
+void MujocoRos2Control::publish_sim_time() {
   double sim_time = mujoco_data_->time;
   if (pub_clock_frequency_ > 0 && (sim_time - last_pub_clock_time_) < 1.0 / pub_clock_frequency_)
     return;
@@ -194,8 +187,7 @@ void MujocoRos2Control::publish_sim_time()
   }
 }
 
-void MujocoRos2Control::init_mujoco()
-{
+void MujocoRos2Control::init_mujoco() {
   char error[1000];
 
   // create mjModel
@@ -225,15 +217,15 @@ void MujocoRos2Control::init_mujoco()
   mujoco_period_ = rclcpp::Duration::from_seconds(mujoco_model_->opt.timestep);
 }
 
-void MujocoRos2Control::init_controller_manager()
-{
+void MujocoRos2Control::init_controller_manager() {
   RCLCPP_INFO(nh_->get_logger(), "init controller manager");
   try {
     robot_hw_sim_loader_.reset(
       new pluginlib::ClassLoader<mujoco_ros2_control::MujocoSystemInterface>(
         "mujoco_ros2_control", "mujoco_ros2_control::MujocoSystemInterface"));
-  } catch (pluginlib::LibraryLoadException & ex) {
-    RCLCPP_FATAL(nh_->get_logger(), "Failed to create robot sim interface loader: %s", ex.what());
+  } catch (pluginlib::LibraryLoadException &ex) {
+    RCLCPP_FATAL(nh_->get_logger(),
+      "Failed to create robot sim interface loader: %s", ex.what());
   }
 
   std::string urdf_string;
@@ -246,8 +238,9 @@ void MujocoRos2Control::init_controller_manager()
     urdf_model.initString(urdf_string);
     control_hardware = hardware_interface::parse_control_resources_from_urdf(urdf_string);
   } catch (const std::runtime_error & ex) {
-    RCLCPP_ERROR(
-      nh_->get_logger(), "Error parsing URDF in mujoco_ros2_control plugin: %s", ex.what());
+    RCLCPP_ERROR(nh_->get_logger(), 
+      "Error parsing URDF in mujoco_ros2_control plugin: %s",
+                 ex.what());
     rclcpp::shutdown();
   }
 
@@ -277,8 +270,12 @@ void MujocoRos2Control::init_controller_manager()
   }
 
   executor_ = std::make_shared<rclcpp::executors::MultiThreadedExecutor>();
-  controller_manager_.reset(new controller_manager::ControllerManager(
-    std::move(resource_manager_), executor_, "controller_manager", nh_->get_namespace()));
+  controller_manager_.reset(
+    new controller_manager::ControllerManager(
+    std::move(resource_manager_),
+    executor_,
+    "controller_manager",
+    nh_->get_namespace()));
 
   executor_->add_node(controller_manager_);
 
@@ -288,18 +285,19 @@ void MujocoRos2Control::init_controller_manager()
   }
 
   long cm_update_rate = controller_manager_->get_parameter("update_rate").as_int();
-  control_period_ = rclcpp::Duration(std::chrono::duration_cast<std::chrono::nanoseconds>(
+  control_period_ = rclcpp::Duration(
+    std::chrono::duration_cast<std::chrono::nanoseconds>(
     std::chrono::duration<double>(1.0 / static_cast<double>(cm_update_rate))));
   // Check the period against the simulation period
   if (control_period_ < mujoco_period_) {
-    RCLCPP_ERROR(
-      nh_->get_logger(), "The controller period (%f) is faster than the simulation period (%f).",
+    RCLCPP_ERROR(nh_->get_logger(),
+      "The controller period (%f) is faster than the simulation period (%f).",
       control_period_.seconds(), mujoco_period_.seconds());
     control_period_ = mujoco_period_;
   } else if (control_period_ > mujoco_period_) {
     if (control_period_ < mujoco_period_) {
-      RCLCPP_WARN(
-        nh_->get_logger(), "The controller period (%f) is slower than the simulation period (%f).",
+      RCLCPP_WARN(nh_->get_logger(),
+        "The controller period (%f) is slower than the simulation period (%f).",
         control_period_.seconds(), mujoco_period_.seconds());
     }
   }
@@ -338,15 +336,13 @@ void MujocoRos2Control::init_controller_manager()
       controller_manager_->get_name(), thread_priority);
 
     if (!realtime_tools::configure_sched_fifo(thread_priority)) {
-      RCLCPP_WARN(
-        controller_manager_->get_logger(),
+      RCLCPP_WARN(controller_manager_->get_logger(),
         "Could not enable FIFO RT scheduling policy: with error number <%i>(%s). See "
         "[https://control.ros.org/master/doc/ros2_control/controller_manager/doc/userdoc.html] "
         "for details on how to enable realtime scheduling.",
         errno, strerror(errno));
     } else {
-      RCLCPP_INFO(
-        controller_manager_->get_logger(),
+      RCLCPP_INFO(controller_manager_->get_logger(),
         "Successful set up FIFO RT scheduling policy with priority %i.", thread_priority);
     }
 
@@ -358,8 +354,7 @@ void MujocoRos2Control::init_controller_manager()
   thread_executor_spin_ = std::thread(spin);
 }
 
-void MujocoRos2Control::registerSensors()
-{
+void MujocoRos2Control::registerSensors() {
   // Add sensors
   if (mujoco_model_->nsensor > 0) {
     std::map<std::string, mujoco_ros2_sensors::MujocoRos2Sensors::Sensors> sensors;
@@ -400,7 +395,6 @@ void MujocoRos2Control::registerSensors()
     }
   }
 }
-
 }  // namespace mujoco_ros2_control
 
 /**
@@ -409,8 +403,7 @@ void MujocoRos2Control::registerSensors()
  * @param argv Command-line arguments.
  * @return Exit code of the program.
  */
-int main(int argc, char ** argv)
-{
+int main(int argc, char** argv) {
   rclcpp::init(argc, argv);
   rclcpp::Node::SharedPtr node = rclcpp::Node::make_shared("mujoco_ros2_control");
   // create the mujoco_ros2_control_plugin
