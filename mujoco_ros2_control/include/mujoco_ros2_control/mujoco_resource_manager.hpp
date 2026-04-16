@@ -48,6 +48,7 @@
 #include "mujoco/mjmodel.h"
 
 #include "hardware_interface/system_interface.hpp"
+#include "hardware_interface/types/hardware_component_params.hpp"
 
 #include "rclcpp/rclcpp.hpp"
 
@@ -93,7 +94,11 @@ namespace mujoco_ros2_control
                 auto system = std::unique_ptr<mujoco_ros2_control::MujocoSystemInterface>(robot_hw_sim_loader_.createUnmanagedInstance(hardware_type));
                 if(system->initSim(mujoco_model_, mujoco_data_, hw_info, &urdf_model)) {
                     // initialize hardware
-                    import_component(std::move(system), hw_info);
+                    hardware_interface::HardwareComponentParams params;
+                    params.hardware_info = hw_info;
+                    params.clock = node_->get_node_clock_interface()->get_clock();
+                    params.logger = node_->get_logger().get_child(hw_info.name);
+                    import_component(std::move(system), params);
                     // activate all components
                     rclcpp_lifecycle::State state(
                             lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE,

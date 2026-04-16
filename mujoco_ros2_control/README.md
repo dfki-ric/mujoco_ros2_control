@@ -140,3 +140,157 @@ Below is an example of how to declare a ROS 2 Control system using PID and torqu
     </joint>
 </ros2_control>
 ```
+
+## ROS 2 Control Sensor Interfaces
+
+Sensors are declared inside the `<ros2_control>` block and are automatically matched to MuJoCo sensors via a `<param>` that specifies the MuJoCo object (site, body, geom, etc.) the sensor is attached to. Three sensor types are supported: **IMU**, **Force/Torque**, and **Pose**.
+
+The sensor type is determined automatically from the state interface names you declare.
+
+### IMU Sensor
+
+Reads orientation (framequat), angular velocity (gyro), and linear acceleration (accelerometer) from a MuJoCo site. Use with the standard [imu_sensor_broadcaster](https://control.ros.org/rolling/doc/ros2_controllers/imu_sensor_broadcaster/doc/userdoc.html).
+
+```xml
+<ros2_control name="MySystem" type="system">
+    <hardware>
+        <plugin>mujoco_ros2_control/MujocoSystem</plugin>
+    </hardware>
+
+    <!-- ... joints ... -->
+
+    <sensor name="imu_in_pelvis">
+        <param name="site">imu_in_pelvis</param>
+        <state_interface name="orientation.x"/>
+        <state_interface name="orientation.y"/>
+        <state_interface name="orientation.z"/>
+        <state_interface name="orientation.w"/>
+        <state_interface name="angular_velocity.x"/>
+        <state_interface name="angular_velocity.y"/>
+        <state_interface name="angular_velocity.z"/>
+        <state_interface name="linear_acceleration.x"/>
+        <state_interface name="linear_acceleration.y"/>
+        <state_interface name="linear_acceleration.z"/>
+    </sensor>
+</ros2_control>
+```
+
+The corresponding MuJoCo sensors must be defined in the `<mujoco>` section:
+```xml
+<mujoco>
+    <!-- Create the site on the body where the IMU is located -->
+    <reference name="pelvis">
+        <site name="imu_in_pelvis" size="0.01" pos="0 0 0"/>
+    </reference>
+
+    <sensor>
+        <gyro name="imu_in_pelvis-angular-velocity" site="imu_in_pelvis" noise="5e-4" cutoff="34.9"/>
+        <accelerometer name="imu_in_pelvis-linear-acceleration" site="imu_in_pelvis" noise="1e-2" cutoff="157"/>
+        <framequat name="imu_in_pelvis-orientation" objtype="site" objname="imu_in_pelvis"/>
+    </sensor>
+</mujoco>
+```
+
+Controller configuration (`controllers.yaml`):
+```yaml
+controller_manager:
+  ros__parameters:
+    imu_broadcaster:
+      type: imu_sensor_broadcaster/IMUSensorBroadcaster
+
+imu_broadcaster:
+  ros__parameters:
+    sensor_name: "imu_in_pelvis"
+    frame_id: "imu_in_pelvis"
+```
+
+### Force/Torque Sensor
+
+Reads force and torque from a MuJoCo site. Use with the standard [force_torque_sensor_broadcaster](https://control.ros.org/rolling/doc/ros2_controllers/force_torque_sensor_broadcaster/doc/userdoc.html).
+
+```xml
+<sensor name="ft_sensor">
+    <param name="site">ft_site</param>
+    <state_interface name="force.x"/>
+    <state_interface name="force.y"/>
+    <state_interface name="force.z"/>
+    <state_interface name="torque.x"/>
+    <state_interface name="torque.y"/>
+    <state_interface name="torque.z"/>
+</sensor>
+```
+
+The corresponding MuJoCo sensors:
+```xml
+<mujoco>
+    <reference name="link7">
+        <site name="ft_site" pos="0 0 0.107" quat="0.92388 0 0 -0.382683"/>
+    </reference>
+    <sensor>
+        <force name="ft_site_force" site="ft_site"/>
+        <torque name="ft_site_torque" site="ft_site"/>
+    </sensor>
+</mujoco>
+```
+
+Controller configuration:
+```yaml
+controller_manager:
+  ros__parameters:
+    ft_sensor_broadcaster:
+      type: force_torque_sensor_broadcaster/ForceTorqueSensorBroadcaster
+
+ft_sensor_broadcaster:
+  ros__parameters:
+    sensor_name: "ft_sensor"
+    frame_id: "link7"
+```
+
+### Pose Sensor
+
+Reads position (framepos) and orientation (framequat) of a MuJoCo body. Use with the standard [pose_broadcaster](https://control.ros.org/rolling/doc/ros2_controllers/pose_broadcaster/doc/userdoc.html). This is useful for floating-base robots to get the base link pose.
+
+```xml
+<sensor name="pelvis_pose">
+    <param name="body">pelvis</param>
+    <state_interface name="position.x"/>
+    <state_interface name="position.y"/>
+    <state_interface name="position.z"/>
+    <state_interface name="orientation.x"/>
+    <state_interface name="orientation.y"/>
+    <state_interface name="orientation.z"/>
+    <state_interface name="orientation.w"/>
+</sensor>
+```
+
+The corresponding MuJoCo sensors:
+```xml
+<mujoco>
+    <sensor>
+        <framepos name="pelvis_pose" objtype="body" objname="pelvis" reftype="body" refname="world"/>
+        <framequat name="pelvis-orientation" objtype="body" objname="pelvis" reftype="body" refname="world"/>
+    </sensor>
+</mujoco>
+```
+
+Controller configuration:
+```yaml
+controller_manager:
+  ros__parameters:
+    pelvis_pose_broadcaster:
+      type: pose_broadcaster/PoseBroadcaster
+
+pelvis_pose_broadcaster:
+  ros__parameters:
+    pose_name: "pelvis_pose"
+    frame_id: "world"
+    tf:
+      enable: true
+      child_frame_id: "pelvis"
+```
+
+### Sensor Matching
+
+The `<param>` inside a `<sensor>` block tells the plugin which MuJoCo object to look for. Supported keys are: `site`, `body`, `geom`, `camera`, `light`, `frame`. If no param is provided, the sensor `name` is used as the match key.
+
+For example, `<param name="site">imu_in_pelvis</param>` will match all MuJoCo sensors whose object name is `imu_in_pelvis`.

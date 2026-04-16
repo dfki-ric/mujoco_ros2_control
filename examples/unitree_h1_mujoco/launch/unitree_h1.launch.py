@@ -126,6 +126,8 @@ def create_nodes(context: LaunchContext):
         ],
     )
 
+    torso_imu_broadcaster = Node(package="controller_manager", executable="spawner", arguments=["torso_imu_broadcaster", "--controller-manager", ["/", "controller_manager"], '--param-file', ros2_control_params_file], namespace="/")
+    pelvis_pose_broadcaster = Node(package="controller_manager", executable="spawner", arguments=["pelvis_pose_broadcaster", "--controller-manager", ["/", "controller_manager"], '--param-file', ros2_control_params_file], namespace="/")
     left_arm_position_controller = Node(package="controller_manager", executable="spawner", arguments=["left_arm_position_controller", "--controller-manager", ["/", "controller_manager"], '--param-file', ros2_control_params_file], namespace="/")
     left_hand_position_controller = Node(package="controller_manager", executable="spawner", arguments=["left_hand_position_controller", "--controller-manager", ["/", "controller_manager"], '--param-file', ros2_control_params_file], namespace="/")
     left_leg_position_controller = Node(package="controller_manager", executable="spawner", arguments=["left_leg_position_controller", "--controller-manager", ["/", "controller_manager"], '--param-file', ros2_control_params_file], namespace="/")
@@ -162,6 +164,8 @@ def create_nodes(context: LaunchContext):
             on_start=[
                 LogInfo(msg="Starting joint state broadcaster..."),
                 load_joint_state_broadcaster,
+                torso_imu_broadcaster,
+                pelvis_pose_broadcaster,
                 left_arm_position_controller,
                 left_hand_position_controller,
                 left_leg_position_controller,

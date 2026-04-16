@@ -61,6 +61,7 @@
 
 // Mujoco system interface
 #include "mujoco_ros2_control/mujoco_system_interface.hpp"
+#include "mujoco_ros2_control/mujoco_sensors.hpp"
 
 // ROS Hardware Interface
 #include "hardware_interface/hardware_info.hpp"
@@ -98,7 +99,7 @@ namespace mujoco_ros2_control {
          * @param system_info System information.
          * @return The success status of the on_init callback.
          */
-        CallbackReturn on_init(const hardware_interface::HardwareInfo &system_info) override;
+        CallbackReturn on_init(const hardware_interface::HardwareComponentInterfaceParams &params) override;
 
         /**
          * @brief Exports the state interfaces.
@@ -317,6 +318,8 @@ namespace mujoco_ros2_control {
         std::vector<hardware_interface::CommandInterface> command_interfaces_;
 
         double pid_control(double kp, double ki, double kd, double error, double last_error, double dt);
+
+        MujocoSensors sensors_;
 
     protected:
         std::map<std::string, JointData> joints_; ///< Map of joint names to JointData structs.

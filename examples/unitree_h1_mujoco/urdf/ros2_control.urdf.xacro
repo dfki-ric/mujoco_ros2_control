@@ -88,6 +88,33 @@
       <xacro:configure_joint joint_name="R_thumb_proximal_pitch_joint" initial_position="0.0"/>
       <!-- <xacro:configure_joint joint_name="R_thumb_intermediate_joint" initial_position="0.0"/> -->
       <!-- <xacro:configure_joint joint_name="R_thumb_distal_joint" initial_position="0.0"/> -->
+
+      <!-- IMU sensor on torso -->
+      <sensor name="imu_in_torso">
+          <param name="site">imu_in_torso</param>
+          <state_interface name="orientation.x"/>
+          <state_interface name="orientation.y"/>
+          <state_interface name="orientation.z"/>
+          <state_interface name="orientation.w"/>
+          <state_interface name="angular_velocity.x"/>
+          <state_interface name="angular_velocity.y"/>
+          <state_interface name="angular_velocity.z"/>
+          <state_interface name="linear_acceleration.x"/>
+          <state_interface name="linear_acceleration.y"/>
+          <state_interface name="linear_acceleration.z"/>
+      </sensor>
+
+      <!-- Pose sensor for floating base odometry -->
+      <sensor name="pelvis_pose">
+          <param name="body">pelvis</param>
+          <state_interface name="position.x"/>
+          <state_interface name="position.y"/>
+          <state_interface name="position.z"/>
+          <state_interface name="orientation.x"/>
+          <state_interface name="orientation.y"/>
+          <state_interface name="orientation.z"/>
+          <state_interface name="orientation.w"/>
+      </sensor>
     </ros2_control>
 
   </xacro:macro>
