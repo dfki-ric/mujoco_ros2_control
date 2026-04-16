@@ -147,6 +147,12 @@ namespace mujoco_simulate_gui {
             const mujoco::MutexLock lock(sim->mtx);
             sim->platform_ui->PollEvents();
 
+            // Intercept reset: defer to sim thread to avoid data race
+            if (sim->pending_.reset && reset_requested_) {
+                sim->pending_.reset = false;
+                reset_requested_->store(true, std::memory_order_release);
+            }
+
             sim->Sync();
         }
         sim->Render();

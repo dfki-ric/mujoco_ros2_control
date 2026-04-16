@@ -47,6 +47,7 @@
 #ifndef MUJOCO_SIMULATE_GUI_HPP
 #define MUJOCO_SIMULATE_GUI_HPP
 
+#include <atomic>
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
@@ -92,6 +93,13 @@ namespace mujoco_simulate_gui {
          * This method frees the memory allocated for the visualization data structures.
          */
         void terminate();
+
+        /**
+         * @brief Set the atomic flag used to request a simulation reset from the UI thread.
+         * The actual reset is performed on the sim thread to avoid data races.
+         */
+        void setResetFlag(std::atomic<bool> *flag) { reset_requested_ = flag; }
+
         /**
          * Get the instance of the MujocoVisualization class.
          * This method returns the singleton instance of the class.
@@ -148,6 +156,8 @@ namespace mujoco_simulate_gui {
 
 
         mjvPerturb pert;
+
+        std::atomic<bool> *reset_requested_ = nullptr;
     };
 }
 #endif //MUJOCO_SIMULATE_GUI_HPP

@@ -110,10 +110,11 @@ namespace mujoco_visualization {
 
     // keyboard callback
     void MujocoVisualization::keyboard(GLFWwindow* window, int key, int scancode, int act, int mods) {
-        // backspace: reset simulation
+        // backspace: request reset (handled safely on the sim thread)
         if (act==GLFW_PRESS && key==GLFW_KEY_BACKSPACE) {
-            mj_resetData(m, d);
-            mj_forward(m, d);
+            if (reset_requested_) {
+                reset_requested_->store(true, std::memory_order_release);
+            }
         }
     }
 

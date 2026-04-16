@@ -257,6 +257,7 @@ namespace mujoco_ros2_control
         mjData mjdata_to_render_{}; ///< Pointer to the data to be rendered, non-RT
         std::mutex mjdata_mtx_; ///< Mutex protecting mjdata
         std::atomic<bool> has_new_mjdata_{false};
+        std::atomic<bool> reset_requested_{false}; ///< Flag to defer reset to sim thread
 
 #ifdef USE_LIBSIMULATE
         mujoco_simulate_gui::MujocoSimulateGui& mj_vis_ = mujoco_simulate_gui::MujocoSimulateGui::getInstance(); ///< MuJoCo visualizer object
