@@ -49,6 +49,7 @@
 #ifndef MUJOCO_VISUALIZATION_MUJOCO_VISUALIZATION_HPP
 #define MUJOCO_VISUALIZATION_MUJOCO_VISUALIZATION_HPP
 
+#include <atomic>
 #include <GLFW/glfw3.h>
 #include <mujoco/mujoco.h>
 namespace mujoco_visualization {
@@ -90,6 +91,12 @@ namespace mujoco_visualization {
          * This method frees the memory allocated for the visualization data structures.
          */
         void terminate();
+
+        /**
+         * @brief Set the atomic flag used to request a simulation reset from the UI thread.
+         * The actual reset is performed on the sim thread to avoid data races.
+         */
+        void setResetFlag(std::atomic<bool> *flag) { reset_requested_ = flag; }
         /**
          * Get the instance of the MujocoVisualization class.
          * This method returns the singleton instance of the class.
@@ -187,6 +194,8 @@ namespace mujoco_visualization {
          * Holds the y-coordinate of the mouse position in the previous update.
          */
         double lasty = 0;
+
+        std::atomic<bool> *reset_requested_ = nullptr;
 
         /**
          * @brief Callback function for handling scroll events.

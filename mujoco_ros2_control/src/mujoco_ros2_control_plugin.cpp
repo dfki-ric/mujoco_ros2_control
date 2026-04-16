@@ -101,6 +101,7 @@ MujocoRos2Control::MujocoRos2Control(rclcpp::Node::SharedPtr &node) : nh_(node) 
 #else
   mj_vis_.init(mujoco_model_, &mjdata_to_render_, show_gui_);
 #endif
+  mj_vis_.setResetFlag(&reset_requested_);
 
   thread_sim_ = std::thread(&MujocoRos2Control::update, this);
   RCLCPP_INFO(nh_->get_logger(), "Sim environment setup complete");
@@ -127,15 +128,29 @@ MujocoRos2Control::~MujocoRos2Control()
 }
 
 void MujocoRos2Control::render() {
-  if (!mj_vis_.sim->run) return;
+  // Always call update() to process GUI events (pause/unpause, reset, etc.)
+  // even when the simulation is paused.
   std::lock_guard<std::mutex> guard(mjdata_mtx_);
-  if (has_new_mjdata_.exchange(false, std::memory_order_acq_rel)) {
-    mj_vis_.update();
-  }
+  mj_vis_.update();
 }
 
 void MujocoRos2Control::update() {
-  while (mj_vis_.sim->run) {
+  while (!stop_.load()) {
+    // When paused, sleep instead of exiting the thread
+    if (!mj_vis_.sim->run) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      continue;
+    }
+
+    // Handle reset request from the UI thread safely on the sim thread
+    if (reset_requested_.exchange(false, std::memory_order_acq_rel)) {
+      mj_resetData(mujoco_model_, mujoco_data_);
+      mj_forward(mujoco_model_, mujoco_data_);
+      mujoco_start_time_ = mujoco_data_->time;
+      clock_gettime(CLOCK_MONOTONIC, &startTime_);
+      last_update_sim_time_ros_ = rclcpp::Time((int64_t)0, RCL_ROS_TIME);
+    }
+
     mjtNum simstart = mujoco_data_->time;
     timespec currentTime{};
     param_listener_->refresh_dynamic_parameters();
