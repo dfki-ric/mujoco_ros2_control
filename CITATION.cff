@@ -1,0 +1,14 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the following metadata."
+title: "MujocoROS2Control: Seamless MuJoCo Integration with ROS 2 for Robot Simulation and Control"
+authors:
+  - family-names: "Danzglock"
+    given-names: "Adrian"
+    orcid: "https://orcid.org/0009-0004-4715-2973"
+  - family-names: "Origanti"
+    given-names: "Vamsi Krishna"
+    orcid: "https://orcid.org/0009-0007-1696-5201"
+  - family-names: "Kirchner"
+    given-names: "Frank"
+    orcid: "https://orcid.org/0000-0002-1713-9784"
+version: "1.0.0"

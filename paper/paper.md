@@ -26,7 +26,11 @@ bibliography: paper.bib
 
 # Summary
 
-The `MujocoROS2Control` hardware interface enables seamless integration between MuJoCo [@todorov2012mujoco], a high-performance physics engine, and ROS 2 [@ros2_control], a widely adopted middleware for robotic systems. This interface provides an efficient solution for simulating and controlling robots using MuJoCo’s physics capabilities within the ROS 2 ecosystem.
+`ROS 2` is an open-source framework that provides standardized communication, tools, and libraries for building robot applications. It uses a Data Distribution Service (DDS) backend for reliable, real-time communication and supports features such as zero-copy message passing when nodes run on the same system. ROS 2 is supported by a broad ecosystem of community and industry-maintained packages, ranging from sensor drivers to visualization tools and control modules.
+
+`MuJoCo` (Multi-Joint dynamics with Contact) is a high-performance physics engine designed for accurate simulation of articulated bodies, contacts, and constraints. Widely used in robotics and machine learning research, it emphasizes both simulation speed and physical fidelity. MuJoCo is implemented in C/C++ and also offers a JAX-based version optimized for GPU-accelerated reinforcement-learning workflows.
+
+The `MujocoROS2Control` hardware interface enables seamless integration between MuJoCo [@todorov2012mujoco], a high-performance physics engine, and ROS 2 [@ros2], widely adopted middleware for robotic systems. This interface provides an efficient solution for simulating and controlling robots using MuJoCo’s physics capabilities within the ROS 2 ecosystem.
 
 To support ROS-based workflows, we developed a dedicated URDF-to-MJCF conversion script. This tool translates URDF models into MJCF (MuJoCo XML format), preserving kinematic and dynamic properties and allowing custom MuJoCo-specific parameters such as sensors, actuators, and collision definitions to be specified directly in the URDF. This conversion ensures compatibility and adaptability for simulation.
 
@@ -34,9 +38,11 @@ To support ROS-based workflows, we developed a dedicated URDF-to-MJCF conversion
 
 # Statement of Need
 
+ROS 2 is widely used across robotics, but its associated simulator—Gazebo/Ignition—is generally not as fast or as convenient for dynamic simulation as MuJoCo. MuJoCo, in turn, is widely used in robotics-focused machine learning. Establishing a MuJoCo interface for ROS 2 therefore enables developers to use the same simulator both for training and for validating policies before deployment on real systems, or to test ROS 2 components without a physical system, helping unify robotics development pipelines.
+
 Developing and validating control algorithms for robotic systems often requires extensive testing, which on physical hardware can be expensive, time-consuming, and subject to wear. Accurate simulation environments are essential for safe and scalable development.
 
-MuJoCo (Multi-Joint dynamics with Contact) is a fast and accurate physics engine designed for robotics, control, biomechanics, and reinforcement learning. It provides precise multi-body dynamics with advanced numerical integration, High-speed simulation for real-time control and machine learning, Sophisticated contact modeling and soft constraint handling, Flexible actuator models and comprehensive sensor support.
+MuJoCo (Multi-Joint dynamics with Contact) is a fast and accurate physics engine designed for robotics, control, biomechanics, and reinforcement learning. It provides precise multi-body dynamics with advanced numerical integration, high-speed simulation for real-time control and machine learning, sophisticated contact modeling and soft constraint handling, flexible actuator models and comprehensive sensor support.
 
 MuJoCo is ideal for reliable torque feedback due to its high-fidelity torque-controlled joints and smooth-contact soft constraint solver, which enables precise compliance behavior [@zhang2025wholebodymodelpredictivecontrollegged].
 
@@ -59,16 +65,16 @@ Drake on the other hand supports torque control, however due to its symbolic and
 Table: Comparison of usability of different Simulators for usage with Compliant controllers
 
 
-| Feature | **Mujoco ROS2 Control** | **mujoco ros2 control [@mujoco_ros2_control]** | **gz ros2 control [@gz_ros2_control]** | **drake-ros [@drake_ros]** |
-| :-- | :-: | :-: | :-: |:-:|
-| Simulation Engine | MuJoCo | MuJoCo | Gazebo | Drake |
-| Sensor Support | Yes, IMU, Pose, Wrench, RGBD | No, Planned | Yes, Supports various sensors via Gazebo plugins | Yes, but aditional code is required |
-| URDF Support | Yes, direct loading from URDF via urdf to mjcf script in launchfile | No, Planned | Yes, Uses URDF/SDF for robot models | Yes, Supports URDF and custom formats |
-| Control System | ros2_control | ros2_control | ros2_control | Experimental API for ROS2 |
-| Control Methods | PID, Mujoco Actuators, Torque | PID, Torque, not integrated position and velocity control | PID, Effort, Position, Velocity | PID, Optimazation-based-control |
-| Mimic Joints | Yes | Yes | Yes, sometimes difficoult to setup [@gazebo_ros2_mimic_joints] | Yes |
+| Feature | **Mujoco ROS2 Control** | **mujoco ros2 control [@mujoco_ros2_control]** | **gz ros2 control [@gz_ros2_control]** | **drake-ros [@drake_ros]** | **mujoco ros2 [@mujoco_ros2]** | **mujoco ros [@mujoco_ros]** |
+| :-- | :-: | :-: | :-: |:-:| :-: | :-: |
+| Simulation Engine | MuJoCo | MuJoCo | Gazebo | Drake | MuJoCo | MuJoCo |
+| Sensor Support | Yes, IMU, Pose, Wrench, RGBD | Yes, IMU, Wrench, RGBD | Yes, Supports various sensors via Gazebo plugins | Yes, but aditional code is required | No | Must be implemented in the env |
+| URDF Support | Yes, direct loading from URDF via urdf to mjcf script in launchfile | No, Planned | Yes, Uses URDF/SDF for robot models | Yes, Supports URDF and custom formats | No | No |
+| Control System | ros2_control | ros2_control | ros2_control | Experimental API for ROS2 | Topic based | Must be implemented in the env |
+| Control Methods | PID, Mujoco Actuators, Torque | PID, Torque, not integrated position and velocity control | PID, Effort, Position, Velocity | PID, Optimization-based-control | Mujoco Actuators | Must be implemented in the env |
+| Mimic Joints | Yes | Yes | Yes, sometimes difficult to setup [@gazebo_ros2_mimic_joints] | Yes | No | Must be implemented in the env |
 
-Table: Comparison of actual ros2 simulator wrappers
+Table: Comparison of actual ROS 2 simulator wrappers
 
 
 Despite these capabilities, MuJoCo lacks native support for ROS 2, limiting its adoption in modern robotic development pipelines. `MujocoROS2Control` addresses this gap, enabling users to simulate ROS 2-compatible robots in MuJoCo with minimal overhead.
@@ -85,9 +91,21 @@ The interface supports direct torque control, PID-based position/velocity/accele
 Joint states and simulation time are published for synchronization with the ROS 2 system time (`/clock`). Sensors defined in the URDF are exposed as individual ROS nodes using `realtime_tools` [@realtime_tools] to maintain real-time performance.
 
 # Use Cases
+This package provides a fast and accurate dynamics simulation environment that can serve as a drop-in alternative to Gazebo/Ignition. Robots can be integrated by supplying a URDF model, which is automatically converted to MJCF. The framework also supports extensibility through a sensor interface that allows users to implement custom sensing modules.
+
+Typical application domains include:
+
+* contact-rich manipulation tasks (e.g., interactions with grippers and multiple high-resolution rigid bodies),
+* testing controllers in position, velocity, or torque mode,
+* evaluating controllers that rely on wrench feedback (e.g., admittance control),
+* simulating underactuated systems (such as robots with free-floating bases), and
+* visual-perception tasks (although this was not the primary focus).
+
+## Usage in projects
 MujocoRos2Control was utilized for testing and validating various torque and admittance controllers within the scope of the HARTU project [@hartu_project]. The software also played a key role in conducting experiments for the publication "Look-Ahead Optimization for Managing Nullspace in Cartesian Impedance Control of Dual-Arm Robots" [@Origanti2025].
 
 Our framework has been successfully employed to test components such as force-torque sensor gravity compensation, torque-based Cartesian controllers, and Dynamic Movement Primitives (DMP)-based skill reproduction [@Fabisch2024].
+
 
 # Examples
 
@@ -101,14 +119,14 @@ For the high-resolution collision modeling, we use CoaCD [@wei2022coacd] to crea
 
 ## Unitree H1
 
-This example uses the loads the Bipedal robot Unitree H1 [@unitree_ros] with a floating base and tf2 transformations from world to pelvis. All joints are controlled via ros2 control, with mujoco actuators for position and velocity control (PD Control).
+This example uses the loads the Bipedal robot Unitree H1 [@unitree_ros] with a floating base and tf2 transformations from world to pelvis. All joints are controlled via ros2_control, with mujoco actuators for position and velocity control (PD Control).
 
 ![Unitree H1 controlled with ROS 2 control and tf2 transformation, and IMU](./figures/unitree_h1_example.png)
 
 ## IMRK System
 
-In this example, we simulate the iMRK system developed at DFKI Bremen, consisting of two KUKA LBR iiwa 14 robots [@Mrongaimrk]. A ROS2 Cartesian impedance controller (migrated version of [@mayr2024cartesian]) is used for each arm. MuJoCo actuators manage the Robotiq 2F grippers, and force-torque sensors are simulated at both end-effectors. 
-Because the robot description for the IMRK system is not public available, we cant provide the files for this example.
+In this example, we simulate the iMRK system developed at DFKI Bremen, consisting of two KUKA LBR iiwa 14 robots [@Mrongaimrk]. A ROS 2 Cartesian impedance controller (migrated version of [@mayr2024cartesian]) is used for each arm. MuJoCo actuators manage the Robotiq 2F grippers, and force-torque sensors are simulated at both end-effectors. 
+Because the robot description for the IMRK system is not public available, we can't provide the files for this example.
 
 ![IMRK with Robotiq 2F Gripper and Robotiq FT300 Sensor](./figures/kuka_imrk_example.png)
 
