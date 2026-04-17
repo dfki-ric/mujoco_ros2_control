@@ -67,9 +67,23 @@ set(BUILD_SIMULATE ON CACHE BOOL "" FORCE)
 
 FetchContent_MakeAvailable(mujoco)
 
-# Install the ccd-config.cmake to the appropriate location
-install(FILES ${CMAKE_BINARY_DIR}/_deps/ccd-build/ccd-config.cmake
-        DESTINATION share/${PROJECT_NAME}/cmake)
+## Workaround by creating dummy files in each of the necessary by --symlink-install
+file(GLOB _mujoco_dep_configs
+    "${CMAKE_BINARY_DIR}/_deps/ccd-build/*.cmake"
+    "${CMAKE_BINARY_DIR}/_deps/ccd-build/*.pc"
+    "${CMAKE_BINARY_DIR}/_deps/qhull-build/*.cmake"
+    "${CMAKE_BINARY_DIR}/_deps/qhull-build/*.pc"
+)
+foreach(_dep_file ${_mujoco_dep_configs})
+    get_filename_component(_fname "${_dep_file}" NAME)
+    set(_stub "${CMAKE_BINARY_DIR}/${_fname}")
+    if(NOT EXISTS "${_stub}")
+        file(WRITE "${_stub}" "# Auto-generated stub by mujoco_ros2_control workaround\n")
+    endif()
+endforeach()
+## At the end this files will be filled with the correct data, so there is no problem with leaving them empty
+# install(FILES "${CMAKE_BINARY_DIR}/ccd-config.cmake"
+#         DESTINATION share/${PROJECT_NAME}/cmake)
 
 # Set LibSimulate usage flag
 set(USE_LIBSIMULATE ON CACHE BOOL "Use LibSimulate" FORCE)
