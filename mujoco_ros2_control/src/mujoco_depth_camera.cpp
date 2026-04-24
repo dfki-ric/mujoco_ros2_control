@@ -111,6 +111,10 @@ namespace mujoco_rgbd_camera {
     void MujocoDepthCamera::update() {
         mjtNum last_update = mujoco_data_->time;
         while(rclcpp::ok() && !stop_->load()) {
+            // resync if the simulation was reset (sim time jumped backwards)
+            if (mujoco_data_->time < last_update) {
+                last_update = mujoco_data_->time;
+            }
             // update dynamic parameters
             if (mujoco_data_->time - last_update >= 1.0 / frequency_) {
                 last_update = mujoco_data_->time;
