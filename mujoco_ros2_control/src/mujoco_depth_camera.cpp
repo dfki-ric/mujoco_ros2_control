@@ -188,14 +188,17 @@ namespace mujoco_rgbd_camera {
 
         cv::Size img_size(viewport.width, viewport.height);
         cv::Mat bgr(img_size, CV_8UC3, color_buffer_);
-        cv::flip(bgr, bgr, -1);
+        // OpenGL framebuffer has origin at bottom-left; flip vertically (code 0)
+        // to get standard top-left image origin. Flipping both axes (code -1)
+        // would also mirror the image horizontally.
+        cv::flip(bgr, bgr, 0);
         cv::Mat rgb;
         cv::cvtColor(bgr, rgb, cv::COLOR_BGR2RGB);
         rgb.copyTo(color_image_);
 
 
         cv::Mat depth(img_size, CV_32FC1, depth_buffer_);
-        cv::flip(depth, depth, -1);
+        cv::flip(depth, depth, 0);
         cv::Mat depth_img_m = linearize_depth(depth);
         depth_img_m.copyTo(depth_image_);
     }
@@ -218,9 +221,10 @@ namespace mujoco_rgbd_camera {
                 double depth = *(depth_image_.ptr<float>(i,j));
                 // filter far points
                 if (depth < z_far_) {
-                    point_ptr->x = static_cast<float>(depth);
-                    point_ptr->y = static_cast<float>(double(j - cx_) * depth / f_);
-                    point_ptr->z = -static_cast<float>(double(i - cy_) * depth / f_);
+                    // REP-103 optical frame: X right, Y down, Z forward
+                    point_ptr->x = static_cast<float>(double(j - cx_) * depth / f_);
+                    point_ptr->y = static_cast<float>(double(i - cy_) * depth / f_);
+                    point_ptr->z = static_cast<float>(depth);
 
                     const uchar* bgr_ptr = color_image_.ptr<uchar>(i,j);
                     point_ptr->r = bgr_ptr[2];
