@@ -158,6 +158,9 @@ namespace mujoco_simulate_gui {
         mjvPerturb pert;
 
         std::atomic<bool> *reset_requested_ = nullptr;
+
+        std::chrono::steady_clock::time_point wall_start_ = std::chrono::steady_clock::now();
+        double sim_start_time_ = 0.0;
     };
 }
 #endif //MUJOCO_SIMULATE_GUI_HPP

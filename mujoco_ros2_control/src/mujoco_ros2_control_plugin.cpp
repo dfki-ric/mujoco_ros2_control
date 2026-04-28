@@ -149,6 +149,7 @@ void MujocoRos2Control::update() {
       mujoco_start_time_ = mujoco_data_->time;
       clock_gettime(CLOCK_MONOTONIC, &startTime_);
       last_update_sim_time_ros_ = rclcpp::Time((int64_t)0, RCL_ROS_TIME);
+      last_pub_clock_time_ = 0.0;
     }
 
     mjtNum simstart = mujoco_data_->time;
