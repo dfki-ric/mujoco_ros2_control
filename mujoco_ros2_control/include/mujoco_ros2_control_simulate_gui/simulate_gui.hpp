@@ -101,10 +101,10 @@ namespace mujoco_simulate_gui {
         void setResetFlag(std::atomic<bool> *flag) { reset_requested_ = flag; }
 
         /**
-         * Get the instance of the MujocoVisualization class.
+         * Get the instance of the MujocoSimulateGui class.
          * This method returns the singleton instance of the class.
          *
-         * @return A reference to the MujocoVisualization instance.
+         * @return A reference to the MujocoSimulateGui instance.
          */
         static MujocoSimulateGui& getInstance()
         {

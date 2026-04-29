@@ -85,13 +85,6 @@ endforeach()
 # install(FILES "${CMAKE_BINARY_DIR}/ccd-config.cmake"
 #         DESTINATION share/${PROJECT_NAME}/cmake)
 
-# Set LibSimulate usage flag
-set(USE_LIBSIMULATE ON CACHE BOOL "Use LibSimulate" FORCE)
-message("Setting USE_LIBSIMULATE to: ${USE_LIBSIMULATE}")
-
-# Configure the header file with CMake variables
-configure_file(cmake/config.h.in ${CMAKE_BINARY_DIR}/config.h)
-
 # Add compile definitions and directories
 add_definitions(
     ${rclcpp_DEFINITIONS}
@@ -112,7 +105,6 @@ include_directories(
     ${pcl_conversions_INCLUDE_DIRS}
     ${CMAKE_BINARY_DIR}/_deps/mujoco-src/include
     ${CMAKE_BINARY_DIR}/_deps/mujoco-src/simulate
-    ${CMAKE_BINARY_DIR}
 )
 
 # Generate parameter libraries
