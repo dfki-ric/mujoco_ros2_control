@@ -96,11 +96,7 @@ MujocoRos2Control::MujocoRos2Control(rclcpp::Node::SharedPtr &node) : nh_(node) 
 
   // setup visualization
   mjdata_to_render_ = *mujoco_data_;
-#ifdef USE_LIBSIMULATE
   mj_vis_.init(mujoco_model_, &mjdata_to_render_);
-#else
-  mj_vis_.init(mujoco_model_, &mjdata_to_render_, show_gui_);
-#endif
   mj_vis_.setResetFlag(&reset_requested_);
 
   thread_sim_ = std::thread(&MujocoRos2Control::update, this);
@@ -129,8 +125,9 @@ MujocoRos2Control::~MujocoRos2Control()
 
 void MujocoRos2Control::render() {
   // Always call update() to process GUI events (pause/unpause, reset, etc.)
-  // even when the simulation is paused.
-  std::lock_guard<std::mutex> guard(mjdata_mtx_);
+  // even when the simulation is paused. update() acquires libsimulate's own
+  // mutex internally only around Sync(), keeping the slow GL Render() lock-free
+  // so the sim thread can refresh mjdata_to_render_ between Sync calls.
   mj_vis_.update();
 }
 
@@ -181,11 +178,12 @@ void MujocoRos2Control::update() {
       // Calculate the next mujoco step
       mj_step(mujoco_model_, mujoco_data_);
 
-      // save data for rendering
-      std::unique_lock<std::mutex> guard(mjdata_mtx_, std::try_to_lock);
-      if (guard.owns_lock()) {
+      // Snapshot data for rendering under libsimulate's own mutex. This is
+      // contended only with sim->Sync() (cheap), not with the slow GL Render(),
+      // so the snapshot stays fresh even when the scene is heavy.
+      {
+        mujoco::MutexLock lock(mj_vis_.sim->mtx);
         mjdata_to_render_ = *mujoco_data_;
-        has_new_mjdata_.store(true, std::memory_order_release);
       }
     }
   }

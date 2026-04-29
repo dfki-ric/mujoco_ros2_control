@@ -50,9 +50,6 @@
 #ifndef MUJOCO_ROS2_CONTROL_MUJOCO_ROS2_CONTROL_PLUGIN_HPP
 #define MUJOCO_ROS2_CONTROL_MUJOCO_ROS2_CONTROL_PLUGIN_HPP
 
-// cmake config
-#include "config.h"
-
 // std libraries
 #include <algorithm>
 #include <fstream>
@@ -100,11 +97,7 @@
 // #include "mujoco_ros2_sensors/mujoco_ros2_sensors.hpp"
 
 // GUI
-#ifdef USE_LIBSIMULATE
 #include "mujoco_ros2_control_simulate_gui/simulate_gui.hpp"
-#else
-#include "mujoco_visualization/mujoco_visualization.hpp"
-#endif
 
 #include "mujoco_ros2_control_parameters.hpp"
 
@@ -253,16 +246,10 @@ namespace mujoco_ros2_control
         std::thread thread_sim_; ///< RT thread to run simulation on
 
         // Visualization class
-        mjData mjdata_to_render_{}; ///< Pointer to the data to be rendered, non-RT
-        std::mutex mjdata_mtx_; ///< Mutex protecting mjdata
-        std::atomic<bool> has_new_mjdata_{false};
+        mjData mjdata_to_render_{}; ///< Snapshot of mjData for rendering, non-RT
         std::atomic<bool> reset_requested_{false}; ///< Flag to defer reset to sim thread
 
-#ifdef USE_LIBSIMULATE
         mujoco_simulate_gui::MujocoSimulateGui& mj_vis_ = mujoco_simulate_gui::MujocoSimulateGui::getInstance(); ///< MuJoCo visualizer object
-#else
-        mujoco_visualization::MujocoVisualization& mj_vis_ = mujoco_visualization::MujocoVisualization::getInstance(); ///< MuJoCo visualizer object
-#endif
 
         // interface loader
         std::shared_ptr<pluginlib::ClassLoader<mujoco_ros2_control::MujocoSystemInterface> > robot_hw_sim_loader_; ///< Plugin loader for RobotHWSimInterface

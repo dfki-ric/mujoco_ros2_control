@@ -1,5 +1,5 @@
 /**
- * @file mujoco_visualization.cpp
+ * @file mujoco_system.cpp
  * @brief This file contains the implementation of the MujocoSystem class.
  *
  * @author Adrian Danzglock
