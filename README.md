@@ -17,7 +17,7 @@ The development and testing of control algorithms for robotic systems is a cruci
 | ROS 2 Version           | Branch | Status |
 |------------------------|--------|--------|
 | Humble                 | [main](https://github.com/dfki-ric/mujoco_ros2_control)   | stable |
-| Jazzy                  | [jazzy](https://github.com/dfki-ric/mujoco_ros2_control/tree/jazzy)  | unstable|
+| Jazzy                  | [jazzy](https://github.com/dfki-ric/mujoco_ros2_control/tree/jazzy)  | stable |
 
 ## Examples
 We provide one example with the franka description and the gears from the IndustRealKit that can be started with 
@@ -33,6 +33,9 @@ and one example with a unitree H1 that can be started with
 ```
 ![](./paper/figures/unitree_h1_example.png)
 *Unitree H1 with floating joint between world and pelvis ([MuJoCo Visualizer](https://github.com/google-deepmind/mujoco/tree/main/simulate) \[left\], [rqt_joint_trajectory_controller](https://index.ros.org/p/rqt_joint_trajectory_controller/)/[rviz2](https://index.ros.org/p/rviz2/) \[right\])*
+
+![](./paper/figures/unitree_g1_lidar.png)
+*Unitree G1 with floating joint between world and pelvis and attached LIDAR and RGBD Camera*
 
 ### Docker
 To start you can use the ![dockerfile](./Dockerfile) to create a docker container with MuJoCo ROS2 control and its examples.
