@@ -68,7 +68,7 @@ Table: Comparison of usability of different Simulators for usage with Compliant 
 | Feature | **Mujoco ROS2 Control** | **mujoco ros2 control [@mujoco_ros2_control]** | **gz ros2 control [@gz_ros2_control]** | **drake-ros [@drake_ros]** | **mujoco ros2 [@mujoco_ros2]** | **mujoco ros [@mujoco_ros]** |
 | :-- | :-: | :-: | :-: |:-:| :-: | :-: |
 | Simulation Engine | MuJoCo | MuJoCo | Gazebo | Drake | MuJoCo | MuJoCo |
-| Sensor Support | Yes, IMU, Pose, Wrench, RGBD | Yes, IMU, Wrench, RGBD | Yes, Supports various sensors via Gazebo plugins | Yes, but aditional code is required | No | Must be implemented in the env |
+| Sensor Support | Yes, IMU, Pose, Wrench, RGBD, LIDAR | Yes, IMU, Wrench, RGBD | Yes, Supports various sensors via Gazebo plugins | Yes, but aditional code is required | No | Must be implemented in the env |
 | URDF Support | Yes, direct loading from URDF via urdf to mjcf script in launchfile | No, Planned | Yes, Uses URDF/SDF for robot models | Yes, Supports URDF and custom formats | No | No |
 | Control System | ros2_control | ros2_control | ros2_control | Experimental API for ROS2 | Topic based | Must be implemented in the env |
 | Control Methods | PID, Mujoco Actuators, Torque | PID, Torque, not integrated position and velocity control | PID, Effort, Position, Velocity | PID, Optimization-based-control | Mujoco Actuators | Must be implemented in the env |
@@ -122,6 +122,11 @@ For the high-resolution collision modeling, we use CoaCD [@wei2022coacd] to crea
 This example uses the loads the Bipedal robot Unitree H1 [@unitree_ros] with a floating base and tf2 transformations from world to pelvis. All joints are controlled via ros2_control, with mujoco actuators for position and velocity control (PD Control).
 
 ![Unitree H1 controlled with ROS 2 control and tf2 transformation, and IMU](./figures/unitree_h1_example.png)
+
+## Unitree G1
+This example shows the LIDAR sensor and Depth Camera attached to the bipedal robot Unitree G1 [@unitree_ros]. This setup is used for sim2sim evaluation of a vision based locomotion policy that should walk on a voronoi tarrain (the policy was trained in IsaacLab).
+
+![Unitree G1 controlled with ROS 2 control and commanded with a trained policy](./figures/unitree_g1_lidar.png)
 
 ## IMRK System
 
