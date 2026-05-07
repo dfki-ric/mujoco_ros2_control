@@ -5,18 +5,18 @@ RUN apt-get update && apt-get install -y \
     libglfw3-dev \
     libx11-dev \
     xorg-dev \
-    ros-humble-urdf \
-    ros-humble-xacro \
-    ros-humble-rviz2 \
-    ros-humble-ros2-control \
-    ros-humble-ros2-controllers \
-    ros-humble-controller-manager \
-    ros-humble-pcl-ros \
-    ros-humble-perception-pcl \
-    ros-humble-urdfdom-py \
+    ros-${ROS_DISTRO}-urdf \
+    ros-${ROS_DISTRO}-xacro \
+    ros-${ROS_DISTRO}-rviz2 \
+    ros-${ROS_DISTRO}-ros2-control \
+    ros-${ROS_DISTRO}-ros2-controllers \
+    ros-${ROS_DISTRO}-controller-manager \
+    ros-${ROS_DISTRO}-pcl-ros \
+    ros-${ROS_DISTRO}-perception-pcl \
+    ros-${ROS_DISTRO}-urdfdom-py \
+    ros-${ROS_DISTRO}-pcl-conversions \
+    ros-${ROS_DISTRO}-cv-bridge \
     libopencv-dev \
-    ros-humble-pcl-conversions \
-    ros-humble-cv-bridge \
     libpcl-dev \
     python3-scipy
 
@@ -31,12 +31,11 @@ COPY mujoco_ros2_control /ros2_ws/src/mujoco_ros2_control
 
 WORKDIR /ros2_ws
 #RUN rosdep init ||
-RUN rosdep update && rosdep install --from-paths src --ignore-src --rosdistro humble -y
-RUN . /opt/ros/$ROS_DISTRO/setup.sh && colcon build --packages-select mujoco_ros2_control_simulate_gui
+RUN rosdep update && rosdep install --from-paths src --ignore-src --rosdistro $ROS_DISTRO -y
 RUN . /opt/ros/$ROS_DISTRO/setup.sh && colcon build
 
 FROM base AS demo
 RUN apt-get update && apt-get install -y \
-    ros-humble-franka-description
+    ros-$ROS_DISTRO-franka-description
 COPY examples /ros2_ws/src/mujoco_ros2_control_examples
 RUN . /opt/ros/$ROS_DISTRO/setup.sh && colcon build
