@@ -34,7 +34,8 @@ class TestXacroSensorWiring(unittest.TestCase):
     def setUpClass(cls):
         xacro_path = os.path.join(_test_data_dir(), "double_pendulum.urdf.xacro")
         cls.urdf_str = xacro.process_file(
-            xacro_path, mappings={"command_mode": "effort"}
+            xacro_path,
+            mappings={"command_mode": "effort", "with_visual_sensors": "true"},
         ).toprettyxml(indent="  ")
         cls.root = ET.fromstring(cls.urdf_str)
 
