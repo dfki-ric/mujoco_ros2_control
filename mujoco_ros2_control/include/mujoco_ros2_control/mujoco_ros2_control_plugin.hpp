@@ -57,6 +57,7 @@
 #include <iostream>
 #include <vector>
 #include <map>
+#include <mutex>
 #include <cmath>
 #include <ctime>
 
@@ -84,6 +85,7 @@
 #include "std_msgs/msg/float64_multi_array.hpp"
 #include "geometry_msgs/msg/pose.hpp"
 #include "rosgraph_msgs/msg/clock.hpp"
+#include "std_srvs/srv/trigger.hpp"
 
 // URDF
 #include "urdf/urdf/model.h"
@@ -92,6 +94,7 @@
 #include "mujoco_ros2_control/mujoco_system.hpp"
 #include "mujoco_ros2_control/mujoco_system_interface.hpp"
 #include "mujoco_rgbd_camera/mujoco_depth_camera.hpp"
+#include "mujoco_gl_lidar/mujoco_gl_lidar.hpp"
 
 // Sensors
 // #include "mujoco_ros2_sensors/mujoco_ros2_sensors.hpp"
@@ -168,6 +171,14 @@ namespace mujoco_ros2_control
          */
         void render();
 
+        /**
+         * @brief Whether the simulate GUI is enabled (i.e. show_gui param is true).
+         *
+         * When false, no simulate window is created and the main thread should
+         * not call render().
+         */
+        bool gui_enabled() const { return show_gui_; }
+
     private:
         /**
          * @brief Publishes the current simulation time.
@@ -212,6 +223,11 @@ namespace mujoco_ros2_control
          */
         void registerSensors();
 
+        void mujocoPlayPauseCallback(const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
+                                     std::shared_ptr<std_srvs::srv::Trigger::Response> response);
+        void mujocoResetCallback(const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
+                                 std::shared_ptr<std_srvs::srv::Trigger::Response> response);
+
         std::shared_ptr<rclcpp::Node> nh_; ///< ROS2 node handle
 
         // Parameters from ROS2 using generate_parameter_library
@@ -225,6 +241,11 @@ namespace mujoco_ros2_control
         ClockPublisherPtr clock_publisher_; ///< Clock publisher object
         double pub_clock_frequency_; ///< Frequency the Clock is published
         double last_pub_clock_time_; ///< Timestamp the clock was published
+
+
+        // Mujoco ros services
+        rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr mujoco_play_pause_service_; ///< Service to pause the Mujoco simulation
+        rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr mujoco_reset_service_; ///< Service to reset the Mujoco simulation
 
         // Mujoco-related variables
         mjModel* mujoco_model_{}; ///< Pointer to the Mujoco model
@@ -249,6 +270,8 @@ namespace mujoco_ros2_control
         mjData mjdata_to_render_{}; ///< Snapshot of mjData for rendering, non-RT
         std::atomic<bool> reset_requested_{false}; ///< Flag to defer reset to sim thread
 
+        std::atomic<bool> running_{true}; ///< Headless run/pause flag.
+
         mujoco_simulate_gui::MujocoSimulateGui& mj_vis_ = mujoco_simulate_gui::MujocoSimulateGui::getInstance(); ///< MuJoCo visualizer object
 
         // interface loader
@@ -259,6 +282,16 @@ namespace mujoco_ros2_control
         std::vector<std::thread> camera_threads_; ///< Threads for the cameras (one thread per camera)
         std::vector<rclcpp::Node::SharedPtr> camera_nodes_; ///< Nodes for the cameras (one Node per camera)
         std::vector<std::shared_ptr<mujoco_rgbd_camera::MujocoDepthCamera>> cameras_; ///< Cameras Object vector
+
+        // GL lidar handling
+        std::vector<std::thread> lidar_threads_;
+        std::vector<rclcpp::Node::SharedPtr> lidar_nodes_;
+        std::vector<std::shared_ptr<mujoco_gl_lidar::MujocoGLLidar>> lidars_;
+
+        // Held by the sim thread around mj_step. Sensors that need a
+        // time-consistent snapshot of mjData (e.g. MujocoGLLidar) take it
+        // briefly to mj_copyData out of mujoco_data_ without racing mj_step.
+        std::mutex sim_mutex_;
 
         // std::shared_ptr<mujoco_ros2_sensors::MujocoRos2Sensors> mujoco_ros2_sensors_;
     };

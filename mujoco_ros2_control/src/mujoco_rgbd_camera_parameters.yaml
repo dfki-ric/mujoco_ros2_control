@@ -21,7 +21,7 @@ mujoco_rgbd_camera:
 
   frequency: {
     type: double,
-    default_value: 25.0,
+    default_value: 30.0,
     read_only: true,
     description: "publish frequency of the camera",
     validation: {

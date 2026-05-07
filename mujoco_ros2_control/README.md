@@ -294,3 +294,78 @@ pelvis_pose_broadcaster:
 The `<param>` inside a `<sensor>` block tells the plugin which MuJoCo object to look for. Supported keys are: `site`, `body`, `geom`, `camera`, `light`, `frame`. If no param is provided, the sensor `name` is used as the match key.
 
 For example, `<param name="site">imu_in_pelvis</param>` will match all MuJoCo sensors whose object name is `imu_in_pelvis`.
+
+## Side-Channel Sensors (cameras and lidars)
+
+These sensors are **not** ros2_control interfaces. Each instance runs as its own ROS node with its own publisher and worker thread, so they don't appear in `<ros2_control>` blocks and aren't broadcast through controllers.
+
+### RGB-D Camera
+
+Every MuJoCo `<camera>` declared under a `<reference>` body automatically spawns a depth-camera node named after the camera. The site/body the camera lives in defines its pose; what is published is selected per-camera via ROS parameters.
+
+```xml
+<reference name="camera_link">
+    <camera name="camera" mode="fixed" fovy="45" quat="0.5 0.5 -0.5 -0.5"/>
+</reference>
+```
+
+Per-camera parameters are keyed by camera name in your params YAML:
+```yaml
+camera:
+  ros__parameters:
+    width: 640
+    height: 480
+    frequency: 30.0
+    color_image: true
+    depth_image: true
+    point_cloud: true
+```
+
+Topics (only created for the outputs you enable):
+
+| Output | Topic | Type |
+|---|---|---|
+| Color | `/<camera_name>/color/image_raw` (+ `camera_info`) | `sensor_msgs/Image` |
+| Depth | `/<camera_name>/depth/image_rect_raw` (+ `camera_info`) | `sensor_msgs/Image` |
+| Cloud | `/<camera_name>/depth/points` | `sensor_msgs/PointCloud2` |
+
+Full parameter reference: [`mujoco_rgbd_parameters.yaml`](src/mujoco_rgbd_parameters.yaml).
+
+### GL Depth-Buffer Lidar
+
+A GPU-rendered lidar is attached to any MuJoCo site whose name starts with the configured prefix (default: `lidar_`). The published `frame_id` is the parent body name; the site's local pose defines the lidar frame.
+
+A lidar is instantiated only if its site exists in the MJCF **and** its per-site ROS params set `enabled: true`. Sites with `enabled: false` (or missing params) are skipped, so lidar sites can stay in the MJCF and be toggled at runtime.
+
+```xml
+<reference name="head_link">
+    <site name="lidar_head" pos="0 0 0.05" quat="1 0 0 0"/>
+</reference>
+```
+
+Per-lidar parameters are keyed by site name in your params YAML:
+```yaml
+lidar_head:
+  ros__parameters:
+    enabled: true
+    output: cloud           # 'scan' or 'cloud'
+    frequency: 10.0
+    horizontal_min_angle: -1.5708
+    horizontal_max_angle:  1.5708
+    horizontal_samples: 1800
+    vertical_min_angle: -0.2618
+    vertical_max_angle:  0.2618
+    vertical_samples: 16
+    range_min: 0.05
+    range_max: 30.0
+    render_height: 256
+```
+
+Topics:
+
+| Output mode | Topic | Type |
+|---|---|---|
+| `scan` | `/<site_name>/scan` | `sensor_msgs/LaserScan` |
+| `cloud` | `/<site_name>/points` | `sensor_msgs/PointCloud2` |
+
+Full parameter reference: [`mujoco_gl_lidar_parameters.yaml`](src/mujoco_gl_lidar_parameters.yaml).
