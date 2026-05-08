@@ -114,6 +114,19 @@
   </joint>
 
   <mujoco>
+    <compiler meshdir="$(arg mujoco_model_path)/meshes" 
+              discardvisual="false" 
+              autolimits="$(arg autolimits)" 
+              balanceinertia="$(arg balanceinertia)"
+    />
+    <option integrator="$(arg integrator)" 
+            gravity="$(arg gravity)" 
+            impratio="$(arg impratio)" 
+            cone="$(arg cone)" 
+            solver="$(arg solver)" 
+            noslip_iterations="$(arg noslip_iterations)">
+        <flag multiccd="$(arg multiccd)" />
+    </option>
     <reference name="link3">
         <site name="link3" size="0.01" pos="0 0 0" />
     </reference>

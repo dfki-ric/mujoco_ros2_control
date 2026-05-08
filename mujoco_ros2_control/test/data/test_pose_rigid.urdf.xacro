@@ -1,0 +1,121 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro" name="test_pose_rigid">
+
+  <!--
+    Two rigid bodies parented to "world" with a known, constant pose:
+      probe_fixed  - fixed joint, 30 deg pitch, at (1.0, 2.0, 3.0)
+      probe_float  - floating joint, 45 deg yaw,  at (-1.0, -2.0, 5.0)
+    Gravity is disabled in the <mujoco> block so probe_float stays put.
+  -->
+
+  <link name="world"/>
+
+  <!-- ====================== probe_fixed ====================== -->
+  <link name="probe_fixed">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="1.0"/>
+      <inertia ixx="0.01" ixy="0" ixz="0" iyy="0.02" iyz="0" izz="0.03"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="0.1 0.1 0.1"/></geometry>
+    </visual>
+  </link>
+  <joint name="world_to_probe_fixed" type="fixed">
+    <parent link="world"/>
+    <child  link="probe_fixed"/>
+    <origin xyz="1.0 2.0 3.0" rpy="0 0.5235987755982988 0"/>
+  </joint>
+
+  <!-- ====================== probe_float ====================== -->
+  <link name="probe_float">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="1.0"/>
+      <inertia ixx="0.01" ixy="0" ixz="0" iyy="0.02" iyz="0" izz="0.03"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="0.1 0.1 0.1"/></geometry>
+    </visual>
+  </link>
+  <joint name="world_to_probe_float" type="floating">
+    <parent link="world"/>
+    <child  link="probe_float"/>
+    <origin xyz="-1.0 -2.0 5.0" rpy="0 0 0.7853981633974483"/>
+  </joint>
+
+  <!-- ====================== ros2_control ====================== -->
+  <ros2_control name="ProbeHardware" type="system">
+    <hardware><plugin>mujoco_ros2_control/MujocoSystem</plugin></hardware>
+
+    <sensor name="probe_fixed_pose">
+      <param name="body">probe_fixed</param>
+      <state_interface name="position.x"/>
+      <state_interface name="position.y"/>
+      <state_interface name="position.z"/>
+      <state_interface name="orientation.x"/>
+      <state_interface name="orientation.y"/>
+      <state_interface name="orientation.z"/>
+      <state_interface name="orientation.w"/>
+    </sensor>
+
+    <sensor name="probe_float_pose">
+      <param name="body">probe_float</param>
+      <state_interface name="position.x"/>
+      <state_interface name="position.y"/>
+      <state_interface name="position.z"/>
+      <state_interface name="orientation.x"/>
+      <state_interface name="orientation.y"/>
+      <state_interface name="orientation.z"/>
+      <state_interface name="orientation.w"/>
+    </sensor>
+
+    <sensor name="site_probe_fixed_pose">
+      <param name="site">probe_fixed_site</param>
+      <state_interface name="position.x"/>
+      <state_interface name="position.y"/>
+      <state_interface name="position.z"/>
+      <state_interface name="orientation.x"/>
+      <state_interface name="orientation.y"/>
+      <state_interface name="orientation.z"/>
+      <state_interface name="orientation.w"/>
+    </sensor>
+
+    <sensor name="site_probe_float_pose">
+      <param name="site">probe_float_site</param>
+      <state_interface name="position.x"/>
+      <state_interface name="position.y"/>
+      <state_interface name="position.z"/>
+      <state_interface name="orientation.x"/>
+      <state_interface name="orientation.y"/>
+      <state_interface name="orientation.z"/>
+      <state_interface name="orientation.w"/>
+    </sensor>
+  </ros2_control>
+
+  <!-- ====================== MuJoCo block ====================== -->
+  <mujoco>
+    <option gravity="0 0 0"/>
+
+    <reference name="probe_fixed">
+        <site name="probe_fixed_site" size="0.01" pos="0 0 0" />
+    </reference>
+    <reference name="probe_float">
+        <site name="probe_float_site" size="0.01" pos="0 0 0" />
+    </reference>
+    
+    <sensor>
+      <framepos  objtype="xbody" objname="probe_fixed" reftype="body" refname="world" name="probe_fixed_pose"/>
+      <framequat objtype="xbody" objname="probe_fixed" reftype="body" refname="world" name="probe_fixed_orientation"/>
+      <framepos  objtype="xbody" objname="probe_float" reftype="body" refname="world" name="probe_float_pose"/>
+      <framequat objtype="xbody" objname="probe_float" reftype="body" refname="world" name="probe_float_orientation"/>
+
+      <framepos  objtype="site" objname="probe_fixed_site" reftype="body" refname="world" name="site_probe_fixed_pose"/>
+      <framequat objtype="site" objname="probe_fixed_site" reftype="body" refname="world" name="site_probe_fixed_orientation"/>
+      <framepos  objtype="site" objname="probe_float_site" reftype="body" refname="world" name="site_probe_float_pose"/>
+      <framequat objtype="site" objname="probe_float_site" reftype="body" refname="world" name="site_probe_float_orientation"/>
+    </sensor>
+  </mujoco>
+</robot>
