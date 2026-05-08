@@ -67,7 +67,7 @@ The following snippet shows how to integrate MuJoCo configuration elements into 
              https://mujoco.readthedocs.io/en/stable/XMLreference.html#sensor-framepos -->
         <framepos
             name="camera_link_pose"
-            objtype="body"
+            objtype="xbody"
             objname="camera_link"
             reftype="body"
             refname="world"/>
@@ -76,7 +76,7 @@ The following snippet shows how to integrate MuJoCo configuration elements into 
              https://mujoco.readthedocs.io/en/stable/XMLreference.html#sensor-framequat -->
         <framequat
             name="camera_link_quat"
-            objtype="body"
+            objtype="xbody"
             objname="camera_link"
             reftype="body"
             refname="world"/>
@@ -143,7 +143,7 @@ Below is an example of how to declare a ROS 2 Control system using PID and torqu
 
 ## ROS 2 Control Sensor Interfaces
 
-Sensors are declared inside the `<ros2_control>` block and are automatically matched to MuJoCo sensors via a `<param>` that specifies the MuJoCo object (site, body, geom, etc.) the sensor is attached to. Three sensor types are supported: **IMU**, **Force/Torque**, and **Pose**.
+Sensors are declared inside the `<ros2_control>` block and are automatically matched to MuJoCo sensors via a `<param>` that specifies the MuJoCo object (site, xbody, geom, etc.) the sensor is attached to. Three sensor types are supported: **IMU**, **Force/Torque**, and **Pose**.
 
 The sensor type is determined automatically from the state interface names you declare.
 
