@@ -21,6 +21,8 @@
 
   <depend>geometry_msgs</depend>
   <depend>rosgraph_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_srvs</depend>
 
   <!-- <depend>mujoco</depend> -->
   <depend>libglfw3-dev</depend>
@@ -31,11 +33,21 @@
   <depend>eigen</depend>
 
   <test_depend>ament_cmake_ros</test_depend>
+  <test_depend>ament_cmake_pytest</test_depend>
   <test_depend>launch</test_depend>
   <test_depend>launch_ros</test_depend>
   <test_depend>launch_testing</test_depend>
   <test_depend>launch_testing_ament_cmake</test_depend>
   <test_depend>rclpy</test_depend>
+  <test_depend>xacro</test_depend>
+  <test_depend>robot_state_publisher</test_depend>
+  <test_depend>joint_state_broadcaster</test_depend>
+  <test_depend>effort_controllers</test_depend>
+  <test_depend>imu_sensor_broadcaster</test_depend>
+  <test_depend>force_torque_sensor_broadcaster</test_depend>
+  <test_depend>pose_broadcaster</test_depend>
+  <test_depend>tf2_ros</test_depend>
+  <test_depend>geometry_msgs</test_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

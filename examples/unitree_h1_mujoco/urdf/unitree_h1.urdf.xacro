@@ -54,8 +54,7 @@
                     cone="$(arg cone)" 
                     solver="$(arg solver)" 
                     noslip_iterations="$(arg noslip_iterations)">
-                <flag multiccd="$(arg multiccd)" 
-            />
+                <flag multiccd="$(arg multiccd)" />
             </option>
             <!-- Create actuators to use position control -->
             <xacro:unless value="$(arg mujoco_effort)">

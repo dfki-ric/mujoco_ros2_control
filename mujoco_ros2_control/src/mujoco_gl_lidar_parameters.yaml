@@ -1,0 +1,130 @@
+mujoco_gl_lidar:
+  enabled: {
+    type: bool,
+    default_value: false,
+    read_only: true,
+    description: "Whether to enable this lidar instance. Checked per site (keyed by the MuJoCo site name in the params YAML); a matching site is skipped unless its config sets enabled=true."
+  }
+
+  frequency: {
+    type: double,
+    default_value: 10.0,
+    read_only: true,
+    description: "Publish frequency [Hz]",
+    validation: {
+      gt: [ 0.0 ]
+    }
+  }
+
+  output: {
+    type: string,
+    default_value: "cloud",
+    read_only: true,
+    description: "Output: 'scan' (LaserScan) or 'cloud' (PointCloud2)",
+    validation: {
+      one_of<>: [["scan", "cloud"]]
+    }
+  }
+
+  range_min: {
+    type: double,
+    default_value: 0.05,
+    read_only: true,
+    description: "Min reported range [m]",
+    validation: {
+      gt: [ 0.0 ]
+    }
+  }
+
+  range_max: {
+    type: double,
+    default_value: 30.0,
+    read_only: true,
+    description: "Max reported range [m]"
+  }
+
+  horizontal_min_angle: {
+    type: double,
+    default_value: -1.5708,
+    read_only: true,
+    description: "Lowest yaw [rad]. Total horizontal FOV must be < pi (single GL render)"
+  }
+
+  horizontal_max_angle: {
+    type: double,
+    default_value: 1.5708,
+    read_only: true,
+    description: "Highest yaw [rad]"
+  }
+
+  horizontal_samples: {
+    type: int,
+    default_value: 1800,
+    read_only: true,
+    description: "Number of horizontal beams",
+    validation: {
+      gt: [ 1 ]
+    }
+  }
+
+  vertical_min_angle: {
+    type: double,
+    default_value: -0.2618,
+    read_only: true,
+    description: "Lowest pitch [rad] (used in 'cloud' mode; in 'scan' the single ring is at pitch=0)"
+  }
+
+  vertical_max_angle: {
+    type: double,
+    default_value: 0.2618,
+    read_only: true,
+    description: "Highest pitch [rad]"
+  }
+
+  vertical_samples: {
+    type: int,
+    default_value: 16,
+    read_only: true,
+    description: "Number of vertical rings (cloud mode only)",
+    validation: {
+      gt: [ 0 ]
+    }
+  }
+
+  render_height: {
+    type: int,
+    default_value: 256,
+    read_only: true,
+    description: "GL framebuffer height in pixels. Width is computed from FOV aspect ratio.",
+    validation: {
+      gt: [ 1 ]
+    }
+  }
+
+  fov_padding: {
+    type: double,
+    default_value: 0.05,
+    read_only: true,
+    description: "Extra FOV [rad] added to each side of the render frustum so edge beams interpolate cleanly"
+  }
+
+  depth_threshold: {
+    type: double,
+    default_value: 0.02,
+    read_only: true,
+    description: "Max depth difference [m] for bilinear interpolation; larger values may cause smoothing artifacts, smaller values may cause more dropouts"
+  }
+
+  noise_stddev: {
+    type: double,
+    default_value: 0.0,
+    read_only: true,
+    description: "Gaussian range noise stddev [m]; 0 disables"
+  }
+
+  site_prefix: {
+    type: string,
+    default_value: "lidar_",
+    read_only: true,
+    description: "Prefix used by the plugin to find lidar sites in the MJCF"
+  }

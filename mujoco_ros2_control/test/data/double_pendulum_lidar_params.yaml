@@ -1,0 +1,26 @@
+lidar_scan:
+  ros__parameters:
+    enabled: true
+    output: "scan"
+    frequency: 10.0
+    horizontal_min_angle: -1.5708
+    horizontal_max_angle:  1.5708
+    horizontal_samples: 360
+    range_min: 0.05
+    range_max: 30.0
+    render_height: 64
+
+lidar_cloud:
+  ros__parameters:
+    enabled: true
+    output: "cloud"
+    frequency: 10.0
+    horizontal_min_angle: -1.5708
+    horizontal_max_angle:  1.5708
+    horizontal_samples: 180
+    vertical_min_angle: -0.2618
+    vertical_max_angle:  0.2618
+    vertical_samples: 8
+    range_min: 0.05
+    range_max: 30.0
+    render_height: 64

@@ -1,0 +1,56 @@
+controller_manager:
+  ros__parameters:
+    update_rate: 100
+    use_sim_time: true
+
+    probe_fixed_pose_broadcaster:
+      type: pose_broadcaster/PoseBroadcaster
+
+    probe_float_pose_broadcaster:
+      type: pose_broadcaster/PoseBroadcaster
+    
+
+    probe_fixed_pose_site_broadcaster:
+      type: pose_broadcaster/PoseBroadcaster
+
+    probe_float_pose_site_broadcaster:
+      type: pose_broadcaster/PoseBroadcaster
+
+# Distinct child_frame_id values so the broadcaster's TF does not collide
+# with anything robot_state_publisher might emit for the URDF tree.
+probe_fixed_pose_broadcaster:
+  ros__parameters:
+    use_sim_time: true
+    pose_name: probe_fixed_pose
+    frame_id: world
+    tf:
+      enable: true
+      child_frame_id: probe_fixed_meas
+
+probe_float_pose_broadcaster:
+  ros__parameters:
+    use_sim_time: true
+    pose_name: probe_float_pose
+    frame_id: world
+    tf:
+      enable: true
+      child_frame_id: probe_float_meas
+
+
+probe_fixed_pose_site_broadcaster:
+  ros__parameters:
+    use_sim_time: true
+    pose_name: site_probe_fixed_pose
+    frame_id: world
+    tf:
+      enable: true
+      child_frame_id: probe_fixed_meas_site
+
+probe_float_pose_site_broadcaster:
+  ros__parameters:
+    use_sim_time: true
+    pose_name: site_probe_float_pose
+    frame_id: world
+    tf:
+      enable: true
+      child_frame_id: probe_float_meas_site
