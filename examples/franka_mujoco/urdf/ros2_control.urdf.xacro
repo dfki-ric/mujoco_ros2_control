@@ -51,8 +51,27 @@
       <xacro:configure_joint joint_name="${arm_id}_joint7" initial_position="${pi/4}"/>
       <xacro:if value="${mujoco and ee_id == 'franka_hand'}">
         <xacro:configure_joint joint_name="${arm_id}_finger_joint1" initial_position="0.0" />
-        <!-- Mimiced joints must also be included in ros2_control, then they are mimiced -->
-        <xacro:configure_joint joint_name="${arm_id}_finger_joint2" initial_position="0.0" />
+        <!-- Mimic joints: only state interfaces, no command interfaces -->
+        <joint name="${arm_id}_finger_joint2">
+          <state_interface name="position">
+            <param name="initial_value">0.0</param>
+          </state_interface>
+          <state_interface name="velocity"/>
+          <state_interface name="effort"/>
+        </joint>
+      </xacro:if>
+
+      <!-- Force/Torque sensor at the end-effector -->
+      <xacro:if value="${mujoco}">
+        <sensor name="${arm_id}_ft_sensor">
+            <param name="site">${arm_id}_link7</param>
+            <state_interface name="force.x"/>
+            <state_interface name="force.y"/>
+            <state_interface name="force.z"/>
+            <state_interface name="torque.x"/>
+            <state_interface name="torque.y"/>
+            <state_interface name="torque.z"/>
+        </sensor>
       </xacro:if>
 
     </ros2_control>

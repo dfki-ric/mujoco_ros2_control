@@ -59,6 +59,7 @@ namespace mujoco_ros2_control {
         this->mujoco_data_ = mujoco_data;
 
         registerJoints(hardware_info, urdf_model_ptr->joints_);
+        sensors_.registerSensors(mujoco_model, hardware_info, state_interfaces_);
 
         std::vector<std::string> joints_to_remove = {};
         for (const auto &joint : joints_) {
@@ -109,21 +110,14 @@ namespace mujoco_ros2_control {
                 joint.lower_limit = joints.at(joint.name)->limits->lower;
             }
 
-            // Limiting actuators like this can add a joint limit margin
-            /*if (joint.type == urdf::Joint::REVOLUTE || joint.type == urdf::Joint::PRISMATIC ||
+            // Read velocity and effort limits from the URDF
+            if (joint.type == urdf::Joint::REVOLUTE || joint.type == urdf::Joint::PRISMATIC ||
                 joint.type == urdf::Joint::CONTINUOUS) {
                 if (joints.at(joint.name)->limits != nullptr) {
                     joint.velocity_limit = joints.at(joint.name)->limits->velocity;
                     joint.effort_limit = joints.at(joint.name)->limits->effort;
-                    if (joint.effort_limit != 0.0) {
-                        // FIx the joint margin
-                        mujoco_model_->jnt_actfrclimited[joint.mujoco_dofadr] = 1;
-                        mujoco_model_->jnt_actfrcrange[joint.mujoco_dofadr*2] = -joint.effort_limit;
-                        mujoco_model_->jnt_actfrcrange[joint.mujoco_dofadr*2+1] = joint.effort_limit;
-                        //mujoco_model_->jnt_margin[joint.mujoco_dofadr] = 0;
-                    }
                 }
-            }*/
+            }
 
             for (auto& param : joint_info.parameters) {
                 if (param.first == "p" || param.first == "kp") {
@@ -317,8 +311,8 @@ namespace mujoco_ros2_control {
     }
 
     CallbackReturn
-    MujocoSystem::on_init(const hardware_interface::HardwareInfo &system_info) {
-        if (hardware_interface::SystemInterface::on_init(system_info) != CallbackReturn::SUCCESS) {
+    MujocoSystem::on_init(const hardware_interface::HardwareInfo &params) {
+        if (hardware_interface::SystemInterface::on_init(params) != CallbackReturn::SUCCESS) {
             return CallbackReturn::ERROR;
         }
         return CallbackReturn::SUCCESS;
@@ -402,6 +396,9 @@ namespace mujoco_ros2_control {
             joint.velocity = mujoco_data_->qvel[joint.mujoco_dofadr];
             joint.effort = mujoco_data_->qfrc_applied[joint.mujoco_dofadr];
         }
+
+        sensors_.readSensors(mujoco_data_);
+
         return hardware_interface::return_type::OK;
     }
 

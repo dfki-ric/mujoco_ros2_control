@@ -4,7 +4,7 @@ import sys
 import xml.etree.ElementTree as ET
 import numpy as np
 from scipy.spatial.transform import Rotation as R
-## @file xacro2mjcf.py
+## @file urdf2mjcf.py
 # @brief Script to convert a urdf to a mjcf
 # @author Adrian Danzglock
 # @date 2023
@@ -32,6 +32,24 @@ from scipy.spatial.transform import Rotation as R
 # DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
 # IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 # THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+def _scipy_quat_to_mujoco(quat_xyzw):
+    """Convert scipy quaternion [x, y, z, w] to MuJoCo [w, x, y, z] string."""
+    quat_xyzw = quat_xyzw / np.linalg.norm(quat_xyzw)
+    return f"{quat_xyzw[3]} {quat_xyzw[0]} {quat_xyzw[1]} {quat_xyzw[2]}"
+
+
+def _rpy_to_quat_wxyz(rpy):
+    """Convert URDF rpy (xyz extrinsic Euler) to MuJoCo quaternion string [w, x, y, z]."""
+    quat = R.from_euler('xyz', rpy).as_quat()  # [x, y, z, w]
+    quat = quat / np.linalg.norm(quat)
+    return f"{quat[3]} {quat[0]} {quat[1]} {quat[2]}"
+
+
+def _has_nonzero_rpy(rpy):
+    """Check if an rpy has any non-zero elements."""
+    return not all(element == 0 for element in rpy)
 
 
 def build_joint_link_tree(robot):
@@ -69,9 +87,6 @@ def create_mjcf(robot, robot_tree, mujoco_element):
     # Create a worldbody element
     worldbody = ET.SubElement(mjcf, "worldbody")
     asset = ET.SubElement(mjcf, "asset")
-    # Create the root link, world is typically the root in MJCF
-    #world_link = ET.SubElement(worldbody, "body", name="world")
-    
     # Recursive function to create bodies and joints
     def add_body_and_joints(link_name, parent_body, robot, asset):
         if link_name not in robot_tree:
@@ -87,7 +102,8 @@ def create_mjcf(robot, robot_tree, mujoco_element):
             joint_type = joint.joint_type
             axis = joint.axis
             if joint_type == "revolute":
-                joint_elem = ET.SubElement(body, "joint", name=joint.name, type="hinge", axis=f"{axis[0]} {axis[1]} {axis[2]}")
+                joint_elem = ET.SubElement(body, "joint", name=joint.name, type="hinge",
+                                           axis=f"{axis[0]} {axis[1]} {axis[2]}")
                 if joint.limit:
                     joint_elem.set("range", f"{joint.limit.lower} {joint.limit.upper}")
                     joint_elem.set("limited", "true")
@@ -95,13 +111,15 @@ def create_mjcf(robot, robot_tree, mujoco_element):
                     joint_elem.set("damping", str(joint.dynamics.damping))
                     joint_elem.set("frictionloss", str(joint.dynamics.friction))
             elif joint_type == "continuous":
-                joint_elem = ET.SubElement(body, "joint", name=joint.name, type="hinge", axis=f"{axis[0]} {axis[1]} {axis[2]}")
+                joint_elem = ET.SubElement(body, "joint", name=joint.name, type="hinge",
+                                           axis=f"{axis[0]} {axis[1]} {axis[2]}")
                 joint_elem.set("limited", "false")
                 if joint.dynamics:
                     joint_elem.set("damping", str(joint.dynamics.damping))
                     joint_elem.set("frictionloss", str(joint.dynamics.friction))
             elif joint_type == "prismatic":
-                joint_elem = ET.SubElement(body, "joint", name=joint.name, type="slide", axis=f"{axis[0]} {axis[1]} {axis[2]}")
+                joint_elem = ET.SubElement(body, "joint", name=joint.name, type="slide",
+                                           axis=f"{axis[0]} {axis[1]} {axis[2]}")
             elif joint_type == "floating":
                 joint_elem = ET.SubElement(body, "joint", name=joint.name, type="free")
             else:
@@ -110,50 +128,72 @@ def create_mjcf(robot, robot_tree, mujoco_element):
         if link_name in robot.parent_map:
             if robot.joint_map[robot.parent_map[link_name][0]].origin:
                 parent_joint = robot.joint_map[robot.parent_map[link_name][0]]
-                body.set("pos", f"{parent_joint.origin.position[0]} {parent_joint.origin.position[1]} {parent_joint.origin.position[2]}")
-                if not all(element == 0 for element in parent_joint.origin.rpy):
-                    quat = R.from_euler('xyz', parent_joint.origin.rpy).as_quat()
-                    norm = np.linalg.norm(quat)
-                    quat = quat / norm
-                    body.set("quat", f"{quat[3]} {quat[0]} {quat[1]} {quat[2]}")
-        if robot.link_map[link_name].inertial:
-            inertial = ET.SubElement(body, "inertial")
-            #if robot.link_map[link_name].inertial.mass > 0:
-            inertial.set("mass", str(robot.link_map[link_name].inertial.mass))
-            origin = robot.link_map[link_name].inertial.origin
-            #if sum(origin.position) > 0:
-            inertial.set("pos", f"{origin.position[0]} {origin.position[1]} {origin.position[2]}")
-            if not all(element == 0 for element in origin.rpy):
-                quat = R.from_euler('xyz', origin.rpy).as_quat()
-                norm = np.linalg.norm(quat)
-                quat = quat / norm
-                inertial.set("quat", f"{quat[3]} {quat[0]} {quat[1]} {quat[2]}")
-            inertia = robot.link_map[link_name].inertial.inertia
-            # Construct inertia matrix
-            inertia_matrix = np.array([
-                [inertia.ixx, inertia.ixy, inertia.ixz],
-                [inertia.ixy, inertia.iyy, inertia.iyz],
-                [inertia.ixz, inertia.iyz, inertia.izz]
-            ])
-            # Compute eigenvalues and eigenvectors
-            eigenvalues, _ = np.linalg.eigh(inertia_matrix)
-            inertial.set("diaginertia", f"{eigenvalues[0]} {eigenvalues[1]} {eigenvalues[2]}")
+                body.set("pos",
+                         f"{parent_joint.origin.position[0]} "
+                         f"{parent_joint.origin.position[1]} "
+                         f"{parent_joint.origin.position[2]}")
+                if _has_nonzero_rpy(parent_joint.origin.rpy):
+                    body.set("quat", _rpy_to_quat_wxyz(parent_joint.origin.rpy))
+            if robot.link_map[link_name].inertial:
+                inertial_elem = ET.SubElement(body, "inertial")
+                link_inertial = robot.link_map[link_name].inertial
+                inertial_elem.set("mass", str(link_inertial.mass))
+                origin = link_inertial.origin
+                inertial_elem.set("pos",
+                                  f"{origin.position[0]} {origin.position[1]} {origin.position[2]}")
+                inertia = link_inertial.inertia
+                inertia_matrix = np.array([
+                    [inertia.ixx, inertia.ixy, inertia.ixz],
+                    [inertia.ixy, inertia.iyy, inertia.iyz],
+                    [inertia.ixz, inertia.iyz, inertia.izz]
+                ])
+                eigenvalues, eigenvectors = np.linalg.eigh(inertia_matrix)
+                # eigh returns eigenvalues in ascending order; sort descending
+                sort_idx = np.argsort(eigenvalues)[::-1]
+                eigenvalues = eigenvalues[sort_idx]
+                eigenvectors = eigenvectors[:, sort_idx]
+                # Ensure eigenvectors form a proper rotation (det = +1, not -1)
+                if np.linalg.det(eigenvectors) < 0:
+                    eigenvectors[:, -1] *= -1
+                # Clamp any tiny negative eigenvalues from numerical noise to 0
+                eigenvalues = np.maximum(eigenvalues, 0.0)
+                # Build the rotation from the URDF inertial origin frame to the
+                # principal-axes frame, then compose with the origin rpy rotation.
+                R_principal = R.from_matrix(eigenvectors)
+                if _has_nonzero_rpy(origin.rpy):
+                    R_origin = R.from_euler('xyz', origin.rpy)
+                    R_total = R_origin * R_principal
+                else:
+                    R_total = R_principal
+                # Check if the combined rotation is non-trivial before writing
+                # (avoids cluttering the XML with identity quaternions)
+                quat_xyzw = R_total.as_quat()
+                quat_xyzw = quat_xyzw / np.linalg.norm(quat_xyzw)
+                # Identity quaternion is [0, 0, 0, 1] in xyzw
+                if not np.allclose(np.abs(quat_xyzw), [0, 0, 0, 1], atol=1e-10):
+                    inertial_elem.set("quat", _scipy_quat_to_mujoco(quat_xyzw))
+                inertial_elem.set("diaginertia",
+                                  f"{eigenvalues[0]} {eigenvalues[1]} {eigenvalues[2]}")
         if robot.link_map[link_name].collisions:
             for i, collision in enumerate(robot.link_map[link_name].collisions):
-                geom = ET.SubElement(body, "geom", group="1", name=f"{link_name}_collision_{i}")
+                geom = ET.SubElement(body, "geom", group="1",
+                                     name=f"{link_name}_collision_{i}")
                 origin = collision.origin
                 if origin:
-                    geom.set("pos", f"{origin.position[0]} {origin.position[1]} {origin.position[2]}")
-                    if not all(element == 0 for element in origin.rpy):
-                        quat = R.from_euler('xyz', origin.rpy).as_quat()
-                        norm = np.linalg.norm(quat)
-                        quat = quat / norm
-                        geom.set("quat", f"{quat[3]} {quat[0]} {quat[1]} {quat[2]}")
+                    geom.set("pos",
+                             f"{origin.position[0]} {origin.position[1]} {origin.position[2]}")
+                    if _has_nonzero_rpy(origin.rpy):
+                        geom.set("quat", _rpy_to_quat_wxyz(origin.rpy))
                 if type(collision.geometry) == urdf.Mesh:
                     filename = collision.geometry.filename
-                    mesh = ET.SubElement(asset, "mesh", name=f"{link_name}_collision_mesh{i}", file=filename.split("/")[-1])
+                    mesh = ET.SubElement(asset, "mesh",
+                                         name=f"{link_name}_collision_mesh{i}",
+                                         file=filename.split("/")[-1])
                     if collision.geometry.scale:
-                        mesh.set("scale", f"{collision.geometry.scale[0]} {collision.geometry.scale[1]} {collision.geometry.scale[2]}")
+                        mesh.set("scale",
+                                 f"{collision.geometry.scale[0]} "
+                                 f"{collision.geometry.scale[1]} "
+                                 f"{collision.geometry.scale[2]}")
                     geom.set("type", "mesh")
                     geom.set("mesh", f"{link_name}_collision_mesh{i}")
                 elif type(collision.geometry) == urdf.Box:
@@ -174,21 +214,26 @@ def create_mjcf(robot, robot_tree, mujoco_element):
                     
         if robot.link_map[link_name].visual:
             for i, visual in enumerate(robot.link_map[link_name].visuals):
-                geom = ET.SubElement(body, "geom", group="0", contype="0", conaffinity="0", name=f"{link_name}_visual_{i}")
+                geom = ET.SubElement(body, "geom", group="0", contype="0",
+                                     conaffinity="0",
+                                     name=f"{link_name}_visual_{i}")
                 origin = visual.origin
                 if origin:
-                    geom.set("pos", f"{origin.position[0]} {origin.position[1]} {origin.position[2]}")
-                    if not all(element == 0 for element in origin.rpy):
-                        quat = R.from_euler('xyz', origin.rpy).as_quat()
-                        norm = np.linalg.norm(quat)
-                        quat = quat / norm
-                        geom.set("quat", f"{quat[3]} {quat[0]} {quat[1]} {quat[2]}")
+                    geom.set("pos",
+                             f"{origin.position[0]} {origin.position[1]} {origin.position[2]}")
+                    if _has_nonzero_rpy(origin.rpy):
+                        geom.set("quat", _rpy_to_quat_wxyz(origin.rpy))
+
                 if type(visual.geometry) == urdf.Mesh:
                     filename = visual.geometry.filename
-                    mesh = ET.SubElement(asset, "mesh", name=f"{link_name}_visual_mesh{i}", file=filename.split("/")[-1])
+                    mesh = ET.SubElement(asset, "mesh",
+                                         name=f"{link_name}_visual_mesh{i}",
+                                         file=filename.split("/")[-1])
                     if visual.geometry.scale:
-                        mesh.set("scale", f"{visual.geometry.scale[0]} {visual.geometry.scale[1]} {visual.geometry.scale[2]}")
-
+                        mesh.set("scale",
+                                 f"{visual.geometry.scale[0]} "
+                                 f"{visual.geometry.scale[1]} "
+                                 f"{visual.geometry.scale[2]}")
                     geom.set("type", "mesh")
                     geom.set("mesh", f"{link_name}_visual_mesh{i}")
                 elif type(visual.geometry) == urdf.Box:
@@ -212,7 +257,7 @@ def create_mjcf(robot, robot_tree, mujoco_element):
                         r, g, b, a = visual.material.color.rgba
                         geom.set("rgba", f"{r} {g} {b} {a}")
         
-        
+
         # Recursively add child links and their joints
         for child in robot_tree[link_name]["children"]:
             add_body_and_joints(child, body, robot, asset)

@@ -73,13 +73,14 @@
             </contact>
 
             <reference name="torso_link">
-                <site name="torso_link" size="0.01" pos="-0.04452 -0.01891 0.27756" />
+                <site name="imu_in_torso" size="0.01" pos="-0.04452 -0.01891 0.27756" />
             </reference>
             <sensor>
-                <gyro name="test-angular-velocity" site="torso_link" noise="5e-4" cutoff="34.9"/>
-                <accelerometer name="test-linear-acceleration" site="torso_link" noise="1e-2" cutoff="157"/>
+                <gyro name="imu_in_torso-angular-velocity" site="imu_in_torso" noise="5e-4" cutoff="34.9"/>
+                <accelerometer name="imu_in_torso-linear-acceleration" site="imu_in_torso" noise="1e-2" cutoff="157"/>
+                <framequat name="imu_in_torso-orientation" objtype="site" objname="imu_in_torso"/>
                 <framepos name="pelvis_pose" objtype="body" objname="pelvis" reftype="body" refname="world"/>
-                <framequat name="pelvis_quat" objtype="body" objname="pelvis" reftype="body" refname="world"/>
+                <framequat name="pelvis-orientation" objtype="body" objname="pelvis" reftype="body" refname="world"/>
             </sensor>
         </mujoco>
     </xacro:if>

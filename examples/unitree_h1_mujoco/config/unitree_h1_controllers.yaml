@@ -4,8 +4,10 @@ controller_manager:
 
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
-
-    
+    torso_imu_broadcaster:
+      type: imu_sensor_broadcaster/IMUSensorBroadcaster
+    pelvis_pose_broadcaster:
+      type: pose_broadcaster/PoseBroadcaster
     left_arm_position_controller:
       type: "joint_trajectory_controller/JointTrajectoryController"
     left_hand_position_controller:
@@ -155,3 +157,16 @@ right_leg_position_controller:
     state_interfaces:
       - position
       - velocity
+
+torso_imu_broadcaster:
+  ros__parameters:
+    sensor_name: "imu_in_torso"
+    frame_id: "imu_in_torso"
+
+pelvis_pose_broadcaster:
+  ros__parameters:
+    pose_name: "pelvis_pose"
+    frame_id: "world"
+    tf:
+      enable: true
+      child_frame_id: "pelvis"

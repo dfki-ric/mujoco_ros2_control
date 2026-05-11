@@ -269,7 +269,16 @@ def generate_launch_description():
     ])
 ```
 
-For the urdf creation you can take a look at ![URDF Configuration](./mujoco_ros2_control/README.md)
+### Sensor Interfaces
+MuJoCo ROS2 Control supports ros2_control sensor interfaces to expose simulated sensor data through standard ROS 2 broadcasters:
+- **IMU** (orientation, angular velocity, linear acceleration) — use with `imu_sensor_broadcaster`
+- **Force/Torque** (force, torque) — use with `force_torque_sensor_broadcaster`
+- **Pose** (position, orientation) — use with `pose_broadcaster`
+
+Sensors are declared inside the `<ros2_control>` block in your URDF and are automatically matched to the corresponding MuJoCo sensors. See the [URDF Configuration](./mujoco_ros2_control/README.md) guide for detailed examples.
+
+### URDF Configuration
+For the urdf creation you can take a look at [URDF Configuration](./mujoco_ros2_control/README.md)
 
 ## Documentation
 Run ```doxygen Doxyfile``` in the mujoco_ros2_control directory

@@ -1,6 +1,43 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://ros.org/wiki/xacro" name="task_table">
   <link name="world"/>
+  <!-- ros2_control pose sensors for gear tracking (TF) -->
+  <ros2_control name="TaskTable_Sensors" type="system">
+      <hardware>
+          <plugin>mujoco_ros2_control/MujocoSystem</plugin>
+      </hardware>
+      <sensor name="gears_large_pose">
+          <param name="body">gears_large_link</param>
+          <state_interface name="position.x"/>
+          <state_interface name="position.y"/>
+          <state_interface name="position.z"/>
+          <state_interface name="orientation.x"/>
+          <state_interface name="orientation.y"/>
+          <state_interface name="orientation.z"/>
+          <state_interface name="orientation.w"/>
+      </sensor>
+      <sensor name="gears_medium_pose">
+          <param name="body">gears_medium_link</param>
+          <state_interface name="position.x"/>
+          <state_interface name="position.y"/>
+          <state_interface name="position.z"/>
+          <state_interface name="orientation.x"/>
+          <state_interface name="orientation.y"/>
+          <state_interface name="orientation.z"/>
+          <state_interface name="orientation.w"/>
+      </sensor>
+      <sensor name="gears_small_pose">
+          <param name="body">gears_small_link</param>
+          <state_interface name="position.x"/>
+          <state_interface name="position.y"/>
+          <state_interface name="position.z"/>
+          <state_interface name="orientation.x"/>
+          <state_interface name="orientation.y"/>
+          <state_interface name="orientation.z"/>
+          <state_interface name="orientation.w"/>
+      </sensor>
+  </ros2_control>
+
   <mujoco>
       <reference name="gears_base_link">
 					<geom friction="0.7" solimp="0.95 0.99 0.001" solref="0.004 1" priority="1"/>

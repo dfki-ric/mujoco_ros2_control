@@ -124,7 +124,7 @@ generate_parameter_library(mujoco_rgbd_camera_parameters
 )
 
 # Add system plugin
-add_library(mujoco_system_plugins SHARED src/mujoco_system.cpp)
+add_library(mujoco_system_plugins SHARED src/mujoco_system.cpp src/mujoco_sensors.cpp)
 ament_target_dependencies(mujoco_system_plugins
     hardware_interface
     rclcpp
@@ -135,10 +135,6 @@ ament_target_dependencies(mujoco_system_plugins
 add_executable(${PROJECT_NAME}
     src/mujoco_ros2_control_plugin.cpp
     src/mujoco_depth_camera.cpp
-    src/imu_sensor.cpp
-    src/pose_sensor.cpp
-    src/wrench_sensor.cpp
-    src/mujoco_ros2_sensors.cpp
 )
 
 ament_target_dependencies(${PROJECT_NAME}

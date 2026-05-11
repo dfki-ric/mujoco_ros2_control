@@ -437,19 +437,6 @@ class Xacro2Mjcf(Node):
                     if reference.find("camera") is not None:
                         camera_links.append(reference.get("name"))
 
-            for joint_element in self.get_elements(tmp_urdf_root, "joint", "type", "fixed"):
-                if joint_element.find('child').attrib['link'] in camera_links:
-                    # Update the attribute
-                    joint_element.set("type", "revolute")
-
-                    # Add a new child element <new_child> with some content
-                    limit = ET.Element('limit')
-                    limit.attrib['effort'] = '0'
-                    limit.attrib['lower'] = '0'
-                    limit.attrib['upper'] = '1e-10'
-                    limit.attrib['velocity'] = '0'
-                    joint_element.append(limit)
-
             for link_element in self.get_elements(tmp_urdf_root, "link"):
                 # add inertial element with small values to the links of the fixed joints
                 if len(list(link_element)) == 0:

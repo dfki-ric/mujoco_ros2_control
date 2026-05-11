@@ -97,7 +97,7 @@
 #include "mujoco_rgbd_camera/mujoco_depth_camera.hpp"
 
 // Sensors
-#include "mujoco_ros2_sensors/mujoco_ros2_sensors.hpp"
+// #include "mujoco_ros2_sensors/mujoco_ros2_sensors.hpp"
 
 // GUI
 #ifdef USE_LIBSIMULATE
@@ -273,7 +273,7 @@ namespace mujoco_ros2_control
         std::vector<rclcpp::Node::SharedPtr> camera_nodes_; ///< Nodes for the cameras (one Node per camera)
         std::vector<std::shared_ptr<mujoco_rgbd_camera::MujocoDepthCamera>> cameras_; ///< Cameras Object vector
 
-        std::shared_ptr<mujoco_ros2_sensors::MujocoRos2Sensors> mujoco_ros2_sensors_;
+        // std::shared_ptr<mujoco_ros2_sensors::MujocoRos2Sensors> mujoco_ros2_sensors_;
     };
 }  // namespace mujoco_ros2_control
 
