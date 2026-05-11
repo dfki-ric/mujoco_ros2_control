@@ -35,7 +35,7 @@ and one example with a unitree H1 that can be started with
 *Unitree H1 with floating joint between world and pelvis ([MuJoCo Visualizer](https://github.com/google-deepmind/mujoco/tree/main/simulate) \[left\], [rqt_joint_trajectory_controller](https://index.ros.org/p/rqt_joint_trajectory_controller/)/[rviz2](https://index.ros.org/p/rviz2/) \[right\])*
 
 ![](./paper/figures/unitree_g1_lidar.png)
-*Unitree G1 with floating joint between world and pelvis and attached LIDAR and RGBD Camera*
+*Unitree G1 with floating joint between world and pelvis and attached LIDAR (intensity calculated by incidence angle) and RGBD Camera*
 
 ### Docker
 To start you can use the ![dockerfile](./Dockerfile) to create a docker container with MuJoCo ROS2 control and its examples.
