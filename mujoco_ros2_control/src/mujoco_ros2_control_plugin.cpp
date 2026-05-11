@@ -71,6 +71,16 @@ MujocoRos2Control::MujocoRos2Control(rclcpp::Node::SharedPtr &node) : nh_(node) 
   publisher_ = nh_->create_publisher<rosgraph_msgs::msg::Clock>("/clock", rclcpp::SystemDefaultsQoS());
   clock_publisher_ = std::make_unique<ClockPublisher>(publisher_);
 
+  // create services for play/pause and reset
+  mujoco_play_pause_service_ = nh_->create_service<std_srvs::srv::Trigger>(
+      "mujoco_play_pause",
+      std::bind(&MujocoRos2Control::mujocoPlayPauseCallback, this, std::placeholders::_1, std::placeholders::_2)
+  );
+  mujoco_reset_service_ = nh_->create_service<std_srvs::srv::Trigger>(
+      "mujoco_reset",
+      std::bind(&MujocoRos2Control::mujocoResetCallback, this, std::placeholders::_1, std::placeholders::_2)
+  );
+
   // mujoco related parameters
   show_gui_ = params_.show_gui;
   real_time_factor_ = params_.real_time_factor;
@@ -94,14 +104,11 @@ MujocoRos2Control::MujocoRos2Control(rclcpp::Node::SharedPtr &node) : nh_(node) 
 
   registerSensors();
 
-  // setup visualization
-  mjdata_to_render_ = *mujoco_data_;
-#ifdef USE_LIBSIMULATE
-  mj_vis_.init(mujoco_model_, &mjdata_to_render_);
-#else
-  mj_vis_.init(mujoco_model_, &mjdata_to_render_, show_gui_);
-#endif
-  mj_vis_.setResetFlag(&reset_requested_);
+  if (show_gui_) {
+    mjdata_to_render_ = *mujoco_data_;
+    mj_vis_.init(mujoco_model_, &mjdata_to_render_);
+    mj_vis_.setResetFlag(&reset_requested_);
+  }
 
   thread_sim_ = std::thread(&MujocoRos2Control::update, this);
   RCLCPP_INFO(nh_->get_logger(), "Sim environment setup complete");
@@ -113,6 +120,9 @@ MujocoRos2Control::~MujocoRos2Control()
   for (auto &thread : camera_threads_) {
     thread.join();
   }
+  for (auto &thread : lidar_threads_) {
+    thread.join();
+  }
   thread_executor_spin_.join();
   // deallocate existing mjModel
   mj_deleteModel(mujoco_model_);
@@ -120,24 +130,23 @@ MujocoRos2Control::~MujocoRos2Control()
   // deallocate existing mjData
   mj_deleteData(mujoco_data_);
 
-  // stop rendering
-  mj_vis_.terminate();
+  if (show_gui_) {
+    mj_vis_.terminate();
+  }
 
   // join simulation thread
   thread_sim_.join();
 }
 
 void MujocoRos2Control::render() {
-  // Always call update() to process GUI events (pause/unpause, reset, etc.)
-  // even when the simulation is paused.
-  std::lock_guard<std::mutex> guard(mjdata_mtx_);
+  if (!show_gui_) return;
   mj_vis_.update();
 }
 
 void MujocoRos2Control::update() {
   while (!stop_.load()) {
-    // When paused, sleep instead of exiting the thread
-    if (!mj_vis_.sim->run) {
+    const bool keep_running = show_gui_ ? mj_vis_.sim->run : running_.load();
+    if (!keep_running) {
       std::this_thread::sleep_for(std::chrono::milliseconds(1));
       continue;
     }
@@ -149,6 +158,7 @@ void MujocoRos2Control::update() {
       mujoco_start_time_ = mujoco_data_->time;
       clock_gettime(CLOCK_MONOTONIC, &startTime_);
       last_update_sim_time_ros_ = rclcpp::Time((int64_t)0, RCL_ROS_TIME);
+      last_pub_clock_time_ = 0.0;
     }
 
     mjtNum simstart = mujoco_data_->time;
@@ -177,14 +187,15 @@ void MujocoRos2Control::update() {
         controller_manager_->write(sim_time_ros, sim_period);
       }
 
-      // Calculate the next mujoco step
-      mj_step(mujoco_model_, mujoco_data_);
+      // Calculate the next mujoco step.
+      {
+        std::lock_guard<std::mutex> sim_lock(sim_mutex_);
+        mj_step(mujoco_model_, mujoco_data_);
+      }
 
-      // save data for rendering
-      std::unique_lock<std::mutex> guard(mjdata_mtx_, std::try_to_lock);
-      if (guard.owns_lock()) {
+      if (show_gui_) {
+        mujoco::MutexLock lock(mj_vis_.sim->mtx);
         mjdata_to_render_ = *mujoco_data_;
-        has_new_mjdata_.store(true, std::memory_order_release);
       }
     }
   }
@@ -370,32 +381,6 @@ void MujocoRos2Control::init_controller_manager() {
 }
 
 void MujocoRos2Control::registerSensors() {
-  // Add sensors
-  if (mujoco_model_->nsensor > 0) {
-    std::map<std::string, mujoco_ros2_sensors::MujocoRos2Sensors::Sensors> sensors;
-    for (int id = 0; id < mujoco_model_->nsensor; id++) {
-      mujoco_ros2_sensors::MujocoRos2Sensors::Sensors sensor;
-      int obj_id = mujoco_model_->sensor_objid[id];
-      int obj_type = mujoco_model_->sensor_objtype[id];
-      std::string obj_name = mj_id2name(mujoco_model_, obj_type, obj_id);
-      int sensor_type = mujoco_model_->sensor_type[id];
-      std::string sensor_name = mj_id2name(mujoco_model_, mjOBJ_SENSOR, id);
-      int sensor_adr = mujoco_model_->sensor_adr[id];
-      int sensor_dim = mujoco_model_->sensor_dim[id];
-      if (sensors.find(obj_name) == sensors.end()) {
-        sensors.insert(std::make_pair(obj_name, sensor));
-        sensors.at(obj_name).obj_type = obj_type;
-      }
-      sensors.at(obj_name).sensor_ids.push_back(id);
-      sensors.at(obj_name).sensor_types.push_back(sensor_type);
-      sensors.at(obj_name).sensor_names.push_back(sensor_name);
-      sensors.at(obj_name).sensor_addresses.push_back(sensor_adr);
-      sensors.at(obj_name).sensor_dimensions.push_back(sensor_dim);
-    }
-    mujoco_ros2_sensors_ = std::make_shared<mujoco_ros2_sensors::MujocoRos2Sensors>(
-      executor_, mujoco_model_, mujoco_data_, sensors);
-  }
-
   // Add cameras
   if (mujoco_model_->ncam > 0) {
     cameras_.resize(mujoco_model_->ncam);
@@ -409,6 +394,62 @@ void MujocoRos2Control::registerSensors() {
       camera_threads_.emplace_back([ObjectPtr = cameras_.at(id)] { ObjectPtr->update(); });
     }
   }
+
+ {
+    auto probe_node = rclcpp::Node::make_shared(
+      "_mujoco_gl_lidar_probe",
+      rclcpp::NodeOptions().parameter_overrides({{"use_sim_time", true}}));
+    auto probe_listener = std::make_shared<mujoco_gl_lidar::ParamListener>(probe_node);
+    const std::string prefix = probe_listener->get_params().site_prefix;
+
+    for (int id = 0; id < mujoco_model_->nsite; id++) {
+      const char *site_name_c = mj_id2name(mujoco_model_, mjOBJ_SITE, id);
+      if (!site_name_c) continue;
+      std::string site_name(site_name_c);
+      if (prefix.empty() || site_name.rfind(prefix, 0) != 0) continue;
+
+      auto node = rclcpp::Node::make_shared(
+        site_name,
+        rclcpp::NodeOptions().parameter_overrides({{"use_sim_time", true}}));
+
+      const auto &overrides = node->get_node_parameters_interface()->get_parameter_overrides();
+      const auto it = overrides.find("enabled");
+      if (it == overrides.end() || !it->second.get<bool>()) {
+        continue;
+      }
+
+      lidar_nodes_.push_back(node);
+      executor_->add_node(node);
+      auto lidar = std::make_shared<mujoco_gl_lidar::MujocoGLLidar>(
+        node, mujoco_model_, mujoco_data_, &sim_mutex_, id, site_name, &stop_);
+      lidars_.push_back(lidar);
+      lidar_threads_.emplace_back([ObjectPtr = lidar] { ObjectPtr->update(); });
+    }
+  }
+}
+
+void mujoco_ros2_control::MujocoRos2Control::mujocoPlayPauseCallback(const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
+                                     std::shared_ptr<std_srvs::srv::Trigger::Response> response) {
+  (void)request;
+  bool now_running;
+  if (show_gui_) {
+    mj_vis_.sim->run = !mj_vis_.sim->run;
+    now_running = mj_vis_.sim->run;
+  } else {
+    // Headless: there's no sim->run field, so use the dedicated atomic.
+    now_running = !running_.load(std::memory_order_acquire);
+    running_.store(now_running, std::memory_order_release);
+  }
+  response->success = true;
+  response->message = now_running ? "Simulation running." : "Simulation paused.";
+}
+
+void mujoco_ros2_control::MujocoRos2Control::mujocoResetCallback(const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
+                                 std::shared_ptr<std_srvs::srv::Trigger::Response> response) {
+  (void)request;
+  reset_requested_.store(true);
+  response->success = true;
+  response->message = "Simulation reset requested.";
 }
 }  // namespace mujoco_ros2_control
 
@@ -429,8 +470,15 @@ int main(int argc, char** argv) {
   executor.add_node(node);
   std::thread executor_thread([ObjectPtr = &executor] { ObjectPtr->spin(); });
 
-  while (rclcpp::ok()) {
-    mujoco_ros2_control_plugin.render();
+  // The render loop only has work to do when the simulate GUI is up.
+  if (mujoco_ros2_control_plugin.gui_enabled()) {
+    while (rclcpp::ok()) {
+      mujoco_ros2_control_plugin.render();
+    }
+  } else {
+    while (rclcpp::ok()) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
   }
   executor_thread.join();
 

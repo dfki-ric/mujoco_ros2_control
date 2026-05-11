@@ -15,6 +15,10 @@
 
     <!-- ROS2 Control-->
     <xacro:arg name="command_mode" default="effort" />
+    
+    <!-- disable GL sensors -->
+    <xacro:arg name="with_visual_sensors" default="false" />
+
 
   <link name="world" />
   <link name="base_link"/>
@@ -110,6 +114,19 @@
   </joint>
 
   <mujoco>
+    <compiler meshdir="$(arg mujoco_model_path)/meshes" 
+              discardvisual="false" 
+              autolimits="$(arg autolimits)" 
+              balanceinertia="$(arg balanceinertia)"
+    />
+    <option integrator="$(arg integrator)" 
+            gravity="$(arg gravity)" 
+            impratio="$(arg impratio)" 
+            cone="$(arg cone)" 
+            solver="$(arg solver)" 
+            noslip_iterations="$(arg noslip_iterations)">
+        <flag multiccd="$(arg multiccd)" />
+    </option>
     <reference name="link3">
         <site name="link3" size="0.01" pos="0 0 0" />
     </reference>
@@ -126,6 +143,25 @@
         <gyro name="link3-angular-velocity" site="link3" noise="5e-4" cutoff="34.9"/>
     </sensor>
   </mujoco>
+
+  <link name="test_camera_link"/>
+  <joint name="world_to_test_camera" type="fixed">
+    <parent link="world"/>
+    <child link="test_camera_link"/>
+    <origin xyz="2.0 0 1.5" rpy="0 0.6 3.14159"/>
+  </joint>
+
+  <xacro:if value="$(arg with_visual_sensors)">
+    <mujoco>
+      <reference name="test_camera_link">
+        <camera name="test_camera" mode="fixed" fovy="45" quat="0.5 0.5 -0.5 -0.5"/>
+      </reference>
+      <reference name="base_link">
+        <site name="lidar_scan"  size="0.01" pos="0 0 0.6"/>
+        <site name="lidar_cloud" size="0.01" pos="0 0  0.2"/>
+      </reference>
+    </mujoco>
+  </xacro:if>
 
     <ros2_control name="Unitree_H1_HardwareInterface" type="system">
         <hardware>
@@ -154,6 +190,41 @@
         </xacro:macro>
       <xacro:configure_joint joint_name="joint1" initial_position="0.0" command_mode="$(arg command_mode)"/>
       <xacro:configure_joint joint_name="joint2" initial_position="0.0" command_mode="$(arg command_mode)"/>
+
+      <sensor name="link3_imu">
+        <param name="site">link3</param>
+        <state_interface name="orientation.x"/>
+        <state_interface name="orientation.y"/>
+        <state_interface name="orientation.z"/>
+        <state_interface name="orientation.w"/>
+        <state_interface name="angular_velocity.x"/>
+        <state_interface name="angular_velocity.y"/>
+        <state_interface name="angular_velocity.z"/>
+        <state_interface name="linear_acceleration.x"/>
+        <state_interface name="linear_acceleration.y"/>
+        <state_interface name="linear_acceleration.z"/>
+      </sensor>
+
+      <sensor name="link3_wrench">
+        <param name="site">link3</param>
+        <state_interface name="force.x"/>
+        <state_interface name="force.y"/>
+        <state_interface name="force.z"/>
+        <state_interface name="torque.x"/>
+        <state_interface name="torque.y"/>
+        <state_interface name="torque.z"/>
+      </sensor>
+
+      <sensor name="link3_pose">
+        <param name="body">link3</param>
+        <state_interface name="position.x"/>
+        <state_interface name="position.y"/>
+        <state_interface name="position.z"/>
+        <state_interface name="orientation.x"/>
+        <state_interface name="orientation.y"/>
+        <state_interface name="orientation.z"/>
+        <state_interface name="orientation.w"/>
+      </sensor>
 
     </ros2_control>
 </robot>

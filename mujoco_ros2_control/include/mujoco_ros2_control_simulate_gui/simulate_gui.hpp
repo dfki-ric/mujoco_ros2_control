@@ -101,10 +101,10 @@ namespace mujoco_simulate_gui {
         void setResetFlag(std::atomic<bool> *flag) { reset_requested_ = flag; }
 
         /**
-         * Get the instance of the MujocoVisualization class.
+         * Get the instance of the MujocoSimulateGui class.
          * This method returns the singleton instance of the class.
          *
-         * @return A reference to the MujocoVisualization instance.
+         * @return A reference to the MujocoSimulateGui instance.
          */
         static MujocoSimulateGui& getInstance()
         {
@@ -158,6 +158,9 @@ namespace mujoco_simulate_gui {
         mjvPerturb pert;
 
         std::atomic<bool> *reset_requested_ = nullptr;
+
+        std::chrono::steady_clock::time_point wall_start_ = std::chrono::steady_clock::now();
+        double sim_start_time_ = 0.0;
     };
 }
 #endif //MUJOCO_SIMULATE_GUI_HPP

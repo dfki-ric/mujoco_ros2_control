@@ -17,7 +17,7 @@ The development and testing of control algorithms for robotic systems is a cruci
 | ROS 2 Version           | Branch | Status |
 |------------------------|--------|--------|
 | Humble                 | [main](https://github.com/dfki-ric/mujoco_ros2_control)   | stable |
-| Jazzy                  | [jazzy](https://github.com/dfki-ric/mujoco_ros2_control/tree/jazzy)  | unstable|
+| Jazzy                  | [jazzy](https://github.com/dfki-ric/mujoco_ros2_control/tree/jazzy)  | stable |
 
 ## Examples
 We provide one example with the franka description and the gears from the IndustRealKit that can be started with 
@@ -33,6 +33,9 @@ and one example with a unitree H1 that can be started with
 ```
 ![](./paper/figures/unitree_h1_example.png)
 *Unitree H1 with floating joint between world and pelvis ([MuJoCo Visualizer](https://github.com/google-deepmind/mujoco/tree/main/simulate) \[left\], [rqt_joint_trajectory_controller](https://index.ros.org/p/rqt_joint_trajectory_controller/)/[rviz2](https://index.ros.org/p/rviz2/) \[right\])*
+
+![](./paper/figures/unitree_g1_lidar.png)
+*Unitree G1 with floating joint between world and pelvis and attached LIDAR (intensity calculated by incidence angle) and RGBD Camera*
 
 ### Docker
 To start you can use the ![dockerfile](./Dockerfile) to create a docker container with MuJoCo ROS2 control and its examples.
@@ -269,7 +272,16 @@ def generate_launch_description():
     ])
 ```
 
-For the urdf creation you can take a look at ![URDF Configuration](./mujoco_ros2_control/README.md)
+### Sensor Interfaces
+MuJoCo ROS2 Control supports ros2_control sensor interfaces to expose simulated sensor data through standard ROS 2 broadcasters:
+- **IMU** (orientation, angular velocity, linear acceleration) — use with `imu_sensor_broadcaster`
+- **Force/Torque** (force, torque) — use with `force_torque_sensor_broadcaster`
+- **Pose** (position, orientation) — use with `pose_broadcaster`
+
+Sensors are declared inside the `<ros2_control>` block in your URDF and are automatically matched to the corresponding MuJoCo sensors. See the [URDF Configuration](./mujoco_ros2_control/README.md) guide for detailed examples.
+
+### URDF Configuration
+For the urdf creation you can take a look at [URDF Configuration](./mujoco_ros2_control/README.md)
 
 ## Documentation
 Run ```doxygen Doxyfile``` in the mujoco_ros2_control directory

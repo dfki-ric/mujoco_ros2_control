@@ -39,6 +39,9 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
     generate_parameter_library
     Eigen3
     tf2_ros
+    pluginlib
+    sensor_msgs
+    std_srvs
 )
 
 foreach(Dependency IN ITEMS ${THIS_PACKAGE_INCLUDE_DEPENDS})
@@ -84,13 +87,6 @@ endforeach()
 # install(FILES "${CMAKE_BINARY_DIR}/ccd-config.cmake"
 #         DESTINATION share/${PROJECT_NAME}/cmake)
 
-# Set LibSimulate usage flag
-set(USE_LIBSIMULATE ON CACHE BOOL "Use LibSimulate" FORCE)
-message("Setting USE_LIBSIMULATE to: ${USE_LIBSIMULATE}")
-
-# Configure the header file with CMake variables
-configure_file(cmake/config.h.in ${CMAKE_BINARY_DIR}/config.h)
-
 # Add compile definitions and directories
 add_definitions(
     ${rclcpp_DEFINITIONS}
@@ -111,7 +107,6 @@ include_directories(
     ${pcl_conversions_INCLUDE_DIRS}
     ${CMAKE_BINARY_DIR}/_deps/mujoco-src/include
     ${CMAKE_BINARY_DIR}/_deps/mujoco-src/simulate
-    ${CMAKE_BINARY_DIR}
 )
 
 # Generate parameter libraries
@@ -123,8 +118,12 @@ generate_parameter_library(mujoco_rgbd_camera_parameters
     src/mujoco_rgbd_camera_parameters.yaml
 )
 
+generate_parameter_library(mujoco_gl_lidar_parameters
+    src/mujoco_gl_lidar_parameters.yaml
+)
+
 # Add system plugin
-add_library(mujoco_system_plugins SHARED src/mujoco_system.cpp)
+add_library(mujoco_system_plugins SHARED src/mujoco_system.cpp src/mujoco_sensors.cpp)
 ament_target_dependencies(mujoco_system_plugins
     hardware_interface
     rclcpp
@@ -135,10 +134,7 @@ ament_target_dependencies(mujoco_system_plugins
 add_executable(${PROJECT_NAME}
     src/mujoco_ros2_control_plugin.cpp
     src/mujoco_depth_camera.cpp
-    src/imu_sensor.cpp
-    src/pose_sensor.cpp
-    src/wrench_sensor.cpp
-    src/mujoco_ros2_sensors.cpp
+    src/mujoco_gl_lidar.cpp
 )
 
 ament_target_dependencies(${PROJECT_NAME}
@@ -150,6 +146,8 @@ ament_target_dependencies(${PROJECT_NAME}
     cv_bridge
     PCL
     pcl_conversions
+    sensor_msgs
+    std_srvs
     tf2_ros
 )
 
@@ -161,6 +159,7 @@ target_link_libraries(${PROJECT_NAME}
     ${OpenCV_LIBS}
     ${PROJECT_NAME}_parameters
     mujoco_rgbd_camera_parameters
+    mujoco_gl_lidar_parameters
 )
 
 # Add GUI simulation library
@@ -226,6 +225,7 @@ set(BUILD_TESTING ON CACHE BOOL "" FORCE) # Set to off/ comment out to disable b
 if(BUILD_TESTING)
     ament_lint_auto_find_test_dependencies()
     find_package(ament_cmake_ros REQUIRED)
+    find_package(ament_cmake_pytest REQUIRED)
     find_package(launch_testing_ament_cmake REQUIRED)
     install(DIRECTORY test/data/ DESTINATION share/${PROJECT_NAME}/test_data)
 
@@ -235,6 +235,12 @@ if(BUILD_TESTING)
     endfunction()
 
     add_ros_isolated_launch_test(test/simple_launch.test.py)
+    add_ros_isolated_launch_test(test/test_pose_rigid.test.py)
+
+    ament_add_pytest_test(test_sensors_unit
+        test/test_sensors_unit.py
+        TIMEOUT 60
+    )
 endif()
 
 #############

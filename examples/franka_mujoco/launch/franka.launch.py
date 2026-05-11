@@ -15,6 +15,7 @@ from launch_ros.actions import Node
 from launch.substitutions import LaunchConfiguration
 from launch.conditions import IfCondition
 
+import re
 import xacro
 
 # Define your namespace and file paths
@@ -64,7 +65,18 @@ def create_nodes(context: LaunchContext):
     additional_files.append(os.path.join(get_package_share_directory("mujoco_ros2_control"), "mjcf", "scene.xml"))
     if load_task_table_bool:
         # Some gears with position and orientation sensors
-        additional_files.append(os.path.join(get_package_share_directory("task_table_mujoco"), "urdf", "task_table.urdf.xacro"))
+        task_table_xacro = os.path.join(get_package_share_directory("task_table_mujoco"), "urdf", "task_table.urdf.xacro")
+        additional_files.append(task_table_xacro)
+
+        # Merge task_table ros2_control blocks into robot_description
+        # so the gear pose sensors are registered with the controller manager
+        task_table_urdf = xacro.process_file(task_table_xacro).toprettyxml(indent="  ")
+        ros2_control_blocks = re.findall(
+            r'(<ros2_control.*?</ros2_control>)', task_table_urdf, re.DOTALL)
+        franka_urdf = robot_description['robot_description']
+        for block in ros2_control_blocks:
+            franka_urdf = franka_urdf.replace('</robot>', block + '\n</robot>')
+        robot_description['robot_description'] = franka_urdf
 
     # Define the xacro2mjcf node
     xacro2mjcf = Node(
@@ -135,13 +147,27 @@ def create_nodes(context: LaunchContext):
         ],
     )
 
+    ft_sensor_broadcaster = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=[
+            "ft_sensor_broadcaster",
+            "--controller-manager",
+            ["/", "controller_manager"],
+            '--param-file',
+            ros2_control_params_file,
+        ],
+    )
+
     franka_joint_trajectory_controller = Node(
         package="controller_manager",
         executable="spawner",
         arguments=[
             arm_id_str + "_joint_trajectory_controller",
             "--controller-manager",
-            ["/", "controller_manager"]
+            ["/", "controller_manager"],
+            '--param-file',
+            ros2_control_params_file,
         ],
         namespace="/",
     )
@@ -153,7 +179,9 @@ def create_nodes(context: LaunchContext):
         arguments=[
             arm_id_str + "_franka_hand_joint_trajectory_controller",
             "--controller-manager",
-            ["/", "controller_manager"]
+            ["/", "controller_manager"],
+            '--param-file',
+            ros2_control_params_file,
         ],
         namespace="/",
     )
@@ -176,6 +204,22 @@ def create_nodes(context: LaunchContext):
         ],
     )
 
+    # Gear pose broadcasters (only when task table is loaded)
+    gear_broadcasters = []
+    if load_task_table_bool:
+        for gear_name in ["gears_large", "gears_medium", "gears_small"]:
+            gear_broadcasters.append(Node(
+                package="controller_manager",
+                executable="spawner",
+                arguments=[
+                    gear_name + "_pose_broadcaster",
+                    "--controller-manager",
+                    ["/", "controller_manager"],
+                    '--param-file',
+                    ros2_control_params_file,
+                ],
+            ))
+
     # Register an event handler to start controllers once mujoco is up
     load_controllers = RegisterEventHandler(
         OnProcessStart(
@@ -183,8 +227,10 @@ def create_nodes(context: LaunchContext):
             on_start=[
                 LogInfo(msg="Starting joint state broadcaster..."),
                 load_joint_state_broadcaster,
+                ft_sensor_broadcaster,
                 franka_joint_trajectory_controller,
                 gripper_joint_trajectory_controller,
+                *gear_broadcasters,
                 rviz_node
             ],
         )

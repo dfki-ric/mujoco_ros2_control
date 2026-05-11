@@ -13,8 +13,8 @@ diagrams:
       namespaces:
         - mujoco_ros2_control
         - mujoco_rgbd_camera
-        - mujoco_rgbd_sensors
-        - mujoco_ros2_control_simulate_gui
+        - mujoco_gl_lidar
+        - mujoco_simulate_gui
     exclude:
       namespaces:
-        - mujoco_ros2_contro::rclcpp::rclcpp
+        - rclcpp

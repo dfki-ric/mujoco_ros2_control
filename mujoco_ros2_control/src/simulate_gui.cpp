@@ -134,6 +134,12 @@ namespace mujoco_simulate_gui {
 
         sim->LoadOnRenderThread();
 
+        // anchor wall/sim time for measured-slowdown computation
+        wall_start_ = std::chrono::steady_clock::now();
+        sim_start_time_ = d->time;
+        sim->last_fps_update_ = mj::Simulate::Clock::now();
+        sim->frames_ = 0;
+
         ui_window = glfwGetCurrentContext();
     }
 
@@ -156,5 +162,30 @@ namespace mujoco_simulate_gui {
             sim->Sync();
         }
         sim->Render();
+
+        // FPS — mirror upstream RenderLoop (refresh ~5 Hz)
+        auto fps_now = mj::Simulate::Clock::now();
+        ++sim->frames_;
+        double fps_interval = std::chrono::duration<double>(fps_now - sim->last_fps_update_).count();
+        if (fps_interval > 0.2) {
+            sim->fps_ = sim->frames_ / fps_interval;
+            sim->frames_ = 0;
+            sim->last_fps_update_ = fps_now;
+        }
+
+        // measured RT factor — wall_elapsed / sim_elapsed since last reset.
+        // Detect resets by sim time going backwards and re-anchor automatically;
+        // this covers every reset path (GUI button, keybinds, key-load, scripted).
+        double sim_elapsed = d->time - sim_start_time_;
+        if (sim_elapsed < 0.0) {
+            wall_start_ = std::chrono::steady_clock::now();
+            sim_start_time_ = d->time;
+            sim_elapsed = 0.0;
+        }
+        if (sim_elapsed > 1e-3) {
+            double wall_elapsed = std::chrono::duration<double>(
+                std::chrono::steady_clock::now() - wall_start_).count();
+            sim->measured_slowdown = static_cast<float>(wall_elapsed / sim_elapsed);
+        }
     }
 }

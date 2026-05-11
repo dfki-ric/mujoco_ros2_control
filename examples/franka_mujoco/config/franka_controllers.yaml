@@ -4,6 +4,14 @@ controller_manager:
 
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
+    ft_sensor_broadcaster:
+      type: force_torque_sensor_broadcaster/ForceTorqueSensorBroadcaster
+    gears_large_pose_broadcaster:
+      type: pose_broadcaster/PoseBroadcaster
+    gears_medium_pose_broadcaster:
+      type: pose_broadcaster/PoseBroadcaster
+    gears_small_pose_broadcaster:
+      type: pose_broadcaster/PoseBroadcaster
 
     fer_joint_trajectory_controller:
       type: "joint_trajectory_controller/JointTrajectoryController"
@@ -131,4 +139,33 @@ fr3_franka_hand_joint_trajectory_controller:
 
     open_loop_control: true
 
-    
+# The sensor_name must match "<arm_id>_ft_sensor" from the URDF.
+# Adjust if using a different arm_id (fer, fp3).
+ft_sensor_broadcaster:
+  ros__parameters:
+    sensor_name: "fr3_ft_sensor"
+    frame_id: "fr3_link7"
+
+gears_large_pose_broadcaster:
+  ros__parameters:
+    pose_name: "gears_large_pose"
+    frame_id: "world"
+    tf:
+      enable: true
+      child_frame_id: "gears_large_link"
+
+gears_medium_pose_broadcaster:
+  ros__parameters:
+    pose_name: "gears_medium_pose"
+    frame_id: "world"
+    tf:
+      enable: true
+      child_frame_id: "gears_medium_link"
+
+gears_small_pose_broadcaster:
+  ros__parameters:
+    pose_name: "gears_small_pose"
+    frame_id: "world"
+    tf:
+      enable: true
+      child_frame_id: "gears_small_link"
