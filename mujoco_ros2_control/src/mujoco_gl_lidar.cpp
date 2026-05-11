@@ -302,7 +302,8 @@ void MujocoGLLidar::render_depth() {
     glfwPollEvents();
 }
 
-bool MujocoGLLidar::sample_beam(size_t beam_index, double &range) {
+bool MujocoGLLidar::sample_beam(size_t beam_index, double &range,
+                                double *cos_incidence) {
     const BeamSample &b = beam_samples_[beam_index];
 
     // Slice-local -> tilted-camera-local
@@ -363,7 +364,6 @@ bool MujocoGLLidar::sample_beam(size_t beam_index, double &range) {
 
     if (valid_count == 0) return false;
 
-
     double raw;
 
     if (valid_count == 4 && (dmax - dmin) <= depth_threshold_) {
@@ -394,6 +394,43 @@ bool MujocoGLLidar::sample_beam(size_t beam_index, double &range) {
         (zfar_frac_ - raw * (zfar_frac_ - znear_frac_));
 
     range = linear_z / cz;
+
+    if (cos_incidence) {
+        // Estimate surface normal from the depth gradient at the sample.
+        // Only trustworthy when the four corners agree (same surface, no
+        // depth edge); fall back to 1.0 otherwise.
+        double cos_i = 1.0;
+        if (valid_count == 4 && (dmax - dmin) <= depth_threshold_) {
+            auto unproject = [&](int uu, int vv_gl, double raw_d) {
+                const double z = znear_frac_ * zfar_frac_ * extent_ /
+                                 (zfar_frac_ - raw_d * (zfar_frac_ - znear_frac_));
+                const double v_top_pix = (render_height_ - 1) - vv_gl;
+                return std::array<double, 3>{
+                    (uu - cx_) / f_ * z,
+                    (v_top_pix - cy_) / f_ * z,
+                    z};
+            };
+            const auto P00 = unproject(u0, v0, d00);
+            const auto P10 = unproject(u1, v0, d10);
+            const auto P01 = unproject(u0, v1, d01);
+
+            const std::array<double, 3> du{
+                P10[0] - P00[0], P10[1] - P00[1], P10[2] - P00[2]};
+            const std::array<double, 3> dv{
+                P01[0] - P00[0], P01[1] - P00[1], P01[2] - P00[2]};
+            const std::array<double, 3> n{
+                du[1] * dv[2] - du[2] * dv[1],
+                du[2] * dv[0] - du[0] * dv[2],
+                du[0] * dv[1] - du[1] * dv[0]};
+
+            const double nlen = std::sqrt(n[0]*n[0] + n[1]*n[1] + n[2]*n[2]);
+            const double blen = std::sqrt(cx*cx + cy*cy + cz*cz);
+            if (nlen > 1e-12 && blen > 1e-12) {
+                cos_i = std::abs(cx*n[0] + cy*n[1] + cz*n[2]) / (nlen * blen);
+            }
+        }
+        *cos_incidence = cos_i;
+    }
     return true;
 }
 
@@ -411,18 +448,16 @@ void MujocoGLLidar::publish_scan(const rclcpp::Time &stamp) {
     msg.range_min = static_cast<float>(range_min_);
     msg.range_max = static_cast<float>(range_max_);
     msg.ranges.resize(h_samples_);
+    msg.intensities.resize(h_samples_);
 
     const float invalid = std::numeric_limits<float>::infinity();
     for (int i = 0; i < h_samples_; ++i) {
-        double range;
-        if (!sample_beam(static_cast<size_t>(i), range)) {
-            msg.ranges[i] = invalid;
-            continue;
-        }
-        if (noise_stddev_ > 0.0) range += noise_dist_(rng_);
-        msg.ranges[i] = (range >= range_min_ && range <= range_max_)
-                            ? static_cast<float>(range)
-                            : invalid;
+        double range, cos_i;
+        const bool hit = sample_beam(static_cast<size_t>(i), range, &cos_i);
+        if (hit && noise_stddev_ > 0.0) range += noise_dist_(rng_);
+        const bool in_range = hit && range >= range_min_ && range <= range_max_;
+        msg.ranges[i]      = in_range ? static_cast<float>(range) : invalid;
+        msg.intensities[i] = in_range ? static_cast<float>(cos_i) : 0.0f;
     }
     scan_pub_->publish(msg);
 }
@@ -437,31 +472,35 @@ void MujocoGLLidar::publish_cloud(const rclcpp::Time &stamp) {
     msg.is_bigendian = false;
 
     sensor_msgs::PointCloud2Modifier mod(msg);
-    mod.setPointCloud2FieldsByString(1, "xyz");
+    mod.setPointCloud2Fields(
+        4,
+        "x",         1, sensor_msgs::msg::PointField::FLOAT32,
+        "y",         1, sensor_msgs::msg::PointField::FLOAT32,
+        "z",         1, sensor_msgs::msg::PointField::FLOAT32,
+        "intensity", 1, sensor_msgs::msg::PointField::FLOAT32);
     mod.resize(static_cast<size_t>(v_samples_) * h_samples_);
 
     sensor_msgs::PointCloud2Iterator<float> ix(msg, "x");
     sensor_msgs::PointCloud2Iterator<float> iy(msg, "y");
     sensor_msgs::PointCloud2Iterator<float> iz(msg, "z");
+    sensor_msgs::PointCloud2Iterator<float> ii(msg, "intensity");
 
     const float nanf = std::numeric_limits<float>::quiet_NaN();
-    for (size_t k = 0; k < beam_dirs_local_.size(); ++k, ++ix, ++iy, ++iz) {
-        const auto &dl = beam_dirs_local_[k];
-        double range;
-        if (!sample_beam(k, range)) {
-            *ix = nanf; *iy = nanf; *iz = nanf;
-            continue;
-        }
-        if (noise_stddev_ > 0.0) range += noise_dist_(rng_);
-        if (range < range_min_ || range > range_max_) {
-            *ix = nanf; *iy = nanf; *iz = nanf;
+    for (size_t k = 0; k < beam_dirs_local_.size();
+         ++k, ++ix, ++iy, ++iz, ++ii) {
+        double range, cos_i;
+        const bool hit = sample_beam(k, range, &cos_i);
+        if (hit && noise_stddev_ > 0.0) range += noise_dist_(rng_);
+        if (!hit || range < range_min_ || range > range_max_) {
+            *ix = nanf; *iy = nanf; *iz = nanf; *ii = nanf;
             continue;
         }
         // Beam endpoint in site (lidar) frame.
+        const auto &dl = beam_dirs_local_[k];
         const double ps0 = dl[0] * range;
         const double ps1 = dl[1] * range;
         const double ps2 = dl[2] * range;
-        
+
         *ix = static_cast<float>(site_pos_in_body_[0] +
                                  site_mat_in_body_[0] * ps0 +
                                  site_mat_in_body_[1] * ps1 +
@@ -474,6 +513,7 @@ void MujocoGLLidar::publish_cloud(const rclcpp::Time &stamp) {
                                  site_mat_in_body_[6] * ps0 +
                                  site_mat_in_body_[7] * ps1 +
                                  site_mat_in_body_[8] * ps2);
+        *ii = static_cast<float>(cos_i);
     }
     cloud_pub_->publish(msg);
 }

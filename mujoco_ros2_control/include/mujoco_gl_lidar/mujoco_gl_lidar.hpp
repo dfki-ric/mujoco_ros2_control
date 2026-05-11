@@ -63,7 +63,8 @@ public:
 
 private:
     void render_depth();
-    bool sample_beam(size_t beam_index, double &range);
+    bool sample_beam(size_t beam_index, double &range,
+                     double *cos_incidence = nullptr);
     void publish_scan(const rclcpp::Time &stamp);
     void publish_cloud(const rclcpp::Time &stamp);
 
