@@ -93,12 +93,17 @@ namespace mujoco_ros2_control {
                             "Joint %s was not found in the URDF, registration of joint failed", joint_info.name.c_str());
                 continue;
             }
+            const int mj_joint_id = mj_name2id(mujoco_model_, mjOBJ_JOINT, joint_info.name.c_str());
+            if (mj_joint_id == -1) {
+                RCLCPP_WARN(rclcpp::get_logger("mujoco_system"), "Joint %s not found in Mujoco model!", joint_info.name.c_str());
+                continue;
+            }
             joints_.insert(std::pair<std::string, JointData>(joint_info.name, JointData()));
             // Create struct for joint with joint related datas
             JointData& joint = joints_.at(joint_info.name);
             joint.name = joint_info.name;
 
-            joint.mujoco_joint_id = mj_name2id(mujoco_model_, mjOBJ_JOINT, joint.name.c_str());
+            joint.mujoco_joint_id = mj_joint_id;
             joint.mujoco_qpos_addr = mujoco_model_->jnt_qposadr[joint.mujoco_joint_id];
             joint.mujoco_dofadr = mujoco_model_->jnt_dofadr[joint.mujoco_joint_id];
 
@@ -153,18 +158,14 @@ namespace mujoco_ros2_control {
             RCLCPP_DEBUG(rclcpp::get_logger("register joints"),
                          "%s: jnt_limited: %hhu, jnt_range: [%f,%f], jnt_actfrclimited: %hhu, jnt_actfrcrange: [%f, %f]",
                          joint.name.c_str(),
-                         mujoco_model_->jnt_limited[joint.mujoco_dofadr],
-                         mujoco_model_->jnt_range[joint.mujoco_dofadr*2], mujoco_model_->jnt_range[joint.mujoco_dofadr*2+1],
-                         mujoco_model_->jnt_actfrclimited[joint.mujoco_dofadr],
-                         mujoco_model_->jnt_actfrcrange[joint.mujoco_dofadr*2], mujoco_model_->jnt_actfrcrange[joint.mujoco_dofadr*2+1]);
+                         mujoco_model_->jnt_limited[joint.mujoco_joint_id],
+                         mujoco_model_->jnt_range[joint.mujoco_joint_id*2], mujoco_model_->jnt_range[joint.mujoco_joint_id*2+1],
+                         mujoco_model_->jnt_actfrclimited[joint.mujoco_joint_id],
+                         mujoco_model_->jnt_actfrcrange[joint.mujoco_joint_id*2], mujoco_model_->jnt_actfrcrange[joint.mujoco_joint_id*2+1]);
 
             RCLCPP_DEBUG(rclcpp::get_logger("register joints"),
                         "%s: upper_limit: %f, lower_limit: %f, velocity_limit: %f, effort_limit: %f",
                         joint.name.c_str(), joint.upper_limit, joint.lower_limit, joint.velocity_limit, joint.effort_limit);
-            if (joint.mujoco_joint_id == -1)
-            {
-                RCLCPP_WARN(rclcpp::get_logger("mujoco_system"), "Joint %s not found in Mujoco model!", joint.name.c_str());
-            }
 
             // Setup State Interfaces
             for(auto& state_interface : joint_info.state_interfaces) {
@@ -260,10 +261,17 @@ namespace mujoco_ros2_control {
         
 
         for (int mujoco_actuator_id = 0; mujoco_actuator_id < mujoco_model_->nu; mujoco_actuator_id++) {
-            std::string joint_name = mj_id2name(mujoco_model_, mjOBJ_JOINT, mujoco_model_->actuator_trnid[mujoco_actuator_id*2]);
-            if (joints_[joint_name].name.empty()) {
+            const char *joint_name_c = mj_id2name(
+                mujoco_model_, mjOBJ_JOINT,
+                mujoco_model_->actuator_trnid[mujoco_actuator_id * 2]);
+            if (!joint_name_c) {
                 continue;
             }
+            auto joint_it = joints_.find(joint_name_c);
+            if (joint_it == joints_.end() || joint_it->second.name.empty()) {
+                continue;
+            }
+            const std::string &joint_name = joint_it->first;
             std::string actuator_name;
             const char* act_name = mj_id2name(mujoco_model_, mjOBJ_ACTUATOR, mujoco_actuator_id);
             if(act_name) {
