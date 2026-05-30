@@ -14,10 +14,10 @@ Mujoco ROS2 Control was initiated and is currently developed at the
 The development and testing of control algorithms for robotic systems is a crucial step in ensuring their reliability, safety, and efficiency. However, conducting these tests on physical hardware can be expensive, time-consuming, and prone to mechanical wear and tear. To overcome these challenges, accurate and efficient physical simulations have become an indispensable tool for researchers, engineers, and roboticists. These simulations enable comprehensive testing of robot controllers, planning algorithms, and perception systems in a controlled, repeatable, and risk-free environment.
 
 ## Compatibility
-| ROS 2 Version           | Branch | Status |
-|------------------------|--------|--------|
-| Humble                 | [main](https://github.com/dfki-ric/mujoco_ros2_control)   | stable |
-| Jazzy                  | [jazzy](https://github.com/dfki-ric/mujoco_ros2_control/tree/jazzy)  | stable |
+| ROS 2 Version | Branch | Build Status |
+|--------------|--------|--------------|
+| Humble | [main](https://github.com/dfki-ric/mujoco_ros2_control) | [![CI](https://github.com/dfki-ric/mujoco_ros2_control/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/dfki-ric/mujoco_ros2_control/actions/workflows/ci.yml?query=branch%3Amain) |
+| Jazzy | [jazzy](https://github.com/dfki-ric/mujoco_ros2_control/tree/jazzy) | [![CI](https://github.com/dfki-ric/mujoco_ros2_control/actions/workflows/ci.yml/badge.svg?branch=jazzy)](https://github.com/dfki-ric/mujoco_ros2_control/actions/workflows/ci.yml?query=branch%3Ajazzy) |
 
 ## Examples
 We provide one example with the franka description and the gears from the IndustRealKit that can be started with 
