@@ -5,6 +5,10 @@ RUN apt-get update && apt-get install -y \
     libglfw3-dev \
     libx11-dev \
     xorg-dev \
+    libwayland-dev \
+    libxkbcommon-dev \
+    wayland-protocols \
+    extra-cmake-modules \
     ros-${ROS_DISTRO}-urdf \
     ros-${ROS_DISTRO}-xacro \
     ros-${ROS_DISTRO}-rviz2 \

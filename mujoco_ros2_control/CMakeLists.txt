@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.6)
 project(mujoco_ros2_control)
 
 # Set default C standards
@@ -57,7 +57,7 @@ include(FetchContent)
 FetchContent_Declare(
   mujoco
   GIT_REPOSITORY https://github.com/google-deepmind/mujoco.git
-  GIT_TAG 3.2.7  # MuJoCo version
+  GIT_TAG 3.9.0  # MuJoCo version
 )
 
 # Optionally set MuJoCo build options
@@ -83,9 +83,6 @@ foreach(_dep_file ${_mujoco_dep_configs})
         file(WRITE "${_stub}" "# Auto-generated stub by mujoco_ros2_control workaround\n")
     endif()
 endforeach()
-## At the end this files will be filled with the correct data, so there is no problem with leaving them empty
-# install(FILES "${CMAKE_BINARY_DIR}/ccd-config.cmake"
-#         DESTINATION share/${PROJECT_NAME}/cmake)
 
 # Add compile definitions and directories
 add_definitions(
@@ -107,6 +104,7 @@ include_directories(
     ${pcl_conversions_INCLUDE_DIRS}
     ${CMAKE_BINARY_DIR}/_deps/mujoco-src/include
     ${CMAKE_BINARY_DIR}/_deps/mujoco-src/simulate
+    ${CMAKE_BINARY_DIR}/_deps/lodepng-src
 )
 
 # Generate parameter libraries
@@ -167,8 +165,8 @@ add_library(simulate_gui SHARED src/simulate_gui.cpp)
 target_link_libraries(simulate_gui PUBLIC glfw)
 target_link_libraries(simulate_gui PRIVATE
     mujoco::mujoco
-    mujoco::libsimulate
     mujoco::platform_ui_adapter
+    lodepng
     glfw
 )
 
