@@ -1,0 +1,60 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- ros2_control block for a UR arm driven by the MuJoCo system interface. -->
+  <xacro:macro name="ur_ros2_control"
+               params="name
+                       tf_prefix
+                       mujoco
+                       mujoco_effort
+                       initial_positions">
+
+    <ros2_control name="${name}" type="system">
+      <hardware>
+        <xacro:if value="${mujoco}">
+          <plugin>mujoco_ros2_control/MujocoSystem</plugin>
+        </xacro:if>
+        <xacro:unless value="${mujoco}">
+          <plugin>mock_components/GenericSystem</plugin>
+        </xacro:unless>
+      </hardware>
+
+      <!-- One UR joint with position + velocity command interfaces. -->
+      <xacro:macro name="configure_joint" params="joint_name initial_position">
+        <joint name="${joint_name}">
+          <xacro:if value="${mujoco == 0 or mujoco_effort == 1}">
+            <command_interface name="effort"/>
+          </xacro:if>
+          <command_interface name="velocity"/>
+          <command_interface name="position"/>
+          <state_interface name="position">
+            <param name="initial_value">${initial_position}</param>
+          </state_interface>
+          <state_interface name="velocity"/>
+          <state_interface name="effort"/>
+        </joint>
+      </xacro:macro>
+
+      <xacro:configure_joint joint_name="${tf_prefix}shoulder_pan_joint"  initial_position="${initial_positions['shoulder_pan_joint']}"/>
+      <xacro:configure_joint joint_name="${tf_prefix}shoulder_lift_joint" initial_position="${initial_positions['shoulder_lift_joint']}"/>
+      <xacro:configure_joint joint_name="${tf_prefix}elbow_joint"         initial_position="${initial_positions['elbow_joint']}"/>
+      <xacro:configure_joint joint_name="${tf_prefix}wrist_1_joint"       initial_position="${initial_positions['wrist_1_joint']}"/>
+      <xacro:configure_joint joint_name="${tf_prefix}wrist_2_joint"       initial_position="${initial_positions['wrist_2_joint']}"/>
+      <xacro:configure_joint joint_name="${tf_prefix}wrist_3_joint"       initial_position="${initial_positions['wrist_3_joint']}"/>
+
+      <!-- Force/torque sensor at the wrist (MuJoCo only). -->
+      <xacro:if value="${mujoco}">
+        <sensor name="${tf_prefix}tcp_ft_sensor">
+          <param name="site">${tf_prefix}tcp_ft_site</param>
+          <state_interface name="force.x"/>
+          <state_interface name="force.y"/>
+          <state_interface name="force.z"/>
+          <state_interface name="torque.x"/>
+          <state_interface name="torque.y"/>
+          <state_interface name="torque.z"/>
+        </sensor>
+      </xacro:if>
+    </ros2_control>
+
+  </xacro:macro>
+</robot>

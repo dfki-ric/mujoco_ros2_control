@@ -52,6 +52,27 @@ def _has_nonzero_rpy(rpy):
     return not all(element == 0 for element in rpy)
 
 
+def read_dynamics_overrides(urdf_root):
+    """Per-joint MuJoCo dynamics attributes read straight from the URDF.
+    """
+    overrides = {}
+    if urdf_root is None:
+        return overrides
+    for joint in urdf_root.findall('joint'):
+        name = joint.get('name')
+        dynamics = joint.find('dynamics')
+        if name is None or dynamics is None:
+            continue
+        attrs = {}
+        for key in ('armature', 'frictionloss'):
+            value = dynamics.get(key)
+            if value is not None:
+                attrs[key] = value
+        if attrs:
+            overrides[name] = attrs
+    return overrides
+
+
 def build_joint_link_tree(robot):
     # Dictionary to store the joint-link relationships
     tree = {}
@@ -77,7 +98,8 @@ def build_joint_link_tree(robot):
         
     return tree
 
-def create_mjcf(robot, robot_tree, mujoco_element):
+def create_mjcf(robot, robot_tree, mujoco_element, dynamics_overrides=None):
+    dynamics_overrides = dynamics_overrides or {}
     # Create the root element of the MJCF
     mjcf = ET.Element("mujoco", model=robot.name)
     compiler = mujoco_element.find('compiler')
@@ -124,6 +146,9 @@ def create_mjcf(robot, robot_tree, mujoco_element):
                 joint_elem = ET.SubElement(body, "joint", name=joint.name, type="free")
             else:
                 print(joint_type)
+            if joint_type in ("revolute", "continuous", "prismatic"):
+                for attr, value in dynamics_overrides.get(joint.name, {}).items():
+                    joint_elem.set(attr, value)
         # Add the link's body
         if link_name in robot.parent_map:
             if robot.joint_map[robot.parent_map[link_name][0]].origin:
@@ -289,9 +314,10 @@ def create_mjcf_from_urdf(input_file, output_file):
     urdf_tree = ET.ElementTree(ET.fromstring(robot_description))
     urdf_root = urdf_tree.getroot()
     mujoco_element = urdf_root.find('mujoco')
+    dynamics_overrides = read_dynamics_overrides(urdf_root)
     # Convert the URDF-like structure to MJCF
     tree = build_joint_link_tree(robot)
-    mjcf_string = create_mjcf(robot, tree, mujoco_element)
+    mjcf_string = create_mjcf(robot, tree, mujoco_element, dynamics_overrides)
 
     # Print the resulting MJCF model
     with open(output_file, 'w') as file:

@@ -9,6 +9,7 @@ import os
 import uuid
 import collections
 import copy
+import math
 
 from urdf2mjcf import create_mjcf_from_urdf
 
@@ -129,9 +130,6 @@ class Xacro2Mjcf(Node):
             if not name:
                 name = str(uuid.uuid4())
 
-            # self.convert_camera_links(tmp_urdf_root)
-            # self.create_symlinks(tmp_urdf_root, mujoco_files_path)
-
             output_tree = ET.ElementTree(tmp_urdf_root)
             ET.indent(output_tree, space="\t", level=0)
             output_tree.write(mujoco_files_path + '/' + name + '.urdf')
@@ -211,16 +209,61 @@ class Xacro2Mjcf(Node):
 
                 self.mjcf_root = mjcf_tree.getroot()
 
-
-                # if base_link and floating:
-                #     base_link_body = self.mjcf_root.find(".//body[@name='{}']".format(base_link))
-                #     joint = ET.Element("joint", {"name": "world_to_base", "type": "free"})
-                #     base_link_body.insert(1, joint)
-
                 # Add limited=true to all joints with range (limits)
                 joints = self.get_elements(self.mjcf_root, 'joint', 'range')
                 for joint in joints:
                     joint.set("limited", "true")
+
+                initial_positions = {}
+                for ros2_control in self.urdf_root.iter('ros2_control'):
+                    for ctrl_joint in ros2_control.findall('joint'):
+                        jname = ctrl_joint.get('name')
+                        if jname is None:
+                            continue
+                        for si in ctrl_joint.findall('state_interface'):
+                            if si.get('name') != 'position':
+                                continue
+                            for param in si.findall('param'):
+                                if param.get('name') == 'initial_value' and param.text:
+                                    try:
+                                        initial_positions[jname] = float(param.text)
+                                    except ValueError:
+                                        pass
+
+                # Base (free joint) pose from the launch parameters.
+                try:
+                    bx, by, bz = (float(v) for v in initial_position.split())
+                except ValueError:
+                    bx, by, bz = 0.0, 0.0, 0.0
+                try:
+                    roll, pitch, yaw = (float(v) for v in initial_orientation.split())
+                except ValueError:
+                    roll, pitch, yaw = 0.0, 0.0, 0.0
+                cr, sr = math.cos(roll / 2), math.sin(roll / 2)
+                cp, sp = math.cos(pitch / 2), math.sin(pitch / 2)
+                cyaw, syaw = math.cos(yaw / 2), math.sin(yaw / 2)
+                base_quat = [
+                    cr * cp * cyaw + sr * sp * syaw,
+                    sr * cp * cyaw - cr * sp * syaw,
+                    cr * sp * cyaw + sr * cp * syaw,
+                    cr * cp * syaw - sr * sp * cyaw,
+                ]
+
+                # Assemble qpos in MJCF joint order (document order == qpos order).
+                qpos = []
+                for joint in self.mjcf_root.iter('joint'):
+                    jtype = joint.get('type', 'hinge')
+                    if jtype == 'free':
+                        qpos += [bx, by, bz] + base_quat
+                    elif jtype == 'ball':
+                        qpos += [1.0, 0.0, 0.0, 0.0]
+                    else:  # hinge or slide -> 1 dof
+                        qpos.append(initial_positions.get(joint.get('name'), 0.0))
+
+                if qpos and any(v != 0.0 for v in qpos):
+                    qpos_str = ' '.join(repr(v) for v in qpos)
+                    keyframe = ET.SubElement(self.mjcf_root, 'keyframe')
+                    ET.SubElement(keyframe, 'key', {'name': 'initial', 'qpos': qpos_str})
 
                 # Insert elements into the MJCF file tree
                 mujoco = self.urdf_root.find('mujoco')
