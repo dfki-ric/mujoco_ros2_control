@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://wiki.ros.org/xacro">
+
+  <!-- Position + velocity actuator pair for a single UR joint.
+       kp/forcerange follow the joint's torque capability; the velocity
+       actuator adds damping for a stable position hold. -->
+  <xacro:macro name="ur_position_actuator" params="joint effort lower upper kp kv">
+    <position
+      name="pos_${joint}"
+      joint="${joint}"
+      ctrlrange="${lower} ${upper}"
+      forcerange="${-effort} ${effort}"
+      kp="${kp}"/>
+    <velocity
+      name="vel_${joint}"
+      joint="${joint}"
+      forcerange="${-effort} ${effort}"
+      kv="${kv}"/>
+  </xacro:macro>
+
+  <!-- MuJoCo actuators for the six UR revolute joints.
+       Effort/position limits mirror ur_description/config/<ur_type>/joint_limits.yaml
+       (shoulder + elbow: 150 Nm, wrists: 28 Nm; elbow limited to +-pi). -->
+  <xacro:macro name="create_mujoco_actuators" params="tf_prefix">
+    <actuator>
+      <xacro:ur_position_actuator joint="${tf_prefix}shoulder_pan_joint"  effort="150" lower="${-2*pi}" upper="${2*pi}" kp="3000" kv="200"/>
+      <xacro:ur_position_actuator joint="${tf_prefix}shoulder_lift_joint" effort="150" lower="${-2*pi}" upper="${2*pi}" kp="3000" kv="200"/>
+      <xacro:ur_position_actuator joint="${tf_prefix}elbow_joint"         effort="150" lower="${-pi}"   upper="${pi}"   kp="3000" kv="200"/>
+      <xacro:ur_position_actuator joint="${tf_prefix}wrist_1_joint"       effort="28"  lower="${-2*pi}" upper="${2*pi}" kp="500"  kv="50"/>
+      <xacro:ur_position_actuator joint="${tf_prefix}wrist_2_joint"       effort="28"  lower="${-2*pi}" upper="${2*pi}" kp="500"  kv="50"/>
+      <xacro:ur_position_actuator joint="${tf_prefix}wrist_3_joint"       effort="28"  lower="${-2*pi}" upper="${2*pi}" kp="500"  kv="50"/>
+    </actuator>
+  </xacro:macro>
+</robot>
