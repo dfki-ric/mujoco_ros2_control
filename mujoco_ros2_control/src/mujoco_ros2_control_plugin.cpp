@@ -71,6 +71,9 @@ MujocoRos2Control::MujocoRos2Control(rclcpp::Node::SharedPtr &node) : nh_(node) 
   publisher_ = nh_->create_publisher<rosgraph_msgs::msg::Clock>("/clock", rclcpp::SystemDefaultsQoS());
   clock_publisher_ = std::make_unique<ClockPublisher>(publisher_);
 
+  reset_notify_publisher_ = nh_->create_publisher<std_msgs::msg::Empty>(
+      "/mujoco_reset_notify", rclcpp::SystemDefaultsQoS());
+
   // create services for play/pause and reset
   mujoco_play_pause_service_ = nh_->create_service<std_srvs::srv::Trigger>(
       "mujoco_play_pause",
@@ -90,8 +93,11 @@ MujocoRos2Control::MujocoRos2Control(rclcpp::Node::SharedPtr &node) : nh_(node) 
 
   init_controller_manager();
 
-  // Start MuJoCo
-  mj_resetData(mujoco_model_, mujoco_data_);
+  if (mujoco_model_->nkey > 0) {
+    mj_resetDataKeyframe(mujoco_model_, mujoco_data_, 0);
+  } else {
+    mj_resetData(mujoco_model_, mujoco_data_);
+  }
 
   // compute forward kinematics for new pos
   mj_forward(mujoco_model_, mujoco_data_);
@@ -153,12 +159,17 @@ void MujocoRos2Control::update() {
 
     // Handle reset request from the UI thread safely on the sim thread
     if (reset_requested_.exchange(false, std::memory_order_acq_rel)) {
-      mj_resetData(mujoco_model_, mujoco_data_);
+      if (mujoco_model_->nkey > 0) {
+        mj_resetDataKeyframe(mujoco_model_, mujoco_data_, 0);
+      } else {
+        mj_resetData(mujoco_model_, mujoco_data_);
+      }
       mj_forward(mujoco_model_, mujoco_data_);
       mujoco_start_time_ = mujoco_data_->time;
       clock_gettime(CLOCK_MONOTONIC, &startTime_);
       last_update_sim_time_ros_ = rclcpp::Time((int64_t)0, RCL_ROS_TIME);
       last_pub_clock_time_ = 0.0;
+      reset_notify_publisher_->publish(std_msgs::msg::Empty());
     }
 
     mjtNum simstart = mujoco_data_->time;

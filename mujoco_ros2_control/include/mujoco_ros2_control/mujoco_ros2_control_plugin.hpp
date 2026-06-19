@@ -82,6 +82,7 @@
 
 // msgs
 #include "std_msgs/msg/bool.hpp"
+#include "std_msgs/msg/empty.hpp"
 #include "std_msgs/msg/float64_multi_array.hpp"
 #include "geometry_msgs/msg/pose.hpp"
 #include "rosgraph_msgs/msg/clock.hpp"
@@ -242,6 +243,8 @@ namespace mujoco_ros2_control
         double pub_clock_frequency_; ///< Frequency the Clock is published
         double last_pub_clock_time_; ///< Timestamp the clock was published
 
+
+        rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr reset_notify_publisher_; ///< Notifies subscribers (e.g. the policy node) that the sim was reset
 
         // Mujoco ros services
         rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr mujoco_play_pause_service_; ///< Service to pause the Mujoco simulation
