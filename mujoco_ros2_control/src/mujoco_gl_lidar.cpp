@@ -198,6 +198,7 @@ MujocoGLLidar::MujocoGLLidar(rclcpp::Node::SharedPtr &node,
 
     auto prev_ctx = glfwGetCurrentContext();
     glfwMakeContextCurrent(window_);
+    glfwSwapInterval(0);
 
     sensor_camera_.type = mjCAMERA_USER;  // set scene.camera directly per frame
     mjr_defaultContext(&sensor_context_);
@@ -299,7 +300,6 @@ void MujocoGLLidar::render_depth() {
                        viewport, &sensor_context_);
     }
     glfwSwapBuffers(window_);
-    glfwPollEvents();
 }
 
 bool MujocoGLLidar::sample_beam(size_t beam_index, double &range,
@@ -529,7 +529,10 @@ void MujocoGLLidar::update() {
             std::this_thread::sleep_for(1ms);
             continue;
         }
-        last_update = mujoco_data_->time;
+        last_update += period;
+        if (mujoco_data_->time - last_update >= period) {
+            last_update = mujoco_data_->time;
+        }
 
         // Take a time-consistent snapshot of mjData under the sim mutex.
         {
