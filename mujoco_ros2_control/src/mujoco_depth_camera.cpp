@@ -73,6 +73,7 @@ namespace mujoco_rgbd_camera {
         glfwSetWindowAttrib(window_, GLFW_RESIZABLE, GLFW_FALSE);
         auto context = glfwGetCurrentContext();
         glfwMakeContextCurrent(window_);
+        glfwSwapInterval(0);
 
         // Set camera parameters
         rgbd_camera_.type = mjCAMERA_FIXED;
@@ -117,7 +118,10 @@ namespace mujoco_rgbd_camera {
             }
             // update dynamic parameters
             if (mujoco_data_->time - last_update >= 1.0 / frequency_) {
-                last_update = mujoco_data_->time;
+                last_update += 1.0 / frequency_;
+                if (mujoco_data_->time - last_update >= 1.0 / frequency_) {
+                    last_update = mujoco_data_->time;
+                }
                 auto context = glfwGetCurrentContext();
                 glfwMakeContextCurrent(window_);
 
@@ -135,8 +139,6 @@ namespace mujoco_rgbd_camera {
                 // Swap OpenGL buffers
                 glfwSwapBuffers(window_);
 
-                // process pending GUI events, call GLFW callbacks
-                glfwPollEvents();
 
                 publish_images();
                 publish_point_cloud();
