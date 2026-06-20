@@ -11,9 +11,17 @@
         </joint>
 
         <link name="${prefix}${camera_name}_link"/>
+
+        <link name="${prefix}${camera_name}_optical_frame"/>
+        <joint name="${prefix}${camera_name}_optical_joint" type="fixed">
+            <origin xyz="0 0 0" rpy="${-pi/2} 0 ${-pi/2}"/>
+            <parent link="${prefix}${camera_name}_link"/>
+            <child link="${prefix}${camera_name}_optical_frame"/>
+        </joint>
+
         <mujoco>
-            <reference name="${prefix}${camera_name}_link">
-                <camera name="${prefix}${camera_name}" mode="fixed" fovy="45" quat="0.5 0.5 -0.5 -0.5"/>
+            <reference name="${prefix}${camera_name}_optical_frame">
+                <site name="mjCam_${prefix}${camera_name}" size="0.01" pos="0 0 0"/>
             </reference>
             <sensor>
                 <framepos name="${prefix}${camera_name}_link_pose" objtype="body" objname="${prefix}${camera_name}_link" reftype="body" refname="${parent_link}"/>
