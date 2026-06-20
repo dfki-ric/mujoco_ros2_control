@@ -1,6 +1,6 @@
 #!/bin/env bash
 # Build the container
-docker build -t "mujoco_ros2_control" .
+docker build --build-arg ROS_DISTRO=humble -t "mujoco_ros2_control" .
 # create the network for the container (it prints a error when the network already exist)
 docker network create ros
 # give permissions to use X11 with docker 

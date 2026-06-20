@@ -1,4 +1,6 @@
-FROM ros:humble AS base
+ARG ROS_DISTRO="humble"
+
+FROM ros:${ROS_DISTRO} AS base
 
 RUN apt-get update && apt-get install -y \
     git \

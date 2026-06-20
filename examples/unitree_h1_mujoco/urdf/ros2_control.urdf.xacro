@@ -86,8 +86,8 @@
       <xacro:configure_joint joint_name="R_pinky_intermediate_joint" initial_position="0.0"/>
       <xacro:configure_joint joint_name="R_thumb_proximal_yaw_joint" initial_position="0.0"/>
       <xacro:configure_joint joint_name="R_thumb_proximal_pitch_joint" initial_position="0.0"/>
-      <!-- <xacro:configure_joint joint_name="R_thumb_intermediate_joint" initial_position="0.0"/> -->
-      <!-- <xacro:configure_joint joint_name="R_thumb_distal_joint" initial_position="0.0"/> -->
+      <xacro:configure_joint joint_name="R_thumb_intermediate_joint" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="R_thumb_distal_joint" initial_position="0.0"/>
 
       <!-- IMU sensor on torso -->
       <sensor name="imu_in_torso">
