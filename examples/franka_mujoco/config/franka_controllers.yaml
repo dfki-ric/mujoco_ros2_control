@@ -169,3 +169,19 @@ gears_small_pose_broadcaster:
     tf:
       enable: true
       child_frame_id: "gears_small_link"
+
+# Site depth camera (site "mjCam_camera" in mujoco_camera.urdf.xacro -> node
+# "camera", topics /camera/color/... and /camera/depth/...). Mounted in
+# camera_optical_frame, so the published frame_id is that optical frame and the
+# point cloud is oriented correctly. enabled must be true for the site camera to
+# spawn (unlike the legacy <camera> element, which was always created).
+camera:
+  ros__parameters:
+    enabled: true
+    frequency: 30.0
+    width: 640
+    height: 480
+    fovy: 45.0
+    color_image: true
+    depth_image: true
+    point_cloud: true
