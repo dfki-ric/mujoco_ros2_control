@@ -230,31 +230,31 @@ class Xacro2Mjcf(Node):
                                     except ValueError:
                                         pass
 
-                # Base (free joint) pose from the launch parameters.
-                try:
-                    bx, by, bz = (float(v) for v in initial_position.split())
-                except ValueError:
-                    bx, by, bz = 0.0, 0.0, 0.0
-                try:
-                    roll, pitch, yaw = (float(v) for v in initial_orientation.split())
-                except ValueError:
-                    roll, pitch, yaw = 0.0, 0.0, 0.0
-                cr, sr = math.cos(roll / 2), math.sin(roll / 2)
-                cp, sp = math.cos(pitch / 2), math.sin(pitch / 2)
-                cyaw, syaw = math.cos(yaw / 2), math.sin(yaw / 2)
-                base_quat = [
-                    cr * cp * cyaw + sr * sp * syaw,
-                    sr * cp * cyaw - cr * sp * syaw,
-                    cr * sp * cyaw + sr * cp * syaw,
-                    cr * cp * syaw - sr * sp * cyaw,
-                ]
+                # Map every element to its parent so we can find the body that
+                # owns a given joint.
+                parent_map = {child: parent
+                              for parent in self.mjcf_root.iter()
+                              for child in parent}
+
+                def free_joint_qpos(joint):
+                    """Initial qpos for a free joint = owning body's compiled pose.
+                    """
+                    body = parent_map.get(joint)
+                    pos = [0.0, 0.0, 0.0]
+                    quat = [1.0, 0.0, 0.0, 0.0]
+                    if body is not None:
+                        if body.get('pos'):
+                            pos = [float(v) for v in body.get('pos').split()]
+                        if body.get('quat'):
+                            quat = [float(v) for v in body.get('quat').split()]
+                    return pos + quat
 
                 # Assemble qpos in MJCF joint order (document order == qpos order).
                 qpos = []
                 for joint in self.mjcf_root.iter('joint'):
                     jtype = joint.get('type', 'hinge')
                     if jtype == 'free':
-                        qpos += [bx, by, bz] + base_quat
+                        qpos += free_joint_qpos(joint)
                     elif jtype == 'ball':
                         qpos += [1.0, 0.0, 0.0, 0.0]
                     else:  # hinge or slide -> 1 dof
