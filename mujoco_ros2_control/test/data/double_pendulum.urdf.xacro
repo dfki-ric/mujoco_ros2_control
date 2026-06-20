@@ -177,6 +177,15 @@
       <reference name="d435_depth_optical_frame">
         <site name="mjCamDepth_d435" size="0.01" pos="0 0 0"/>
       </reference>
+      <!-- Saturated red, non-colliding panel filling test_camera's view, used by
+           the image/point-cloud color test to catch channel (R/B) swaps. It sits
+           on test_camera's optical axis (origin (2,0,1.5), looking toward the
+           pendulum), ~1 m in front, large enough to cover the field of view. -->
+      <worldbody>
+        <body name="color_target" pos="1.175 0 0.935">
+          <geom type="box" size="0.6 0.6 0.6" rgba="1 0 0 1" contype="0" conaffinity="0"/>
+        </body>
+      </worldbody>
     </mujoco>
   </xacro:if>
 

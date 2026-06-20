@@ -237,6 +237,20 @@ class TestNode(rclpy.node.Node):
                 return True
         return False
 
+    def get_message(self, topic_name, message_type, timeout=15.0):
+        """Return the first message received on topic_name, or None on timeout."""
+        msgs_rx = []
+        sub = self.create_subscription(
+            message_type, topic_name,
+            lambda msg: msgs_rx.append(msg), 1)
+        start = time.time()
+        while time.time() - start < timeout:
+            rclpy.spin_once(self, timeout_sec=0.1)
+            if msgs_rx:
+                break
+        self.destroy_subscription(sub)
+        return msgs_rx[0] if msgs_rx else None
+
 class TestBringup(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -322,6 +336,50 @@ class TestBringup(unittest.TestCase):
         assert node.wait_for_message('/d435/depth/image_rect_raw', Image, 'd435_depth_optical_frame', timeout=15.0), 'd435 depth image (depth frame) not found !'
         assert node.wait_for_message('/d435/depth/camera_info', CameraInfo, 'd435_depth_optical_frame', timeout=15.0), 'd435 depth camera_info (depth frame) not found !'
         assert node.wait_for_message('/d435/depth/points', PointCloud2, 'd435_depth_optical_frame', timeout=15.0), 'd435 depth points (depth frame) not found !'
+
+    @unittest.skipUnless(opengl_enabled(), "OpenGL disabled (DISABLE_OPENGL=1)")
+    def test_camera_color(self):
+        # test_camera looks at a saturated-red panel, so the color image must be
+        # red-dominant. A channel (R/B) swap would make it blue-dominant -> fails.
+        node = self.node
+        msg = node.get_message('/test_camera/color/image_raw', Image, timeout=15.0)
+        assert msg is not None, 'no color image received !'
+        # 8UC3 data is stored BGR: byte 0 = B, byte 2 = R per pixel.
+        data = bytes(msg.data)
+        n = len(data) // 3
+        assert n > 0, 'empty color image !'
+        b_mean = sum(data[0::3]) / n
+        r_mean = sum(data[2::3]) / n
+        assert r_mean > b_mean + 20.0, \
+            f'color image not red-dominant (R={r_mean:.1f} B={b_mean:.1f}); channel swap?'
+
+    @unittest.skipUnless(opengl_enabled(), "OpenGL disabled (DISABLE_OPENGL=1)")
+    def test_pointcloud_color(self):
+        # The colored point cloud of the red panel must be red-dominant too.
+        # Parse the PointCloud2 directly from its field layout (robust across
+        # sensor_msgs_py versions) and look at foreground (valid-depth) points.
+        import math
+        import struct
+        node = self.node
+        msg = node.get_message('/test_camera/depth/points', PointCloud2, timeout=15.0)
+        assert msg is not None, 'no point cloud received !'
+        offsets = {f.name: f.offset for f in msg.fields}
+        assert 'z' in offsets, 'point cloud missing z field'
+        rgb_off = offsets.get('rgb', offsets.get('rgba'))
+        assert rgb_off is not None, 'point cloud has no rgb/rgba field'
+        oz, step, data = offsets['z'], msg.point_step, bytes(msg.data)
+        r_sum = b_sum = count = 0
+        for i in range(0, len(data) - step + 1, step):
+            z = struct.unpack_from('f', data, i + oz)[0]
+            if not math.isfinite(z) or z <= 0.05:  # skip background / unfilled points
+                continue
+            rgb_int = struct.unpack_from('I', data, i + rgb_off)[0]
+            r_sum += (rgb_int >> 16) & 0xff
+            b_sum += rgb_int & 0xff
+            count += 1
+        assert count > 0, 'point cloud has no foreground (valid-depth) points !'
+        assert r_sum / count > b_sum / count + 20.0, \
+            f'point cloud not red-dominant (R={r_sum/count:.1f} B={b_sum/count:.1f}); channel swap?'
 
     @unittest.skipUnless(opengl_enabled(), "OpenGL disabled (DISABLE_OPENGL=1)")
     def test_lidar_scan_mode(self):
