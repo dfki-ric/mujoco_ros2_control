@@ -202,6 +202,15 @@ namespace mujoco_ros2_control
         void init_controller_manager();
 
         /**
+         * @brief Starts the executor spin thread for the created nodes.
+         *
+         * Spins executor_ until stop_ is set or rclcpp is shut down. Used both on the normal path and
+         * when running without a controller manager (no robot_description) so the node and any
+         * registered sensors keep spinning.
+         */
+        void start_executor_spin();
+
+        /**
          * @brief Initializes the Mujoco simulation environment.
          *
          * This method initializes the Mujoco simulation environment by loading the Mujoco model, setting the simulation frequency,

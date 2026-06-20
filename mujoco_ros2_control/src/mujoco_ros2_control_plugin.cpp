@@ -129,7 +129,9 @@ MujocoRos2Control::~MujocoRos2Control()
   for (auto &thread : lidar_threads_) {
     thread.join();
   }
-  thread_executor_spin_.join();
+  if (thread_executor_spin_.joinable()) {
+    thread_executor_spin_.join();
+  }
   // deallocate existing mjModel
   mj_deleteModel(mujoco_model_);
 
@@ -186,8 +188,9 @@ void MujocoRos2Control::update() {
       rclcpp::Time sim_time_ros = rclcpp::Time((int64_t) (mujoco_data_->time * 1e+9), RCL_ROS_TIME);
       rclcpp::Duration sim_period = sim_time_ros - last_update_sim_time_ros_;
 
-      // check if we should update the controllers
-      if (sim_period >= control_period_) {
+      // check if we should update the controllers (skipped when running without a controller
+      // manager, i.e. no robot_description was provided)
+      if (controller_manager_ && sim_period >= control_period_) {
         // store simulation time
         last_update_sim_time_ros_ = sim_time_ros;
         // update the robot simulation with the state of the mujoco model
@@ -256,6 +259,22 @@ void MujocoRos2Control::init_mujoco() {
 
 void MujocoRos2Control::init_controller_manager() {
   RCLCPP_INFO(nh_->get_logger(), "init controller manager");
+
+  // An executor is always needed so the node (and any registered sensors) keep spinning, even when
+  // there is no ros2_control hardware to manage.
+  executor_ = std::make_shared<rclcpp::executors::MultiThreadedExecutor>();
+
+  // Without a robot_description there is no ros2_control hardware to load (e.g. when only a MuJoCo
+  // model is provided). Run MuJoCo as a pure simulator instead of aborting: parsing an empty URDF
+  // throws on some distros (e.g. humble), and proceeding to build the controller manager would do so
+  // on an already shut-down context and crash the node.
+  if (params_.robot_description.empty()) {
+    RCLCPP_WARN(nh_->get_logger(),
+      "No robot_description provided; running MuJoCo without a controller manager.");
+    start_executor_spin();
+    return;
+  }
+
   try {
     robot_hw_sim_loader_.reset(
       new pluginlib::ClassLoader<mujoco_ros2_control::MujocoSystemInterface>(
@@ -275,10 +294,11 @@ void MujocoRos2Control::init_controller_manager() {
     urdf_model.initString(urdf_string);
     control_hardware = hardware_interface::parse_control_resources_from_urdf(urdf_string);
   } catch (const std::runtime_error & ex) {
-    RCLCPP_ERROR(nh_->get_logger(), 
+    RCLCPP_ERROR(nh_->get_logger(),
       "Error parsing URDF in mujoco_ros2_control plugin: %s",
                  ex.what());
-    rclcpp::shutdown();
+    start_executor_spin();
+    return;
   }
 
   try {
@@ -306,7 +326,6 @@ void MujocoRos2Control::init_controller_manager() {
     RCLCPP_DEBUG(nh_->get_logger(), "URDF is already loaded");
   }
 
-  executor_ = std::make_shared<rclcpp::executors::MultiThreadedExecutor>();
   controller_manager_.reset(
     new controller_manager::ControllerManager(
     std::move(resource_manager_),
@@ -389,6 +408,15 @@ void MujocoRos2Control::init_controller_manager() {
     }
   };
   thread_executor_spin_ = std::thread(spin);
+}
+
+void MujocoRos2Control::start_executor_spin() {
+  stop_ = false;
+  thread_executor_spin_ = std::thread([this]() {
+    while (rclcpp::ok() && !stop_.load()) {
+      executor_->spin_once();
+    }
+  });
 }
 
 void MujocoRos2Control::registerSensors() {
