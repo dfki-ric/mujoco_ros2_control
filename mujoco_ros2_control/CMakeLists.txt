@@ -234,6 +234,7 @@ if(BUILD_TESTING)
 
     add_ros_isolated_launch_test(test/simple_launch.test.py)
     add_ros_isolated_launch_test(test/test_pose_rigid.test.py)
+    add_ros_isolated_launch_test(test/test_multi_urdf.test.py)
 
     ament_add_pytest_test(test_sensors_unit
         test/test_sensors_unit.py

@@ -393,10 +393,13 @@ namespace mujoco_rgbd_camera {
                     point_ptr->z = static_cast<float>(depth);
 
                     if (has_color) {
-                        const uchar* rgb_ptr = depth_color_image_.ptr<uchar>(i,j);
-                        point_ptr->r = rgb_ptr[0];
-                        point_ptr->g = rgb_ptr[1];
-                        point_ptr->b = rgb_ptr[2];
+                        // color_image_/depth_color_image_ hold BGR-ordered bytes
+                        // (the GL RGB buffer wrapped as BGR + cvtColor swap), so
+                        // map index [2,1,0] -> RGB.
+                        const uchar* bgr_ptr = depth_color_image_.ptr<uchar>(i,j);
+                        point_ptr->r = bgr_ptr[2];
+                        point_ptr->g = bgr_ptr[1];
+                        point_ptr->b = bgr_ptr[0];
                     }
                 }
                 point_ptr++;
