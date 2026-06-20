@@ -151,14 +151,31 @@
     <origin xyz="2.0 0 1.5" rpy="0 0.6 3.14159"/>
   </joint>
 
+  <!-- RealSense D435i from the apt realsense2_description package. Demonstrates a
+       two-frame site camera: color rendered from camera_color_optical_frame,
+       depth from camera_depth_optical_frame (use_nominal_extrinsics gives the
+       real depth<->color parallax). The macro's default name "camera" is renamed
+       to "d435" so the frames are d435_color_optical_frame / d435_depth_optical_frame. -->
   <xacro:if value="$(arg with_visual_sensors)">
+    <xacro:include filename="$(find realsense2_description)/urdf/_d435i.urdf.xacro"/>
+    <xacro:sensor_d435i parent="world" name="d435" use_nominal_extrinsics="true">
+      <origin xyz="1.5 0 0.5" rpy="0 0.3 3.14159"/>
+    </xacro:sensor_d435i>
+
     <mujoco>
       <reference name="test_camera_link">
         <camera name="test_camera" mode="fixed" fovy="45" quat="0.5 0.5 -0.5 -0.5"/>
       </reference>
       <reference name="base_link">
-        <site name="lidar_scan"  size="0.01" pos="0 0 0.6"/>
-        <site name="lidar_cloud" size="0.01" pos="0 0  0.2"/>
+        <site name="mjLidar_scan"  size="0.01" pos="0 0 0.6"/>
+        <site name="mjLidar_cloud" size="0.01" pos="0 0  0.2"/>
+      </reference>
+      <!-- Site camera "d435": optical site -> color, depth site -> depth. -->
+      <reference name="d435_color_optical_frame">
+        <site name="mjCamOpt_d435" size="0.01" pos="0 0 0"/>
+      </reference>
+      <reference name="d435_depth_optical_frame">
+        <site name="mjCamDepth_d435" size="0.01" pos="0 0 0"/>
       </reference>
     </mujoco>
   </xacro:if>

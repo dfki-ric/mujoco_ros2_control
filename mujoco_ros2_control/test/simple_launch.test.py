@@ -100,6 +100,13 @@ def create_nodes(context: LaunchContext):
         "double_pendulum_lidar_params.yaml",
     )
 
+    # Path to the (site) camera params file
+    camera_params_file = os.path.join(
+        get_package_share_directory("mujoco_ros2_control"),
+        "test_data",
+        "double_pendulum_camera_params.yaml",
+    )
+
     # Define the mujoco node
     mujoco = Node(
         package="mujoco_ros2_control",
@@ -110,6 +117,7 @@ def create_nodes(context: LaunchContext):
             robot_description,
             ros2_control_params_file,
             lidar_params_file,
+            camera_params_file,
             {"simulation_frequency": 100.0},
             {"realtime_factor": 1.0},
             {"robot_model_path": mujoco_model_file},
@@ -298,15 +306,33 @@ class TestBringup(unittest.TestCase):
         assert node.wait_for_message('/test_camera/depth/points', PointCloud2, 'test_camera_link', timeout=15.0), 'depth points message not found !'
 
     @unittest.skipUnless(opengl_enabled(), "OpenGL disabled (DISABLE_OPENGL=1)")
+    def test_realsense_d435i(self):
+        # Two-frame site camera (mjCamOpt_d435 + mjCamDepth_d435): color is rendered
+        # from the color optical frame and depth from the depth optical frame, so the
+        # two streams must carry different frame_ids.
+        node = self.node
+        assert node.wait_for_node('d435'), 'd435 Node not found !'
+        assert node.wait_for_topic('/d435/color/image_raw', ['sensor_msgs/msg/Image']), 'd435 color image topic not found !'
+        assert node.wait_for_topic('/d435/depth/image_rect_raw', ['sensor_msgs/msg/Image']), 'd435 depth image topic not found !'
+        assert node.wait_for_topic('/d435/depth/points', ['sensor_msgs/msg/PointCloud2']), 'd435 depth points topic not found !'
+        # Color stream is framed in the color optical frame.
+        assert node.wait_for_message('/d435/color/image_raw', Image, 'd435_color_optical_frame', timeout=15.0), 'd435 color image (color frame) not found !'
+        assert node.wait_for_message('/d435/color/camera_info', CameraInfo, 'd435_color_optical_frame', timeout=15.0), 'd435 color camera_info (color frame) not found !'
+        # Depth stream and cloud are framed in the depth optical frame.
+        assert node.wait_for_message('/d435/depth/image_rect_raw', Image, 'd435_depth_optical_frame', timeout=15.0), 'd435 depth image (depth frame) not found !'
+        assert node.wait_for_message('/d435/depth/camera_info', CameraInfo, 'd435_depth_optical_frame', timeout=15.0), 'd435 depth camera_info (depth frame) not found !'
+        assert node.wait_for_message('/d435/depth/points', PointCloud2, 'd435_depth_optical_frame', timeout=15.0), 'd435 depth points (depth frame) not found !'
+
+    @unittest.skipUnless(opengl_enabled(), "OpenGL disabled (DISABLE_OPENGL=1)")
     def test_lidar_scan_mode(self):
         node = self.node
-        assert node.wait_for_node('lidar_scan'), 'lidar_scan Node not found !'
-        assert node.wait_for_topic('/lidar_scan/scan', ['sensor_msgs/msg/LaserScan']), 'lidar scan topic not found !'
-        assert node.wait_for_message('/lidar_scan/scan', LaserScan, 'base_link', timeout=15.0), 'lidar scan message not found !'
+        assert node.wait_for_node('scan'), 'scan Node not found !'
+        assert node.wait_for_topic('/scan/scan', ['sensor_msgs/msg/LaserScan']), 'lidar scan topic not found !'
+        assert node.wait_for_message('/scan/scan', LaserScan, 'base_link', timeout=15.0), 'lidar scan message not found !'
 
     @unittest.skipUnless(opengl_enabled(), "OpenGL disabled (DISABLE_OPENGL=1)")
     def test_lidar_cloud_mode(self):
             node = self.node
-            assert node.wait_for_node('lidar_cloud'), 'lidar_cloud Node not found !'
-            assert node.wait_for_topic('/lidar_cloud/points', ['sensor_msgs/msg/PointCloud2']), 'lidar cloud topic not found !'
-            assert node.wait_for_message('/lidar_cloud/points', PointCloud2, 'base_link', timeout=15.0), 'lidar cloud message not found !'
+            assert node.wait_for_node('cloud'), 'cloud Node not found !'
+            assert node.wait_for_topic('/cloud/points', ['sensor_msgs/msg/PointCloud2']), 'lidar cloud topic not found !'
+            assert node.wait_for_message('/cloud/points', PointCloud2, 'base_link', timeout=15.0), 'lidar cloud message not found !'

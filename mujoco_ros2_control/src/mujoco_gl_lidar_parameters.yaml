@@ -124,7 +124,7 @@ mujoco_gl_lidar:
 
   site_prefix: {
     type: string,
-    default_value: "lidar_",
+    default_value: "mjLidar_",
     read_only: true,
-    description: "Prefix used by the plugin to find lidar sites in the MJCF"
+    description: "Prefix used by the plugin to find lidar sites in the MJCF. The node, its params block and its topics use the site name with this prefix stripped (e.g. site 'mjLidar_head' -> node 'head')."
   }

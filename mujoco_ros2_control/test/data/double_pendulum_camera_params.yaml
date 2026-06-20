@@ -1,0 +1,16 @@
+# Site camera for the RealSense D435i. The node name is the site name with the
+# prefix stripped: mjCamOpt_d435 / mjCamDepth_d435 -> "d435", so this block is
+# keyed "d435" and topics are /d435/color/... and /d435/depth/... .
+# Color is rendered from camera_color_optical_frame and depth from
+# camera_depth_optical_frame (two render passes, true parallax).
+d435:
+  ros__parameters:
+    enabled: true
+    frequency: 30.0
+    width: 640
+    height: 480
+    fovx: 87.0          # D435 depth horizontal FOV [deg]
+    fovy: 58.0          # D435 depth vertical FOV [deg]
+    color_image: true
+    depth_image: true
+    point_cloud: true

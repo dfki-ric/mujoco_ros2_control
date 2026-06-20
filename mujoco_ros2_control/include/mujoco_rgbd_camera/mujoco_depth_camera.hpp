@@ -94,17 +94,33 @@ namespace mujoco_rgbd_camera {
 class MujocoDepthCamera {
 public:
     /**
+     * @brief How the camera is mounted in the MuJoCo model.
+     *
+     * - FixedCamera: a MuJoCo `<camera>` element. Pose and vertical FOV are taken
+     *   from the model camera (`mjCAMERA_FIXED`).
+     * - Site: a MuJoCo `<site>` whose frame is interpreted as a REP-103 optical
+     *   frame (+Z forward, +X right, +Y down). The scene camera is positioned from
+     *   the site every frame (`mjCAMERA_USER`) and the vertical FOV comes from the
+     *   `fovy` ROS parameter.
+     */
+    enum class Mount { FixedCamera, Site };
+
+    /**
      * @brief Constructor for MujocoDepthCamera class.
      *
      * @param node Pointer to the ROS 2 Node object.
      * @param model Pointer to the Mujoco model object.
      * @param data Pointer to the Mujoco data object.
-     * @param id Identifier for the camera.
-     * @param res_x Resolution width of the camera.
-     * @param res_y Resolution height of the camera.
-     * @param frequency Frame rate of the camera.
-     * @param name Name of the camera.
+     * @param name Name of the camera (used for the node and topic namespace).
      * @param stop Pointer to the atomic boolean flag indicating whether the camera should stop or continue.
+     * @param mount How the camera is mounted (a `<camera>` element or a `<site>`).
+     * @param optical_id Mount id for the color/optical stream: a camera id when
+     *        @p mount is Mount::FixedCamera, otherwise the MuJoCo site id of the
+     *        optical site (or < 0 if the camera has no color stream).
+     * @param depth_id Mount id for the depth stream: a camera id when @p mount is
+     *        Mount::FixedCamera, otherwise the MuJoCo site id of the depth site
+     *        (or < 0 if the camera has no depth stream). When @p optical_id ==
+     *        @p depth_id the two streams share a single render pass.
      *
      * @post Initializes the MujocoDepthCamera object with the provided parameters and sets up the required ROS 2 publishers.
      *       Initializes the GLFW library and creates a hidden GLFW window.
@@ -112,8 +128,9 @@ public:
      *       Creates and initializes the Mujoco scene and context for rendering.
      *       Creates ROS 2 publishers for camera information, color image, depth image, and point cloud data.
      */
-    MujocoDepthCamera(rclcpp::Node::SharedPtr &node, mjModel_ *model, mjData_ *data, int id,
-                      const std::string& name, std::atomic<bool>* stop);
+    MujocoDepthCamera(rclcpp::Node::SharedPtr &node, mjModel_ *model, mjData_ *data,
+                      const std::string& name, std::atomic<bool>* stop,
+                      Mount mount, int optical_id, int depth_id);
 
     /**
      * @brief Destroys the `MujocoDepthCamera` object.
@@ -166,7 +183,20 @@ private:
     mjModel* mujoco_model_ = nullptr; ///< Pointer to the Mujoco model object used for rendering and simulation.
     mjData* mujoco_data_ = nullptr; ///< Pointer to the Mujoco data object representing the current state of the simulation.
     std::string name_; ///< Name of the camera.
-    std::string body_name_; ///< Name of the body associated with the camera.
+    std::string body_name_; ///< Resolved default frame_id (frame_id override, else the parent body name).
+    std::string color_frame_; ///< header.frame_id for color image/info (the optical site's render frame / parent body).
+    std::string depth_frame_; ///< header.frame_id for depth image/info and cloud (the depth site's render frame / parent body).
+
+    Mount mount_ = Mount::FixedCamera; ///< How the camera is mounted (a <camera> element or a <site>).
+    int optical_id_ = -1; ///< Camera id (FixedCamera) or optical site id (Site) for the color stream; < 0 = no color.
+    int depth_id_ = -1; ///< Camera id (FixedCamera) or depth site id (Site) for the depth stream; < 0 = no depth.
+    bool have_color_ = false; ///< Whether a color stream is available (optical mount resolved).
+    bool have_depth_ = false; ///< Whether a depth stream is available (depth mount resolved).
+    double fovy_ = 45.0; ///< Vertical field of view [deg], used for site-based cameras.
+    double fovx_ = 0.0; ///< Horizontal field of view [deg] for site-based cameras; <= 0 means derive from fovy and the aspect ratio.
+
+    int render_width_ = 0;  ///< GL framebuffer width used for rendering (may differ from width_ when fovx is set independently).
+    int render_height_ = 0; ///< GL framebuffer height used for rendering.
     rclcpp::Time stamp_; ///< ROS 2 timestamp representing the time when camera data was last updated.
 
     GLFWwindow* window_; ///< Pointer to the GLFW window used for rendering.
@@ -175,11 +205,9 @@ private:
     mjvScene sensor_scene_{}; ///< Mujoco visualization scene for rendering.
     mjvOption sensor_option_{}; ///< Mujoco visualization options for the sensor camera.
 
-    uchar* color_buffer_{};    ///< Pointer to the color buffer for storing image data.
-    float* depth_buffer_{};  ///< Pointer to the depth buffer for storing depth data.
-
-    cv::Mat color_image_; ///< OpenCV matrix representing the color image.
-    cv::Mat depth_image_; ///< OpenCV matrix representing the depth image.
+    cv::Mat color_image_; ///< Published color image (rendered from the optical site).
+    cv::Mat depth_image_; ///< Published depth image (rendered from the depth site).
+    cv::Mat depth_color_image_; ///< Color rendered from the depth site, used to color the point cloud so RGB and depth stay aligned.
 
     // OpenGL render range
     double extent_{};  ///< Depth scale (m) for the OpenGL render range.
@@ -187,7 +215,8 @@ private:
     double z_far_{};   ///< Far clipping plane depth for the OpenGL render range.
 
     // camera intrinsics
-    double f_{};   ///< Focal length of the camera.
+    double fx_{};  ///< Horizontal focal length [px] (fx). Equals fy_ for square-pixel cameras.
+    double fy_{};  ///< Vertical focal length [px] (fy).
     double cx_{}, cy_{}; ///< Principal points of the camera.
 
 
@@ -222,29 +251,35 @@ private:
     void set_camera_intrinsics(mjrRect viewport);
 
     /**
-     * @brief Retrieves the RGB and depth buffers from OpenGL and stores them in the respective image buffers.
+     * @brief Aims the two scene GL cameras at the given site (site-based cameras).
      *
-     * Allocates memory for the color and depth buffers based on the size of the rendering viewport.
-     * Reads the RGB and depth buffers from OpenGL using the provided context and viewport.
+     * The abstract camera is `mjCAMERA_USER`, so the two `mjvGLCamera` entries in
+     * the scene must be set explicitly. The site frame is interpreted as a REP-103
+     * optical frame (+Z forward, +X right, +Y down): the GL view direction is the
+     * site's +Z axis and the GL up vector is the site's -Y axis. A symmetric vertical
+     * frustum is built from `fovy_`; the horizontal FOV follows from the GL framebuffer
+     * aspect ratio.
      *
-     * Retrieves the extent, near clipping plane (z_near_), and far clipping plane (z_far_) values from the model.
-     *
-     * Creates an OpenCV matrix (bgr) using the color buffer and converts it to RGB format.
-     * Copies the RGB image to the color image buffer after flipping it vertically.
-     *
-     * Creates an OpenCV matrix (depth) using the depth buffer and converts it to a linearized depth image (depth_img_m)
-     * using the `linearize_depth()` method. Copies the linearized depth image to the depth image buffer after flipping it vertically.
-     *
-     * @param viewport The rendering viewport specifying the width and height of the camera image.
+     * @param site_id The MuJoCo site id to aim the scene cameras at.
      */
-    void get_RGBD_buffer(mjrRect viewport);
+    void aim_at_site(int site_id);
 
-    /// @brief free memory at the end of loop
-    inline void release_buffer()
-    {
-        free(color_buffer_);
-        free(depth_buffer_);
-    }
+    /**
+     * @brief Reads the current GL framebuffer into the requested OpenCV images.
+     *
+     * Reads the color and/or depth buffers from OpenGL for the given viewport. The
+     * color buffer is flipped to top-left origin and converted to RGB; the depth
+     * buffer is flipped and linearized to metric depth. When the render viewport
+     * differs from the published resolution (site cameras with an independent fovx),
+     * the result is resampled to width_ x height_ (linear for color, nearest for
+     * depth so foreground/background depths are never blended). Pass nullptr for a
+     * buffer that should not be read.
+     *
+     * @param viewport      The rendering viewport (the GL framebuffer size).
+     * @param color_out     Destination for the RGB image, or nullptr to skip color.
+     * @param depth_out     Destination for the metric depth image, or nullptr to skip depth.
+     */
+    void read_buffers(mjrRect viewport, cv::Mat* color_out, cv::Mat* depth_out);
 
     /**
      * @brief Generates a color point cloud from the color and depth images.
