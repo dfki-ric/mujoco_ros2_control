@@ -1,4 +1,6 @@
-lidar_scan:
+# Node names are the site names with the "mjLidar_" prefix stripped
+# (mjLidar_scan -> scan, mjLidar_cloud -> cloud).
+scan:
   ros__parameters:
     enabled: true
     output: "scan"
@@ -10,7 +12,7 @@ lidar_scan:
     range_max: 30.0
     render_height: 64
 
-lidar_cloud:
+cloud:
   ros__parameters:
     enabled: true
     output: "cloud"

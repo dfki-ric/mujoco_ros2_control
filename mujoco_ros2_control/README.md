@@ -301,7 +301,11 @@ These sensors are **not** ros2_control interfaces. Each instance runs as its own
 
 ### RGB-D Camera
 
-Every MuJoCo `<camera>` declared under a `<reference>` body automatically spawns a depth-camera node named after the camera. The site/body the camera lives in defines its pose; what is published is selected per-camera via ROS parameters.
+A depth-camera node can be mounted in two ways. Both publish the same topics and read the same per-instance ROS parameters (keyed by the node name); they differ only in how the camera pose and field of view are defined.
+
+#### From a `<camera>` element (fixed FOV)
+
+Every MuJoCo `<camera>` declared under a `<reference>` body automatically spawns a depth-camera node named after the camera. The body the camera lives in defines its pose, and the vertical FOV comes from the MJCF `fovy`. The horizontal FOV follows from the `width`/`height` aspect ratio (square pixels). These cameras are always created and ignore the `enabled` flag.
 
 ```xml
 <reference name="camera_link">
@@ -309,7 +313,6 @@ Every MuJoCo `<camera>` declared under a `<reference>` body automatically spawns
 </reference>
 ```
 
-Per-camera parameters are keyed by camera name in your params YAML:
 ```yaml
 camera:
   ros__parameters:
@@ -321,31 +324,81 @@ camera:
     point_cloud: true
 ```
 
-Topics (only created for the outputs you enable):
+#### From a `<site>` (config-driven, like the lidar)
+
+A depth camera is also attached to MuJoCo sites, mirroring the GL lidar. Each site frame is interpreted as a **REP-103 optical frame** (+Z forward, +X right, +Y down), so place the site in your `*_optical_frame` and no orientation fix-up is needed — the plugin converts it to the OpenGL camera convention internally. FOV and resolution come entirely from ROS parameters, so the intrinsics live in config instead of the model. The published `header.frame_id` is the site's **render frame** (its parent body), so put the site in the link whose TF frame you want.
+
+A site camera is instantiated only if its `enabled` param is `true`, so camera sites can stay in the MJCF and be toggled at runtime. The node — and therefore its params block and topics — is named after the site **with the prefix stripped**, so `mjCam_d435` becomes node `d435` publishing on `/d435/...`.
+
+Three prefixes select how color and depth are sourced (grouped into one camera by the stripped `<name>`):
+
+| Site | Meaning |
+|---|---|
+| `mjCam_<name>` | one site for **both** color and depth — a single shared render pass |
+| `mjCamOpt_<name>` + `mjCamDepth_<name>` | color from the optical site, depth from the depth site — **two render passes** (true parallax). Each stream's `frame_id` is its own site's render frame; the cloud is colored from a render at the depth site so RGB and depth stay aligned. |
+
+**Single site (shared render):**
+```xml
+<reference name="d435_depth_optical_frame">
+    <site name="mjCam_d435" pos="0 0 0" euler="0 0 0"/>
+</reference>
+```
+
+**Separate optical/depth sites (two frames):**
+```xml
+<reference name="d435_color_optical_frame">
+    <site name="mjCamOpt_d435" pos="0 0 0" euler="0 0 0"/>
+</reference>
+<reference name="d435_depth_optical_frame">
+    <site name="mjCamDepth_d435" pos="0 0 0" euler="0 0 0"/>
+</reference>
+```
+
+```yaml
+d435:                                  # site name(s) with the prefix stripped
+  ros__parameters:
+    enabled: true
+    frequency: 30.0
+    width: 640
+    height: 480
+    fovy: 64.9                       # vertical FOV [deg]
+    fovx: 90.5                       # horizontal FOV [deg]; <= 0 → derive from fovy + aspect
+    color_image: true
+    depth_image: true
+    point_cloud: true
+```
+
+Set only `fovy` (leave `fovx: 0.0`) for square pixels, where the horizontal FOV is `2·atan(tan(fovy/2)·width/height)`. Set **both** `fovx` and `fovy` to fix the two fields of view independently (e.g. to match a calibrated RealSense): MuJoCo renders square angular pixels, so the scene is rendered at the aspect implied by `(fovx, fovy)` and resampled to `width × height`, producing independent `fx`/`fy` in the published `camera_info` and point cloud.
+
+Only the enabled streams are rendered: with separate sites, the color pass is skipped when `color_image` is off and the depth pass when both `depth_image` and `point_cloud` are off. The three prefixes and the topic namespace can be changed on the `_mujoco_rgbd_camera_probe` node (`site_prefix`, `optical_site_prefix`, `depth_site_prefix`) and per camera (`topic_namespace`).
+
+#### Topics
+
+Topics (only created for the outputs you enable, named after the camera/site node):
 
 | Output | Topic | Type |
 |---|---|---|
-| Color | `/<camera_name>/color/image_raw` (+ `camera_info`) | `sensor_msgs/Image` |
-| Depth | `/<camera_name>/depth/image_rect_raw` (+ `camera_info`) | `sensor_msgs/Image` |
-| Cloud | `/<camera_name>/depth/points` | `sensor_msgs/PointCloud2` |
+| Color | `/<name>/color/image_raw` (+ `camera_info`) | `sensor_msgs/Image` |
+| Depth | `/<name>/depth/image_rect_raw` (+ `camera_info`) | `sensor_msgs/Image` |
+| Cloud | `/<name>/depth/points` | `sensor_msgs/PointCloud2` |
 
-Full parameter reference: [`mujoco_rgbd_parameters.yaml`](src/mujoco_rgbd_parameters.yaml).
+Full parameter reference: [`mujoco_rgbd_camera_parameters.yaml`](src/mujoco_rgbd_camera_parameters.yaml).
 
 ### GL Depth-Buffer Lidar
 
-A GPU-rendered lidar is attached to any MuJoCo site whose name starts with the configured prefix (default: `lidar_`). The published `frame_id` is the parent body name; the site's local pose defines the lidar frame.
+A GPU-rendered lidar is attached to any MuJoCo site whose name starts with the configured prefix (default: `mjLidar_`). The published `frame_id` is the parent body name; the site's local pose defines the lidar frame. The node — and therefore its params block and topics — is named after the site **with the prefix stripped**, so site `mjLidar_head` becomes node `head` publishing on `/head/...`. The global lidar `site_prefix` can be changed on the `_mujoco_gl_lidar_probe` node in your params YAML.
 
 A lidar is instantiated only if its site exists in the MJCF **and** its per-site ROS params set `enabled: true`. Sites with `enabled: false` (or missing params) are skipped, so lidar sites can stay in the MJCF and be toggled at runtime.
 
 ```xml
 <reference name="head_link">
-    <site name="lidar_head" pos="0 0 0.05" quat="1 0 0 0"/>
+    <site name="mjLidar_head" pos="0 0 0.05" quat="1 0 0 0"/>
 </reference>
 ```
 
-Per-lidar parameters are keyed by site name in your params YAML:
+Per-lidar parameters are keyed by the node name (site name with the prefix stripped) in your params YAML:
 ```yaml
-lidar_head:
+head:                     # site "mjLidar_head" with the "mjLidar_" prefix stripped
   ros__parameters:
     enabled: true
     output: cloud           # 'scan' or 'cloud'
@@ -365,7 +418,7 @@ Topics:
 
 | Output mode | Topic | Type |
 |---|---|---|
-| `scan` | `/<site_name>/scan` | `sensor_msgs/LaserScan` |
-| `cloud` | `/<site_name>/points` | `sensor_msgs/PointCloud2` |
+| `scan` | `/<name>/scan` | `sensor_msgs/LaserScan` |
+| `cloud` | `/<name>/points` | `sensor_msgs/PointCloud2` |
 
 Full parameter reference: [`mujoco_gl_lidar_parameters.yaml`](src/mujoco_gl_lidar_parameters.yaml).

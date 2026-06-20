@@ -392,17 +392,82 @@ void MujocoRos2Control::init_controller_manager() {
 }
 
 void MujocoRos2Control::registerSensors() {
-  // Add cameras
-  if (mujoco_model_->ncam > 0) {
-    cameras_.resize(mujoco_model_->ncam);
-    for (int id = 0; id < mujoco_model_->ncam; id++) {
-      std::string name = mj_id2name(mujoco_model_, mjOBJ_CAMERA, id);
-      auto node = camera_nodes_.emplace_back(rclcpp::Node::make_shared(
-        name, rclcpp::NodeOptions().parameter_overrides({{"use_sim_time", true}})));
+  // Add cameras declared as MuJoCo <camera> elements. These are always created;
+  // their pose and vertical FOV come from the model camera (mjCAMERA_FIXED).
+  for (int id = 0; id < mujoco_model_->ncam; id++) {
+    std::string name = mj_id2name(mujoco_model_, mjOBJ_CAMERA, id);
+    auto node = camera_nodes_.emplace_back(rclcpp::Node::make_shared(
+      name, rclcpp::NodeOptions().parameter_overrides({{"use_sim_time", true}})));
+    executor_->add_node(node);
+    // A <camera> serves both color and depth from one viewpoint, so the optical
+    // and depth mount ids are the same camera id (single render pass).
+    auto camera = std::make_shared<mujoco_rgbd_camera::MujocoDepthCamera>(
+      node, mujoco_model_, mujoco_data_, name, &stop_,
+      mujoco_rgbd_camera::MujocoDepthCamera::Mount::FixedCamera, id, id);
+    cameras_.push_back(camera);
+    camera_threads_.emplace_back([ObjectPtr = camera] { ObjectPtr->update(); });
+  }
+
+  // Add site-based cameras. Sites are classified by three prefixes and grouped by
+  // the stripped name into one camera node:
+  //   mjCam_<name>       -> one site for both color and depth (single render pass)
+  //   mjCamOpt_<name>    -> color/optical site of a two-frame camera
+  //   mjCamDepth_<name>  -> depth site of a two-frame camera (rendered separately)
+  // A camera is created only if its node's params set enabled=true.
+  {
+    auto probe_node = rclcpp::Node::make_shared(
+      "_mujoco_rgbd_camera_probe",
+      rclcpp::NodeOptions().parameter_overrides({{"use_sim_time", true}}));
+    auto probe_listener = std::make_shared<mujoco_rgbd_camera::ParamListener>(probe_node);
+    const auto cam_params = probe_listener->get_params();
+    const std::string both_prefix = cam_params.site_prefix;
+    const std::string opt_prefix = cam_params.optical_site_prefix;
+    const std::string depth_prefix = cam_params.depth_site_prefix;
+
+    // node name -> (optical site id, depth site id), -1 = absent.
+    struct CamSites { int optical_id = -1; int depth_id = -1; };
+    std::map<std::string, CamSites> cam_sites;
+
+    for (int id = 0; id < mujoco_model_->nsite; id++) {
+      const char *site_name_c = mj_id2name(mujoco_model_, mjOBJ_SITE, id);
+      if (!site_name_c) continue;
+      const std::string site_name(site_name_c);
+
+      // Match the most specific prefix first (mjCamOpt_/mjCamDepth_ also start with
+      // "mjCam" but not with "mjCam_", so they never collide with both_prefix).
+      auto matches = [&](const std::string &p) {
+        return !p.empty() && site_name.rfind(p, 0) == 0;
+      };
+      if (matches(opt_prefix)) {
+        std::string name = site_name.substr(opt_prefix.size());
+        if (!name.empty()) cam_sites[name].optical_id = id;
+      } else if (matches(depth_prefix)) {
+        std::string name = site_name.substr(depth_prefix.size());
+        if (!name.empty()) cam_sites[name].depth_id = id;
+      } else if (matches(both_prefix)) {
+        std::string name = site_name.substr(both_prefix.size());
+        if (!name.empty()) { cam_sites[name].optical_id = id; cam_sites[name].depth_id = id; }
+      }
+    }
+
+    for (const auto &[node_name, sites] : cam_sites) {
+      auto node = rclcpp::Node::make_shared(
+        node_name,
+        rclcpp::NodeOptions().parameter_overrides({{"use_sim_time", true}}));
+
+      const auto &overrides = node->get_node_parameters_interface()->get_parameter_overrides();
+      const auto it = overrides.find("enabled");
+      if (it == overrides.end() || !it->second.get<bool>()) {
+        continue;
+      }
+
+      camera_nodes_.push_back(node);
       executor_->add_node(node);
-      cameras_.at(id).reset(new mujoco_rgbd_camera::MujocoDepthCamera(
-        node, mujoco_model_, mujoco_data_, id, name, &stop_));
-      camera_threads_.emplace_back([ObjectPtr = cameras_.at(id)] { ObjectPtr->update(); });
+      auto camera = std::make_shared<mujoco_rgbd_camera::MujocoDepthCamera>(
+        node, mujoco_model_, mujoco_data_, node_name, &stop_,
+        mujoco_rgbd_camera::MujocoDepthCamera::Mount::Site, sites.optical_id, sites.depth_id);
+      cameras_.push_back(camera);
+      camera_threads_.emplace_back([ObjectPtr = camera] { ObjectPtr->update(); });
     }
   }
 
@@ -419,8 +484,13 @@ void MujocoRos2Control::registerSensors() {
       std::string site_name(site_name_c);
       if (prefix.empty() || site_name.rfind(prefix, 0) != 0) continue;
 
+      // The node (and therefore its params block and topics) is named without the
+      // discovery prefix, e.g. site "lidar_head" -> node "head" -> "/head/...".
+      std::string node_name = site_name.substr(prefix.size());
+      if (node_name.empty()) node_name = site_name;
+
       auto node = rclcpp::Node::make_shared(
-        site_name,
+        node_name,
         rclcpp::NodeOptions().parameter_overrides({{"use_sim_time", true}}));
 
       const auto &overrides = node->get_node_parameters_interface()->get_parameter_overrides();
@@ -432,7 +502,7 @@ void MujocoRos2Control::registerSensors() {
       lidar_nodes_.push_back(node);
       executor_->add_node(node);
       auto lidar = std::make_shared<mujoco_gl_lidar::MujocoGLLidar>(
-        node, mujoco_model_, mujoco_data_, &sim_mutex_, id, site_name, &stop_);
+        node, mujoco_model_, mujoco_data_, &sim_mutex_, id, node_name, &stop_);
       lidars_.push_back(lidar);
       lidar_threads_.emplace_back([ObjectPtr = lidar] { ObjectPtr->update(); });
     }

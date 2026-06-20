@@ -81,13 +81,21 @@ class TestXacroSensorWiring(unittest.TestCase):
         names = {c.get("name") for c in cams}
         self.assertIn("test_camera", names)
 
+    def test_camera_sites_present(self):
+        # Sites whose name starts with the configured site_prefix ("lidar_")
+        # become MujocoGLLidar instances at runtime.
+        sites = [s for blk in self._mujoco_blocks() for s in blk.iter("site")]
+        names = {s.get("name") for s in sites}
+        self.assertIn("mjCamOpt_d435", names)
+        self.assertIn("mjCamDepth_d435", names)
+
     def test_lidar_sites_present(self):
         # Sites whose name starts with the configured site_prefix ("lidar_")
         # become MujocoGLLidar instances at runtime.
         sites = [s for blk in self._mujoco_blocks() for s in blk.iter("site")]
         names = {s.get("name") for s in sites}
-        self.assertIn("lidar_scan", names)
-        self.assertIn("lidar_cloud", names)
+        self.assertIn("mjLidar_scan", names)
+        self.assertIn("mjLidar_cloud", names)
 
     def test_mujoco_native_sensors_present(self):
         # The plugin-side sensor matching needs accelerometer/gyro/force/torque
@@ -145,10 +153,10 @@ class TestLidarParamsYaml(unittest.TestCase):
             cls.cfg = yaml.safe_load(f)
 
     def test_scan_mode(self):
-        self.assertEqual(self.cfg["lidar_scan"]["ros__parameters"]["output"], "scan")
+        self.assertEqual(self.cfg["scan"]["ros__parameters"]["output"], "scan")
 
     def test_cloud_mode(self):
-        self.assertEqual(self.cfg["lidar_cloud"]["ros__parameters"]["output"], "cloud")
+        self.assertEqual(self.cfg["cloud"]["ros__parameters"]["output"], "cloud")
 
 
 if __name__ == "__main__":

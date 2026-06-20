@@ -1,4 +1,56 @@
 mujoco_rgbd_camera:
+  enabled: {
+    type: bool,
+    default_value: false,
+    read_only: true,
+    description: "Whether to enable this camera instance. Only checked for site-based cameras (keyed by the MuJoCo site name in the params YAML); a matching site is skipped unless its config sets enabled=true. Cameras declared as a MuJoCo <camera> element are always created and ignore this flag."
+  }
+
+  fovy: {
+    type: double,
+    default_value: 45.0,
+    read_only: true,
+    description: "Vertical field of view [deg]. Only used for site-based cameras; for <camera>-element cameras the fovy is taken from the MJCF camera and the horizontal FOV follows from the width/height aspect ratio (square pixels).",
+    validation: {
+      gt: [ 0.0 ]
+    }
+  }
+
+  fovx: {
+    type: double,
+    default_value: 0.0,
+    read_only: true,
+    description: "Horizontal field of view [deg] for site-based cameras. If <= 0 it is derived from fovy and the width/height aspect ratio (square pixels). If > 0 it is honored independently of fovy: the scene is rendered at the aspect implied by (fovx, fovy) and resampled to width x height, yielding independent fx/fy (e.g. to match a calibrated RealSense). Ignored for <camera>-element cameras."
+  }
+
+  topic_namespace: {
+    type: string,
+    default_value: "",
+    read_only: true,
+    description: "Namespace for the published topics, i.e. /<topic_namespace>/color/image_raw etc. If empty, the node name is used. Lets you decouple the topic namespace from the node/params-block name."
+  }
+
+  site_prefix: {
+    type: string,
+    default_value: "mjCam_",
+    read_only: true,
+    description: "Prefix for a single site that provides BOTH color and depth, rendered in one shared pass. A MuJoCo site whose name starts with this prefix spawns a depth camera mounted at the site (the site frame is a REP-103 optical frame: +Z forward, +X right, +Y down). The node, its params block and its topics use the site name with this prefix stripped (e.g. 'mjCam_d435' -> node 'd435'). The published header.frame_id is the site's render frame (its parent body)."
+  }
+
+  optical_site_prefix: {
+    type: string,
+    default_value: "mjCamOpt_",
+    read_only: true,
+    description: "Prefix for the color/optical site of a two-frame camera. Pair 'mjCamOpt_<name>' with 'mjCamDepth_<name>' to render color and depth from different sites (true parallax, two render passes). The color image/camera_info use this site's render frame. Grouped with the depth site by the stripped name '<name>'."
+  }
+
+  depth_site_prefix: {
+    type: string,
+    default_value: "mjCamDepth_",
+    read_only: true,
+    description: "Prefix for the depth site of a two-frame camera (see optical_site_prefix). The depth image, depth camera_info and point cloud use this site's render frame; the cloud is colored from a color render at this same depth site so RGB and depth stay aligned."
+  }
+
   width: {
     type: int,
     default_value: 640,
