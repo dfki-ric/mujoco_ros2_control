@@ -121,6 +121,7 @@ class Xacro2Mjcf(Node):
         os.system("mkdir -p " + mujoco_files_path + "/meshes")
 
         output_model_files = []
+        combined_qpos = []
 
         # Convert robot descriptions to URDF files
         for i, robot_description in enumerate(robot_descriptions):
@@ -260,10 +261,7 @@ class Xacro2Mjcf(Node):
                     else:  # hinge or slide -> 1 dof
                         qpos.append(initial_positions.get(joint.get('name'), 0.0))
 
-                if qpos and any(v != 0.0 for v in qpos):
-                    qpos_str = ' '.join(repr(v) for v in qpos)
-                    keyframe = ET.SubElement(self.mjcf_root, 'keyframe')
-                    ET.SubElement(keyframe, 'key', {'name': 'initial', 'qpos': qpos_str})
+                combined_qpos.extend(qpos)
 
                 # Insert elements into the MJCF file tree
                 mujoco = self.urdf_root.find('mujoco')
@@ -362,6 +360,17 @@ class Xacro2Mjcf(Node):
         output_xml.append(out_option)
         for filename in output_model_files:
             output_xml.append(ET.Element('include', {'file': filename}))
+        if combined_qpos:
+            keyframe = ET.SubElement(output_xml, "keyframe")
+
+            ET.SubElement(
+                keyframe,
+                "key",
+                {
+                    "name": "initial",
+                    "qpos": " ".join(repr(v) for v in combined_qpos)
+                }
+            )
         output_tree = ET.ElementTree(output_xml)
         ET.indent(output_tree, space="\t", level=0)
         output_tree.write(output_file)
