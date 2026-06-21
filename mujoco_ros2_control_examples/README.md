@@ -25,11 +25,6 @@ test/     per-robot launch smoke tests
 Franka arm (optionally with the task table of high-resolution collision gears and
 pose sensors). Requires [`franka_description`](https://github.com/frankarobotics/franka_description).
 
-> **Jazzy:** `franka_description` is not available from apt. Clone its `jazzy`
-> branch into your workspace `src/` and build it:
-> ```bash
-> git clone -b jazzy https://github.com/frankarobotics/franka_description.git src/franka_description
-> ```
 
 ```bash
 ros2 launch mujoco_ros2_control_examples franka.launch.py

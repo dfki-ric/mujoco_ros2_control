@@ -53,7 +53,7 @@
         kinematics_parameters_file="${ur_config}/default_kinematics.yaml"
         physical_parameters_file="${ur_config}/physical_parameters.yaml"
         visual_parameters_file="${ur_config}/visual_parameters.yaml"
-        force_abs_paths="false">
+        generate_ros2_control_tag="false">
         <origin xyz="0 0 0" rpy="0 0 0"/>
     </xacro:ur_robot>
 

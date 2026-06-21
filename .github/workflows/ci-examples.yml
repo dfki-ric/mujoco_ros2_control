@@ -6,11 +6,11 @@ on:
 
 jobs:
   build-and-test-examples:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     container:
-      image: ros:jazzy
+      image: ros:humble
     env:
-      ROS_DISTRO: jazzy
+      ROS_DISTRO: humble
       DEBIAN_FRONTEND: noninteractive
       DISABLE_OPENGL: "1"
 
@@ -22,7 +22,6 @@ jobs:
         run: |
           apt-get update
           apt-get install -y \
-            git \
             libx11-dev \
             xorg-dev \
             libwayland-dev \
@@ -35,8 +34,6 @@ jobs:
           mkdir -p /ros2_ws/src
           cp -r mujoco_ros2_control /ros2_ws/src/
           cp -r mujoco_ros2_control_examples /ros2_ws/src/
-
-          git clone -b jazzy https://github.com/frankarobotics/franka_description.git /ros2_ws/src/franka_description
 
       - name: Resolve rosdep dependencies
         working-directory: /ros2_ws
