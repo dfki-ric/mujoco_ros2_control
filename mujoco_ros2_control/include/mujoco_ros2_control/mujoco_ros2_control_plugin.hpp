@@ -269,6 +269,9 @@ namespace mujoco_ros2_control
         double real_time_factor_; ///< Realtime factor of the simulation
         bool show_gui_; ///< Flag if the gui is loaded
 
+        std::atomic<bool> system_configured_{false}; ///< Set true once the resource manager has finished loading and activating all hardware components.
+
+
         // Controller Manager
         std::unique_ptr<hardware_interface::ResourceManager> resource_manager_; ///< Resource manager for hardware interfaces
         rclcpp::executors::MultiThreadedExecutor::SharedPtr executor_; ///< Executor for created nodes

@@ -153,6 +153,11 @@ void MujocoRos2Control::render() {
 
 void MujocoRos2Control::update() {
   while (!stop_.load()) {
+    if (!system_configured_.load(std::memory_order_acquire)) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      continue;
+    }
+
     const bool keep_running = show_gui_ ? mj_vis_.sim->run : running_.load();
     if (!keep_running) {
       std::this_thread::sleep_for(std::chrono::milliseconds(1));

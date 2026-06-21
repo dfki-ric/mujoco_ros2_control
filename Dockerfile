@@ -41,7 +41,8 @@ RUN rosdep update && rosdep install --from-paths src --ignore-src --rosdistro $R
 RUN . /opt/ros/$ROS_DISTRO/setup.sh && colcon build
 
 FROM base AS demo
-RUN apt-get update && apt-get install -y \
-    ros-$ROS_DISTRO-franka-description
-COPY examples /ros2_ws/src/mujoco_ros2_control_examples
+COPY mujoco_ros2_control_examples /ros2_ws/src/mujoco_ros2_control_examples
+# franka_description and ur_description are declared in the examples package.xml
+# and available as binaries on humble, so rosdep resolves them.
+RUN rosdep install --from-paths src --ignore-src --rosdistro $ROS_DISTRO -y
 RUN . /opt/ros/$ROS_DISTRO/setup.sh && colcon build

@@ -14,22 +14,22 @@ Mujoco ROS2 Control was initiated and is currently developed at the
 The development and testing of control algorithms for robotic systems is a crucial step in ensuring their reliability, safety, and efficiency. However, conducting these tests on physical hardware can be expensive, time-consuming, and prone to mechanical wear and tear. To overcome these challenges, accurate and efficient physical simulations have become an indispensable tool for researchers, engineers, and roboticists. These simulations enable comprehensive testing of robot controllers, planning algorithms, and perception systems in a controlled, repeatable, and risk-free environment.
 
 ## Compatibility
-| ROS 2 Version | Branch | Build Status |
-|--------------|--------|--------------|
-| Humble | [main](https://github.com/dfki-ric/mujoco_ros2_control) | [![CI](https://github.com/dfki-ric/mujoco_ros2_control/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/dfki-ric/mujoco_ros2_control/actions/workflows/ci.yml?query=branch%3Amain) |
-| Jazzy | [jazzy](https://github.com/dfki-ric/mujoco_ros2_control/tree/jazzy) | [![CI](https://github.com/dfki-ric/mujoco_ros2_control/actions/workflows/ci.yml/badge.svg?branch=jazzy)](https://github.com/dfki-ric/mujoco_ros2_control/actions/workflows/ci.yml?query=branch%3Ajazzy) |
+| ROS 2 Version | Branch | Build & Test | Examples Build & Test |
+|--------------|--------|--------------|-----------------------|
+| Humble | [main](https://github.com/dfki-ric/mujoco_ros2_control) | [![CI](https://github.com/dfki-ric/mujoco_ros2_control/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/dfki-ric/mujoco_ros2_control/actions/workflows/ci.yml?query=branch%3Amain) | [![CI Examples](https://github.com/dfki-ric/mujoco_ros2_control/actions/workflows/ci-examples.yml/badge.svg?branch=main)](https://github.com/dfki-ric/mujoco_ros2_control/actions/workflows/ci-examples.yml?query=branch%3Amain) |
+| Jazzy | [jazzy](https://github.com/dfki-ric/mujoco_ros2_control/tree/jazzy) | [![CI](https://github.com/dfki-ric/mujoco_ros2_control/actions/workflows/ci.yml/badge.svg?branch=jazzy)](https://github.com/dfki-ric/mujoco_ros2_control/actions/workflows/ci.yml?query=branch%3Ajazzy) | [![CI Examples](https://github.com/dfki-ric/mujoco_ros2_control/actions/workflows/ci-examples.yml/badge.svg?branch=jazzy)](https://github.com/dfki-ric/mujoco_ros2_control/actions/workflows/ci-examples.yml?query=branch%3Ajazzy) |
 
 ## Examples
 We provide one example with the franka description and the gears from the IndustRealKit that can be started with 
 ```bash
-  ros2 launch franka_mujoco franka.launch.py
+  ros2 launch mujoco_ros2_control_examples franka.launch.py
 ```
 ![](./paper/figures/franka_rgbd_example.png)
 *RGBD Camera inside of MuJoCo ([MuJoCo Visualizer](https://github.com/google-deepmind/mujoco/tree/main/simulate) \[left\], [rviz2](https://index.ros.org/p/rviz2/) \[right\])*
 
 and one example with a unitree H1 that can be started with
 ```bash
-  ros2 launch unitree_h1_mujoco unitree_h1.launch.py
+  ros2 launch mujoco_ros2_control_examples unitree_h1.launch.py
 ```
 ![](./paper/figures/unitree_h1_example.png)
 *Unitree H1 with floating joint between world and pelvis ([MuJoCo Visualizer](https://github.com/google-deepmind/mujoco/tree/main/simulate) \[left\], [rqt_joint_trajectory_controller](https://index.ros.org/p/rqt_joint_trajectory_controller/)/[rviz2](https://index.ros.org/p/rviz2/) \[right\])*
@@ -137,7 +137,7 @@ To use MuJoCo ROS2 control, you must create a launchfile (you can use the exampl
     additional_files = []
     # Mujoco Scene file
     additional_files.append(os.path.join(get_package_share_directory("mujoco_ros2_control"), "mjcf", "scene.xml"))
-    additional_files.append(os.path.join(get_package_share_directory("task_table_mujoco"), "urdf", "task_table.urdf.xacro"))
+    additional_files.append(os.path.join(get_package_share_directory("mujoco_ros2_control_examples"), "urdf", "task_table", "task_table.urdf.xacro"))
 
     # Define the xacro2mjcf node
     xacro2mjcf = Node(
@@ -173,7 +173,7 @@ To use MuJoCo ROS2 control, you must create a launchfile (you can use the exampl
 | ROS 2 control YAML     | Path to controller config (e.g., `*.yaml`)        |
 
 
-### Launch Flow (in [launch.py](https://github.com/dfki-ric/mujoco_ros2_control/blob/main/examples/franka_mujoco/launch/franka.launch.py) file)
+### Launch Flow (in [launch.py](https://github.com/dfki-ric/mujoco_ros2_control/blob/main/mujoco_ros2_control_examples/launch/franka.launch.py) file)
 ```python
 def create_nodes(context: LaunchContext):
     namespace = ""
