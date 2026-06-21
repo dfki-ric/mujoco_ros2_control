@@ -54,6 +54,8 @@ ROBOTS = {
             "hand": "true",
             "ee_id": "franka_hand",
         },
+        # xacro args this robot accepts beyond the static mappings above.
+        "supports": ("headless",),
         "xacro2mjcf": {},
     },
     "ur": {
@@ -115,9 +117,14 @@ def make_test_description(robot):
     model_file = os.path.join(model_path, "main.xml")
 
     xacro_file = os.path.join(share, *spec["xacro"])
+    mappings = dict(spec["mappings"])
+    # The franka model carries a GL camera; exclude it when running headless so
+    # the node does not try to create an OpenGL context (DISABLE_OPENGL=1 in CI).
+    if "headless" in spec.get("supports", ()):
+        mappings["headless"] = "false" if opengl_enabled() else "true"
     robot_description = {
         "robot_description": xacro.process_file(
-            xacro_file, mappings=spec["mappings"]
+            xacro_file, mappings=mappings
         ).toprettyxml(indent="  ")
     }
 

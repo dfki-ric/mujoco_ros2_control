@@ -1,5 +1,9 @@
 #!/bin/env bash
-docker build -t "mujoco_ros2_control:jazzy" .
+if [[ $1 == "test" ]]; then
+    docker build --build-arg RUN_TESTS=true -t "mujoco_ros2_control:jazzy-citest" .
+else
+    docker build -t "mujoco_ros2_control:jazzy" .
+fi
 
 docker network create ros
 # give permissions to use X11 with docker 
