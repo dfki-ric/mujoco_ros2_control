@@ -38,6 +38,7 @@
 #ifndef MUJOCO_ROS2_CONTROL__MUJOCO_RESOURCE_MANAGER_HPP_
 #define MUJOCO_ROS2_CONTROL__MUJOCO_RESOURCE_MANAGER_HPP_
 
+#include <atomic>
 #include <memory>
 #include <string>
 #include <vector>
@@ -59,8 +60,9 @@ namespace mujoco_ros2_control
     {
     public:
         MujocoResourceManager(
-            rclcpp::Node::SharedPtr & node, 
-            mjModel *mujoco_model, mjData *mujoco_data)
+            rclcpp::Node::SharedPtr & node,
+            mjModel *mujoco_model, mjData *mujoco_data,
+            std::atomic<bool> *system_configured = nullptr)
         : hardware_interface::ResourceManager (
             node->get_node_clock_interface(), node->get_node_logging_interface()),
             robot_hw_sim_loader_("mujoco_ros2_control", "mujoco_ros2_control::MujocoSystemInterface"),
@@ -68,6 +70,7 @@ namespace mujoco_ros2_control
             node_ = node;
             mujoco_model_ = mujoco_model;
             mujoco_data_ = mujoco_data;
+            system_configured_ = system_configured;
         }
         MujocoResourceManager(const MujocoResourceManager &) = delete;
 
@@ -109,6 +112,10 @@ namespace mujoco_ros2_control
                 }
             }
 
+            if (system_configured_) {
+                system_configured_->store(components_are_loaded_and_initialized_, std::memory_order_release);
+            }
+
             return components_are_loaded_and_initialized_;
         }
 
@@ -121,6 +128,7 @@ namespace mujoco_ros2_control
         rclcpp::Logger logger_;
         mjModel* mujoco_model_;
         mjData* mujoco_data_;
+        std::atomic<bool>* system_configured_ = nullptr;
     };
 
 }  // namespace mujoco_ros2_control

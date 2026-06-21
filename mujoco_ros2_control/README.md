@@ -6,7 +6,7 @@ To use this package with an existing robot description (URDF or Xacro), create a
 - the MuJoCo configuration, and
 - the ROS 2 Control configuration.
 
-For reference, see the `urdf` directories in the provided examples ([franka](https://github.com/dfki-ric/mujoco_ros2_control/blob/main/examples/franka_mujoco/urdf/franka.urdf.xacro), [unitree](https://github.com/dfki-ric/mujoco_ros2_control/blob/main/examples/unitree_h1_mujoco/urdf/unitree_h1.urdf.xacro)).
+For reference, see the `urdf` directories in the provided examples ([franka](https://github.com/dfki-ric/mujoco_ros2_control/blob/main/mujoco_ros2_control_examples/urdf/franka/franka.urdf.xacro), [unitree](https://github.com/dfki-ric/mujoco_ros2_control/blob/main/mujoco_ros2_control_examples/urdf/unitree_h1/unitree_h1.urdf.xacro)).
 
 ---
 

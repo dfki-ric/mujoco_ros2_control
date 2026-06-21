@@ -39,7 +39,8 @@ RUN rosdep update && rosdep install --from-paths src --ignore-src --rosdistro $R
 RUN . /opt/ros/$ROS_DISTRO/setup.sh && colcon build
 
 FROM base AS demo
-# RUN apt-get update && apt-get install -y \
-#     ros-$ROS_DISTRO-franka-description
-COPY examples /ros2_ws/src/mujoco_ros2_control_examples
-RUN . /opt/ros/$ROS_DISTRO/setup.sh && colcon build --packages-skip franka_mujoco
+RUN apt-get update && apt-get install -y ros-$ROS_DISTRO-ur-description
+RUN git clone -b jazzy https://github.com/frankarobotics/franka_description.git \
+    /ros2_ws/src/franka_description
+COPY mujoco_ros2_control_examples /ros2_ws/src/mujoco_ros2_control_examples
+RUN . /opt/ros/$ROS_DISTRO/setup.sh && colcon build

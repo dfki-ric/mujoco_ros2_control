@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>mujoco_ros2_control_examples</name>
+  <version>1.0.0</version>
+  <description>
+    Example robots simulated with mujoco_ros2_control: Franka (with the task
+    table), Universal Robots (UR) and Unitree H1.
+  </description>
+
+  <maintainer email="adrian.danzglock@dfki.de">Adrian Danzglock</maintainer>
+
+  <license>GPL3</license>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <!-- Common runtime dependencies -->
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>mujoco_ros2_control</exec_depend>
+  <exec_depend>urdf</exec_depend>
+  <exec_depend>xacro</exec_depend>
+  <exec_depend>robot_state_publisher</exec_depend>
+  <exec_depend>controller_manager</exec_depend>
+  <exec_depend>rviz2</exec_depend>
+
+  <!-- Controllers used by the examples -->
+  <exec_depend>joint_state_broadcaster</exec_depend>
+  <exec_depend>joint_trajectory_controller</exec_depend>
+  <exec_depend>force_torque_sensor_broadcaster</exec_depend>
+  <exec_depend>imu_sensor_broadcaster</exec_depend>
+  <exec_depend>pose_broadcaster</exec_depend>
+  <exec_depend>position_controllers</exec_depend>
+
+  <!-- Robot descriptions (Franka and UR are pulled from these packages) -->
+  <exec_depend>franka_description</exec_depend>
+  <exec_depend>ur_description</exec_depend>
+
+  <!-- Tests -->
+  <test_depend>ament_cmake_ros</test_depend>
+  <test_depend>launch_testing_ament_cmake</test_depend>
+  <test_depend>launch_testing_ros</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

@@ -151,6 +151,11 @@ void MujocoRos2Control::render() {
 
 void MujocoRos2Control::update() {
   while (!stop_.load()) {
+    if (!system_configured_.load(std::memory_order_acquire)) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      continue;
+    }
+
     const bool keep_running = show_gui_ ? mj_vis_.sim->run : running_.load();
     if (!keep_running) {
       std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -257,7 +262,7 @@ void MujocoRos2Control::init_mujoco() {
     void MujocoRos2Control::init_controller_manager() {
         RCLCPP_INFO(nh_->get_logger(), "init controller manager");
 
-        resource_manager_ = std::make_unique<mujoco_ros2_control::MujocoResourceManager>(nh_, mujoco_model_, mujoco_data_);
+        resource_manager_ = std::make_unique<mujoco_ros2_control::MujocoResourceManager>(nh_, mujoco_model_, mujoco_data_, &system_configured_);
 
         executor_ = std::make_shared<rclcpp::executors::MultiThreadedExecutor>();
 
