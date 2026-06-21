@@ -28,6 +28,8 @@
     <xacro:arg name="fake_sensor_commands" default="false" />
     <xacro:arg name="mujoco" default="true" />
     <xacro:arg name="mujoco_effort" default="false" />
+    <!-- Skip the GL camera when headless (no OpenGL context available) -->
+    <xacro:arg name="headless" default="false" />
 
 
 
@@ -85,14 +87,16 @@
                 <torque name="$(arg arm_id)_link7_torque" site="$(arg arm_id)_link7" />
             </sensor>
         </mujoco>
-        <!-- Add a camera -->
-        <xacro:include filename="$(find mujoco_ros2_control_examples)/urdf/franka/mujoco_camera.urdf.xacro" />
-        <xacro:camera
-                prefix=""
-                camera_name="camera"
-                parent_link="world"
-                origin_xyz="1 0 1."
-                origin_rpy="0 .9 ${pi}">
-        </xacro:camera>
+        <!-- Add a camera (skipped when headless: avoids GL/GLFW initialization) -->
+        <xacro:unless value="$(arg headless)">
+            <xacro:include filename="$(find mujoco_ros2_control_examples)/urdf/franka/mujoco_camera.urdf.xacro" />
+            <xacro:camera
+                    prefix=""
+                    camera_name="camera"
+                    parent_link="world"
+                    origin_xyz="1 0 1."
+                    origin_rpy="0 .9 ${pi}">
+            </xacro:camera>
+        </xacro:unless>
     </xacro:if>
 </robot>

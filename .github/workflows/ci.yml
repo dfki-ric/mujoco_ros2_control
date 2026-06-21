@@ -18,32 +18,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Install apt dependencies
+      # Only the deps rosdep cannot resolve: the MuJoCo simulate GUI build
+      # headers (X11/Wayland/cmake-modules). Everything else (incl. urdfdom_py
+      # and scipy) is declared in package.xml and handled by rosdep.
+      - name: Install non-rosdep system dependencies
         run: |
           apt-get update
           apt-get install -y \
-            git \
-            libglfw3-dev \
             libx11-dev \
             xorg-dev \
             libwayland-dev \
             libxkbcommon-dev \
             wayland-protocols \
-            extra-cmake-modules \
-            ros-${ROS_DISTRO}-urdf \
-            ros-${ROS_DISTRO}-xacro \
-            ros-${ROS_DISTRO}-rviz2 \
-            ros-${ROS_DISTRO}-ros2-control \
-            ros-${ROS_DISTRO}-ros2-controllers \
-            ros-${ROS_DISTRO}-controller-manager \
-            ros-${ROS_DISTRO}-pcl-ros \
-            ros-${ROS_DISTRO}-perception-pcl \
-            ros-${ROS_DISTRO}-urdfdom-py \
-            libopencv-dev \
-            ros-${ROS_DISTRO}-pcl-conversions \
-            ros-${ROS_DISTRO}-cv-bridge \
-            libpcl-dev \
-            python3-scipy
+            extra-cmake-modules
 
       - name: Set up workspace
         run: |

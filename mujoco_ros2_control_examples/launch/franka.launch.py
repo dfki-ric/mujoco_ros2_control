@@ -32,12 +32,15 @@ def create_nodes(context: LaunchContext):
     load_gripper = LaunchConfiguration("load_gripper")
     ee_id = LaunchConfiguration("ee_id")
     arm_id = LaunchConfiguration("arm_id")
+    headless = LaunchConfiguration("headless")
 
     # Perform substitutions to get actual values
     load_task_table_bool = context.perform_substitution(load_task_table).lower() == "true"
     load_gripper_str = context.perform_substitution(load_gripper)
     ee_id_str = context.perform_substitution(ee_id)
     arm_id_str = context.perform_substitution(arm_id)
+    headless_str = context.perform_substitution(headless)
+    headless_bool = headless_str.lower() == "true"
 
     # Set file paths
     franka_xacro_filepath = os.path.join(
@@ -56,7 +59,8 @@ def create_nodes(context: LaunchContext):
                 "mujoco": "true",
                 "arm_id": arm_id_str,
                 "hand": load_gripper_str,
-                "ee_id": ee_id_str
+                "ee_id": ee_id_str,
+                "headless": headless_str
             }
         ).toprettyxml(indent="  ")
     }
@@ -120,7 +124,7 @@ def create_nodes(context: LaunchContext):
             {"simulation_frequency": 500.0},
             {"realtime_factor": 1.0},
             {"robot_model_path": mujoco_model_file},
-            {"show_gui": True},
+            {"show_gui": not headless_bool},
         ],
         remappings=[
             ('/controller_manager/robot_description', '/robot_description'),
@@ -279,6 +283,12 @@ def generate_launch_description():
             default_value="fr3",
             description="ID of the type of arm used. Supported values: "
                         "fer, fr3, fp3",
+        ),
+        DeclareLaunchArgument(
+            "headless",
+            default_value="false",
+            description="Run without the GUI and without the GL camera "
+                        "(for testing where no OpenGL context available). Use on headless machines / CI.",
         ),
         OpaqueFunction(function=create_nodes)  # Use OpaqueFunction for node creation
     ])

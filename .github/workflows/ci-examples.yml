@@ -18,37 +18,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Install apt dependencies
+      - name: Install non-rosdep system dependencies
         run: |
           apt-get update
           apt-get install -y \
             git \
-            libglfw3-dev \
             libx11-dev \
             xorg-dev \
             libwayland-dev \
             libxkbcommon-dev \
             wayland-protocols \
-            extra-cmake-modules \
-            ros-${ROS_DISTRO}-urdf \
-            ros-${ROS_DISTRO}-xacro \
-            ros-${ROS_DISTRO}-rviz2 \
-            ros-${ROS_DISTRO}-ros2-control \
-            ros-${ROS_DISTRO}-ros2-controllers \
-            ros-${ROS_DISTRO}-controller-manager \
-            ros-${ROS_DISTRO}-pcl-ros \
-            ros-${ROS_DISTRO}-perception-pcl \
-            ros-${ROS_DISTRO}-urdfdom-py \
-            libopencv-dev \
-            ros-${ROS_DISTRO}-pcl-conversions \
-            ros-${ROS_DISTRO}-cv-bridge \
-            libpcl-dev \
-            python3-scipy
+            extra-cmake-modules
 
       - name: Set up workspace
         run: |
           mkdir -p /ros2_ws/src
           cp -r mujoco_ros2_control /ros2_ws/src/
+          cp -r mujoco_ros2_control_examples /ros2_ws/src/
+
+          git clone -b jazzy https://github.com/frankarobotics/franka_description.git /ros2_ws/src/franka_description
 
       - name: Resolve rosdep dependencies
         working-directory: /ros2_ws
@@ -56,30 +44,12 @@ jobs:
           rosdep update
           rosdep install --from-paths src --ignore-src --rosdistro $ROS_DISTRO -y
 
-      - name: Build library
+      - name: Build
         working-directory: /ros2_ws
         shell: bash
         run: |
           source /opt/ros/$ROS_DISTRO/setup.bash
-          colcon build --packages-select mujoco_ros2_control
-
-      - name: Install Example dependencies
-        working-directory: /ros2_ws
-        shell: bash
-        run: |
-          apt-get update && apt-get install -y ros-$ROS_DISTRO-ur-description
-          git clone -b jazzy https://github.com/frankarobotics/franka_description.git /ros2_ws/src/franka_description
-          rosdep install --from-paths src --ignore-src --rosdistro $ROS_DISTRO -y
-          source /opt/ros/$ROS_DISTRO/setup.bash
-          colcon build --packages-select franka_description
-
-      - name: Build Examples
-        working-directory: /ros2_ws
-        shell: bash
-        run: |
-          cp -r mujoco_ros2_control_examples /ros2_ws/src/
-          source /opt/ros/$ROS_DISTRO/setup.bash
-          colcon build --packages-select mujoco_ros2_control_examples
+          colcon build --packages-up-to mujoco_ros2_control_examples
 
       - name: Test Examples
         working-directory: /ros2_ws

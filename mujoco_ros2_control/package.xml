@@ -19,6 +19,10 @@
 
   <depend>urdf</depend>
 
+  <!-- Runtime deps of the xacro2mjcf.py / urdf2mjcf.py scripts -->
+  <exec_depend>urdfdom_py</exec_depend>
+  <exec_depend>python3-scipy</exec_depend>
+
   <depend>geometry_msgs</depend>
   <depend>rosgraph_msgs</depend>
   <depend>sensor_msgs</depend>
