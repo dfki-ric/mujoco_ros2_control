@@ -17,8 +17,9 @@ set(CMAKE_BUILD_TYPE Release)
 # Export compile commands for IDEs
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 
-# Set OpenGL preferences
-set(OpenGL_GL_PREFERENCE LEGACY)
+# Set OpenGL preferences (GLVND enables OpenGL::EGL for offscreen rendering)
+set(OpenGL_GL_PREFERENCE GLVND)
+find_package(OpenGL REQUIRED)
 
 # Package dependencies
 set(THIS_PACKAGE_INCLUDE_DEPENDS
@@ -66,6 +67,7 @@ set(MUJOCO_TEST_PYTHON_UTIL OFF CACHE BOOL "" FORCE)
 set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(BUILD_SHARED_LIBS ON CACHE BOOL "" FORCE)
 set(BUILD_SIMULATE ON CACHE BOOL "" FORCE)
+set(MUJOCO_SIMULATE_USE_SYSTEM_GLFW ON CACHE BOOL "" FORCE)
 
 FetchContent_MakeAvailable(mujoco)
 
@@ -122,6 +124,7 @@ generate_parameter_library(mujoco_gl_lidar_parameters
 
 # Add system plugin
 add_library(mujoco_system_plugins SHARED src/mujoco_system.cpp src/mujoco_sensors.cpp)
+target_compile_options(mujoco_system_plugins PRIVATE -g -Og)
 ament_target_dependencies(mujoco_system_plugins
     hardware_interface
     rclcpp
@@ -134,6 +137,7 @@ add_executable(${PROJECT_NAME}
     src/mujoco_depth_camera.cpp
     src/mujoco_gl_lidar.cpp
 )
+target_compile_options(${PROJECT_NAME} PRIVATE -g -Og)
 
 ament_target_dependencies(${PROJECT_NAME}
     controller_manager
@@ -153,6 +157,7 @@ ament_target_dependencies(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME}
     mujoco::mujoco
     glfw
+    OpenGL::EGL
     ${PCL_LIBRARIES}
     ${OpenCV_LIBS}
     ${PROJECT_NAME}_parameters

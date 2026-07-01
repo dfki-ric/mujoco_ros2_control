@@ -44,7 +44,7 @@
 
 // MuJoCo header file
 #include "mujoco/mujoco.h"
-#include "GLFW/glfw3.h"
+#include <EGL/egl.h>
 #include "cstdio"
 #include "GL/gl.h"
 
@@ -87,7 +87,7 @@ namespace mujoco_rgbd_camera {
  * information, color images, depth images, and point cloud data. It provides methods for updating the camera data and
  * releasing resources when the camera is no longer needed.
  *
- * The class utilizes several dependencies, including rclcpp for ROS 2 integration, GLFW for window management, and PCL and
+ * The class utilizes several dependencies, including rclcpp for ROS 2 integration, EGL for offscreen rendering, and PCL and
  * OpenCV for point cloud and image processing. It provides various member variables and methods to handle camera-related
  * data and operations.
  */
@@ -123,7 +123,7 @@ public:
      *        @p depth_id the two streams share a single render pass.
      *
      * @post Initializes the MujocoDepthCamera object with the provided parameters and sets up the required ROS 2 publishers.
-     *       Initializes the GLFW library and creates a hidden GLFW window.
+     *       Initializes an EGL pbuffer surface and context for offscreen rendering.
      *       Sets up the Mujoco camera properties.
      *       Creates and initializes the Mujoco scene and context for rendering.
      *       Creates ROS 2 publishers for camera information, color image, depth image, and point cloud data.
@@ -147,15 +147,12 @@ public:
      * The method runs in a loop until the stop flag is set to true or ROS 2 is no longer okay.
      * It checks the time elapsed since the last update and, if enough time has passed according to the camera frequency,
      * performs the following steps:
-     *   - Makes the GLFW window's context current.
-     *   - Retrieves the framebuffer viewport size and sets camera intrinsics.
-     *   - Updates the Mujoco scene and renders it using the provided context and camera settings.
-     *   - Gets the RGB-D buffer from the Mujoco model and viewport.
+     *   - Binds the EGL context once before the loop.
+     *   - Sets camera intrinsics from the fixed pbuffer dimensions.
+     *   - Updates the Mujoco scene and renders it using the EGL context and camera settings.
+     *   - Reads the GL framebuffer into OpenCV images.
      *   - Retrieves the current timestamp.
-     *   - Swaps OpenGL buffers.
-     *   - Processes pending GUI events and GLFW callbacks.
      *   - Publishes the captured color image, depth image, point cloud, and camera information.
-     *   - Releases the buffer to avoid memory leaks.
      *
      * @post The camera data is continuously captured and published until the stop flag is set to true or ROS 2 is no longer okay.
      */
@@ -199,7 +196,9 @@ private:
     int render_height_ = 0; ///< GL framebuffer height used for rendering.
     rclcpp::Time stamp_; ///< ROS 2 timestamp representing the time when camera data was last updated.
 
-    GLFWwindow* window_; ///< Pointer to the GLFW window used for rendering.
+    EGLDisplay egl_display_ = EGL_NO_DISPLAY;
+    EGLContext egl_context_ = EGL_NO_CONTEXT;
+    EGLSurface egl_surface_ = EGL_NO_SURFACE;
     mjvCamera rgbd_camera_{}; ///< Mujoco visualization camera object representing the RGB-D camera.
     mjrContext sensor_context_{}; ///< Mujoco render context for the sensor camera.
     mjvScene sensor_scene_{}; ///< Mujoco visualization scene for rendering.

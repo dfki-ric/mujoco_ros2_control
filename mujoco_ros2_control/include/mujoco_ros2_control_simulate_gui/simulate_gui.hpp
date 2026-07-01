@@ -50,6 +50,8 @@
 #include <atomic>
 #include <chrono>
 #include <cstdint>
+#include <deque>
+#include <utility>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -159,8 +161,13 @@ namespace mujoco_simulate_gui {
 
         std::atomic<bool> *reset_requested_ = nullptr;
 
+        // Monotonic wall-clock epoch for the real-time-factor measurement.
         std::chrono::steady_clock::time_point wall_start_ = std::chrono::steady_clock::now();
-        double sim_start_time_ = 0.0;
+
+        // Sliding window of (wall_seconds, sim_time) samples used to compute the
+        // measured real-time factor over recent history rather than the whole run.
+        std::deque<std::pair<double, double>> rtf_window_;
+        static constexpr double kRtfWindowSec = 1.0;
     };
 }
 #endif //MUJOCO_SIMULATE_GUI_HPP

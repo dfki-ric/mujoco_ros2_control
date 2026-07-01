@@ -12,7 +12,10 @@ jobs:
     env:
       ROS_DISTRO: jazzy
       DEBIAN_FRONTEND: noninteractive
-      DISABLE_OPENGL: "1"
+      DISABLE_OPENGL: "0"
+      EGL_PLATFORM: surfaceless
+      LIBGL_ALWAYS_SOFTWARE: "1"
+      GALLIUM_DRIVER: llvmpipe
 
     steps:
       - name: Checkout
@@ -31,6 +34,20 @@ jobs:
             libxkbcommon-dev \
             wayland-protocols \
             extra-cmake-modules
+
+      - name: Install Mesa software rendering (EGL/llvmpipe)
+        run: |
+          apt-get install -y \
+            libegl1 \
+            libglvnd0 \
+            libopengl0 \
+            libgl1-mesa-dri \
+            libglx-mesa0 \
+            mesa-utils
+
+      - name: Verify EGL software context
+        run: |
+          eglinfo -B || eglinfo || true
 
       - name: Set up workspace
         run: |
