@@ -108,17 +108,50 @@ namespace mujoco_rgbd_camera {
 
         stop_ = stop;
 
-        // init GLFW
-        if (!glfwInit()) {
-            RCLCPP_ERROR(nh_->get_logger(), "Could not initialize GLFW");
+        // Init EGL for offscreen rendering (thread-safe: no main-thread requirement)
+        egl_display_ = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+        if (egl_display_ == EGL_NO_DISPLAY) {
+            RCLCPP_ERROR(nh_->get_logger(), "Could not get EGL display");
+            return;
         }
+        EGLint egl_major, egl_minor;
+        if (!eglInitialize(egl_display_, &egl_major, &egl_minor)) {
+            RCLCPP_ERROR(nh_->get_logger(), "Could not initialize EGL");
+            return;
+        }
+        eglBindAPI(EGL_OPENGL_API);
 
-        glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
-        window_ = glfwCreateWindow(render_width_, render_height_, name_.c_str(), NULL, NULL);
-        glfwSetWindowAttrib(window_, GLFW_RESIZABLE, GLFW_FALSE);
-        auto context = glfwGetCurrentContext();
-        glfwMakeContextCurrent(window_);
-        glfwSwapInterval(0);
+        static const EGLint config_attribs[] = {
+            EGL_SURFACE_TYPE,    EGL_PBUFFER_BIT,
+            EGL_RENDERABLE_TYPE, EGL_OPENGL_BIT,
+            EGL_RED_SIZE,   8,
+            EGL_GREEN_SIZE, 8,
+            EGL_BLUE_SIZE,  8,
+            EGL_DEPTH_SIZE, 24,
+            EGL_NONE
+        };
+        EGLConfig egl_config;
+        EGLint num_configs = 0;
+        if (!eglChooseConfig(egl_display_, config_attribs, &egl_config, 1, &num_configs) || num_configs < 1) {
+            RCLCPP_ERROR(nh_->get_logger(), "Could not find suitable EGL config");
+            return;
+        }
+        const EGLint pbuffer_attribs[] = {
+            EGL_WIDTH,  render_width_,
+            EGL_HEIGHT, render_height_,
+            EGL_NONE
+        };
+        egl_surface_ = eglCreatePbufferSurface(egl_display_, egl_config, pbuffer_attribs);
+        if (egl_surface_ == EGL_NO_SURFACE) {
+            RCLCPP_ERROR(nh_->get_logger(), "Could not create EGL pbuffer surface");
+            return;
+        }
+        egl_context_ = eglCreateContext(egl_display_, egl_config, EGL_NO_CONTEXT, nullptr);
+        if (egl_context_ == EGL_NO_CONTEXT) {
+            RCLCPP_ERROR(nh_->get_logger(), "Could not create EGL context");
+            return;
+        }
+        eglMakeCurrent(egl_display_, egl_surface_, egl_surface_, egl_context_);
 
         // Set camera parameters
         if (mount_ == Mount::Site) {
@@ -153,16 +186,25 @@ namespace mujoco_rgbd_camera {
         if (params_.point_cloud && have_depth_) {
             pointcloud_publisher_ = nh_->create_publisher<sensor_msgs::msg::PointCloud2>("/" + ns + "/depth/points", 10);
         }
-        glfwMakeContextCurrent(context);
-
+        // Release the context so update() can claim it on the camera thread
+        eglMakeCurrent(egl_display_, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
     }
 
     MujocoDepthCamera::~MujocoDepthCamera() {
-        mjv_freeScene(&sensor_scene_);
-        mjr_freeContext(&sensor_context_);
+        if (egl_context_ != EGL_NO_CONTEXT) {
+            eglMakeCurrent(egl_display_, egl_surface_, egl_surface_, egl_context_);
+            mjv_freeScene(&sensor_scene_);
+            mjr_freeContext(&sensor_context_);
+            eglMakeCurrent(egl_display_, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+            eglDestroyContext(egl_display_, egl_context_);
+        }
+        if (egl_surface_ != EGL_NO_SURFACE) {
+            eglDestroySurface(egl_display_, egl_surface_);
+        }
     }
 
     void MujocoDepthCamera::update() {
+        eglMakeCurrent(egl_display_, egl_surface_, egl_surface_, egl_context_);
         mjtNum last_update = mujoco_data_->time;
         const bool want_color = have_color_ && params_.color_image;
         const bool want_depth = have_depth_ && (params_.depth_image || params_.point_cloud);
@@ -181,12 +223,8 @@ namespace mujoco_rgbd_camera {
                 if (mujoco_data_->time - last_update >= 1.0 / frequency_) {
                     last_update = mujoco_data_->time;
                 }
-                auto context = glfwGetCurrentContext();
-                glfwMakeContextCurrent(window_);
-
-                // get framebuffer viewport
-                mjrRect viewport = {0, 0, 0, 0};
-                glfwGetFramebufferSize(window_, &viewport.width, &viewport.height);
+                // PBuffer dimensions are fixed at construction time
+                mjrRect viewport = {0, 0, render_width_, render_height_};
                 set_camera_intrinsics(viewport);
 
                 if (single_pass) {
@@ -227,15 +265,12 @@ namespace mujoco_rgbd_camera {
                 }
                 stamp_ = nh_->now();
 
-                // Swap OpenGL buffers
-                glfwSwapBuffers(window_);
-
                 publish_images();
                 publish_point_cloud();
                 publish_camera_info();
-                glfwMakeContextCurrent(context);
             }
         }
+        eglMakeCurrent(egl_display_, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
     }
 
     cv::Mat MujocoDepthCamera::linearize_depth(const cv::Mat& depth) const {

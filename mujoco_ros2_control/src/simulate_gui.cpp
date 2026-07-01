@@ -134,9 +134,9 @@ namespace mujoco_simulate_gui {
 
         sim->LoadOnRenderThread();
 
-        // anchor wall/sim time for measured-slowdown computation
+        // anchor wall clock for the measured real-time-factor computation
         wall_start_ = std::chrono::steady_clock::now();
-        sim_start_time_ = d->time;
+        rtf_window_.clear();
         sim->last_fps_update_ = mj::Simulate::Clock::now();
         sim->frames_ = 0;
 
@@ -173,19 +173,29 @@ namespace mujoco_simulate_gui {
             sim->last_fps_update_ = fps_now;
         }
 
-        // measured RT factor — wall_elapsed / sim_elapsed since last reset.
-        // Detect resets by sim time going backwards and re-anchor automatically;
-        // this covers every reset path (GUI button, keybinds, key-load, scripted).
-        double sim_elapsed = d->time - sim_start_time_;
-        if (sim_elapsed < 0.0) {
-            wall_start_ = std::chrono::steady_clock::now();
-            sim_start_time_ = d->time;
-            sim_elapsed = 0.0;
-        }
-        if (sim_elapsed > 1e-3) {
-            double wall_elapsed = std::chrono::duration<double>(
-                std::chrono::steady_clock::now() - wall_start_).count();
-            sim->measured_slowdown = static_cast<float>(wall_elapsed / sim_elapsed);
+        const double wall_now = std::chrono::duration<double>(
+            std::chrono::steady_clock::now() - wall_start_).count();
+        const double sim_now = d->time;
+
+        if (!sim->run) {
+            rtf_window_.clear();
+        } else {
+            // Reset (or any backward jump in sim time) invalidates the window.
+            if (!rtf_window_.empty() && sim_now < rtf_window_.back().second) {
+                rtf_window_.clear();
+            }
+            rtf_window_.emplace_back(wall_now, sim_now);
+
+            while (rtf_window_.size() > 2 &&
+                   wall_now - rtf_window_.front().first > kRtfWindowSec) {
+                rtf_window_.pop_front();
+            }
+
+            const double wall_elapsed = wall_now - rtf_window_.front().first;
+            const double sim_elapsed = sim_now - rtf_window_.front().second;
+            if (sim_elapsed > 1e-9 && wall_elapsed > 1e-9) {
+                sim->measured_slowdown = static_cast<float>(wall_elapsed / sim_elapsed);
+            }
         }
     }
 }
