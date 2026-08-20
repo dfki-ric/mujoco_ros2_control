@@ -91,8 +91,6 @@ MujocoRos2Control::MujocoRos2Control(rclcpp::Node::SharedPtr &node) : nh_(node) 
 
   init_mujoco();
 
-  init_controller_manager();
-
   if (mujoco_model_->nkey > 0) {
     mj_resetDataKeyframe(mujoco_model_, mujoco_data_, 0);
   } else {
@@ -105,6 +103,12 @@ MujocoRos2Control::MujocoRos2Control(rclcpp::Node::SharedPtr &node) : nh_(node) 
   // run simulation to setup the new pos
   mj_step(mujoco_model_, mujoco_data_);
   mujoco_start_time_ = mujoco_data_->time;
+
+  // Initialize MuJoCo completely before starting the controller-manager
+  // executor. Hardware initialization calls mj_forward() while registering
+  // joints; starting that executor earlier allowed it to race the mj_step()
+  // above and corrupt MuJoCo's constraint workspace.
+  init_controller_manager();
 
   clock_gettime(CLOCK_MONOTONIC, &startTime_);
 
