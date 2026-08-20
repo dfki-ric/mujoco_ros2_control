@@ -496,7 +496,16 @@ class Xacro2Mjcf(Node):
                 if explicit_color is not None and explicit_color.get("rgba"):
                     continue
 
-                triangle_groups = extract_triangle_groups(source_file)
+                try:
+                    triangle_groups = extract_triangle_groups(source_file)
+                except Exception as error:
+                    # Leave the visual as it is: create_symlinks() attempts the
+                    # plain whole-file conversion next and drops the geometry if
+                    # that fails too, so the failure is reported in one place.
+                    self.get_logger().warning(
+                        f'could not read dae mesh {source_file}: {error}'
+                    )
+                    continue
                 if not triangle_groups:
                     continue
 
@@ -565,8 +574,35 @@ class Xacro2Mjcf(Node):
                 for offset, replacement in enumerate(visual_replacements):
                     link.insert(insert_index + offset, replacement)
 
+    def drop_mesh_geometries(self, meshes, parents):
+        """Remove the <visual>/<collision> elements owning the given meshes.
+
+        Used when a mesh could not be converted: the geometry has to go, or the
+        MJCF would reference a mesh file that does not exist. A link that ends
+        up with no visual or collision at all is valid - it becomes a body
+        without geoms.
+        """
+        for mesh in meshes:
+            element = mesh
+            while element is not None and element.tag not in ("visual", "collision"):
+                element = parents.get(element)
+            if element is None:
+                continue
+            parent = parents.get(element)
+            if parent is None or element not in list(parent):
+                continue
+            self.get_logger().warning(
+                f'dropping <{element.tag}> that referenced the skipped mesh'
+            )
+            parent.remove(element)
+
     def create_symlinks(self, urdf_root, mujoco_files_path):
         self.add_composite_collisions(urdf_root)
+        # ElementTree keeps no parent pointers, and the failure path below needs
+        # the <visual>/<collision> that owns a mesh. Record the parents before
+        # anything is removed.
+        parents = {child: parent for parent in urdf_root.iter() for child in parent}
+        unconvertible_meshes = []
         # Create symlinks to used meshes in the tmp folder
         for mesh in self.get_elements(urdf_root, "mesh"):
             filename = mesh.get('filename')
@@ -603,8 +639,26 @@ class Xacro2Mjcf(Node):
                         f'converting dae mesh: {source_file} -> {converted_target}'
                     )
                     if not os.path.exists(converted_target):
-                        convert_dae_to_stl(source_file, converted_target)
+                        try:
+                            convert_dae_to_stl(source_file, converted_target)
+                        except Exception as error:
+                            # One unreadable mesh used to take down the whole
+                            # model. Keep converting the rest and drop just the
+                            # geometry that referenced it - MuJoCo would reject
+                            # a <mesh> pointing at a file that was never written.
+                            self.get_logger().warning(
+                                f'skipping mesh {source_file}: {error}'
+                            )
+                            if os.path.exists(converted_target):
+                                # A conversion that failed mid-write leaves a
+                                # truncated STL that would look done to the next
+                                # run.
+                                os.remove(converted_target)
+                            unconvertible_meshes.append(mesh)
+                            continue
                     mesh.attrib['filename'] = "file://" + converted_target
+
+        self.drop_mesh_geometries(unconvertible_meshes, parents)
 
         compiler_elements = self.get_elements(urdf_root, "compiler")
         if compiler_elements:
