@@ -207,7 +207,6 @@ ament_export_include_directories(include)
 ament_export_dependencies(ament_cmake)
 ament_export_dependencies(rclcpp)
 ament_export_libraries(
-    ${PROJECT_NAME}
     mujoco_system_plugins
 )
 
