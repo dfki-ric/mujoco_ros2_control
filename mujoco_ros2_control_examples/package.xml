@@ -33,6 +33,7 @@
 
   <!-- Robot descriptions (Franka and UR are pulled from these packages) -->
   <exec_depend>franka_description</exec_depend>
+  <exec_depend>realsense2_description</exec_depend>
   <exec_depend>ur_description</exec_depend>
 
   <!-- Tests -->

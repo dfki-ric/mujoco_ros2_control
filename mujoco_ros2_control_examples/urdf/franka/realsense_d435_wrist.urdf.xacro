@@ -1,0 +1,71 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <!-- The camera body, its frame tree and its nominal extrinsics all come from
+       realsense2_description; only the bracket that bolts it to the Franka Hand
+       is ours, because Franka's printable mount is not part of any ROS package. -->
+  <xacro:include filename="$(find realsense2_description)/urdf/_d435.urdf.xacro" />
+
+  <!-- Franka's official D435/D435i wrist mount uses an M6 threaded hole on
+       the Franka Hand. -->
+  <xacro:macro name="franka_realsense_d435_wrist"
+               params="parent name origin_xyz origin_rpy render_sensors:=true">
+    <joint name="${name}_mount_joint" type="fixed">
+      <parent link="${parent}"/>
+      <child link="${name}_mount_link"/>
+      <origin xyz="${origin_xyz}" rpy="${origin_rpy}"/>
+    </joint>
+    <link name="${name}_mount_link">
+      <visual>
+        <!-- Keep the mount centre fixed while applying an additional
+             180-degree X rotation to its existing 180-degree Y pose. -->
+        <origin xyz="0.036 0.030 0" rpy="3.14159265359 3.14159265359 0"/>
+        <geometry>
+          <mesh filename="package://mujoco_ros2_control_examples/meshes/franka/realsense_d435/RealSenseD435_Camera_Mount_mujoco.stl"
+                scale="0.001 0.001 0.001"/>
+        </geometry>
+        <material name="realsense_mount_dark_grey"><color rgba="0.18 0.19 0.20 1"/></material>
+      </visual>
+      <!-- A simple collision avoids turning a 295k-triangle printable mesh
+           into hundreds of convex MuJoCo collision pieces. -->
+      <collision>
+        <origin xyz="0.012 0 0.025"/>
+        <geometry><box size="0.048 0.060 0.050"/></geometry>
+      </collision>
+      <inertial>
+        <mass value="0.04"/>
+        <origin xyz="0 0 0"/>
+        <inertia ixx="0.00002" ixy="0" ixz="0" iyy="0.00002" iyz="0" izz="0.00002"/>
+      </inertial>
+    </link>
+
+    <!-- sensor_d435 places ${name}_link relative to ${name}_bottom_screw_frame
+         itself, so this origin only has to seat the screw frame on the bracket.
+         The -90 degree pitch makes the D435 rear face parallel to the bracket's
+         two-hole M3 flange, as shown in Figures 1 and 4 of Franka guide R02241;
+         it is reached here by rotating 180 degrees about Y and then 180 about X,
+         with the translation compensated so the camera centre and the
+         mount-contact plane stay where they were.
+
+         The rotated clamp's camera jaw is at z=31.6..37.5 mm; its isolated rear
+         spine reaches 50 mm. The camera is seated on the actual jaw instead of
+         being aligned to that unrelated maximum-height feature.
+
+         use_nominal_extrinsics publishes the depth/color/infra frames the real
+         driver would; the MuJoCo RGB-D sites below attach to two of them. -->
+    <xacro:sensor_d435 parent="${name}_mount_link" name="${name}"
+                       use_nominal_extrinsics="true">
+      <origin xyz="0.0115 0 0.0476" rpy="3.14159265359 -1.57079632679 0"/>
+    </xacro:sensor_d435>
+
+    <xacro:if value="${render_sensors}">
+      <mujoco>
+        <reference name="${name}_color_optical_frame">
+          <site name="mjCamOpt_${name}" size="0.003" pos="0 0 0"/>
+        </reference>
+        <reference name="${name}_depth_optical_frame">
+          <site name="mjCamDepth_${name}" size="0.003" pos="0 0 0"/>
+        </reference>
+      </mujoco>
+    </xacro:if>
+  </xacro:macro>
+</robot>

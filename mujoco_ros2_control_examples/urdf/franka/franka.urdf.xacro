@@ -23,6 +23,13 @@
     <xacro:arg name="base_rpy" default="0 0 0" />
     <xacro:arg name="camera_xyz" default="1 0 1.0" />
     <xacro:arg name="load_gripper" default="true" />
+    <xacro:arg name="load_realsense" default="true" />
+    <xacro:arg name="render_realsense" default="true" />
+    <!-- Centre of the front-side M6 hole. The 180-degree Y rotation is
+         applied inside the camera-mount macro about the assembly itself;
+         rotating this parent frame would swing it through the M6 pivot. -->
+    <xacro:arg name="realsense_xyz" default="0.025 0 0.0075" />
+    <xacro:arg name="realsense_rpy" default="0 0 0" />
     <xacro:arg name="ee_id" default="franka_hand" />
     <xacro:arg name="arm_id" default="fp3" />
     <!-- ROS2 Control-->
@@ -44,6 +51,16 @@
 		<origin rpy="$(arg base_rpy)" xyz="$(arg base_xyz)" />
 	</joint>
     <xacro:include filename="$(find franka_description)/robots/$(arg arm_id)/$(arg arm_id).urdf.xacro" />
+
+    <xacro:if value="$(arg load_realsense)">
+        <xacro:include filename="$(find mujoco_ros2_control_examples)/urdf/franka/realsense_d435_wrist.urdf.xacro" />
+        <xacro:franka_realsense_d435_wrist
+            parent="$(arg arm_id)_hand"
+            name="d435"
+            origin_xyz="$(arg realsense_xyz)"
+            origin_rpy="$(arg realsense_rpy)"
+            render_sensors="$(arg render_realsense)" />
+    </xacro:if>
 
     <!-- Import franka ros2_control -->
     <xacro:include filename="$(find mujoco_ros2_control_examples)/urdf/franka/ros2_control.urdf.xacro" />

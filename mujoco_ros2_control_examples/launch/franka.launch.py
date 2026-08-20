@@ -41,6 +41,10 @@ def create_nodes(context: LaunchContext):
             "hand": value("load_gripper"),
             "ee_id": ee_id,
             "headless": headless,
+            "load_realsense": value("load_realsense"),
+            "render_realsense": value("render_realsense"),
+            "realsense_xyz": value("realsense_xyz"),
+            "realsense_rpy": value("realsense_rpy"),
             "base_xyz": value("robot_base_xyz"),
             "base_rpy": "0 0 0",
             "camera_xyz": "1 0 1.875",
@@ -72,12 +76,14 @@ def create_nodes(context: LaunchContext):
     )
 
     controllers = os.path.join(examples_share, "config", "franka", "franka_controllers.yaml")
+    realsense = value("camera_config")
     simulator = Node(
         package="mujoco_ros2_control",
         executable="mujoco_ros2_control",
         parameters=[
             robot_description,
             controllers,
+            realsense,
             {
                 "simulation_frequency": 500.0,
                 "realtime_factor": 1.0,
@@ -130,11 +136,21 @@ def generate_launch_description():
         DeclareLaunchArgument("headless", default_value="false"),
         DeclareLaunchArgument("arm_id", default_value="fr3"),
         DeclareLaunchArgument("load_gripper", default_value="true"),
+        DeclareLaunchArgument("load_realsense", default_value="true"),
+        DeclareLaunchArgument("render_realsense", default_value="true"),
+        DeclareLaunchArgument("realsense_xyz", default_value="0.025 0 0.0075"),
+        DeclareLaunchArgument("realsense_rpy", default_value="0 0 0"),
         DeclareLaunchArgument("ee_id", default_value="franka_hand"),
         DeclareLaunchArgument("robot_base_xyz", default_value="-0.308 0 0.875"),
         DeclareLaunchArgument("load_imrk_table", default_value="true"),
         DeclareLaunchArgument("load_industreal_board", default_value="true"),
         DeclareLaunchArgument("synchronous_mode", default_value="false"),
+        DeclareLaunchArgument(
+            "camera_config",
+            default_value=os.path.join(
+                examples_share, "config", "franka", "realsense_d435.yaml"
+            ),
+        ),
         DeclareLaunchArgument(
             "task_board_config",
             default_value=os.path.join(

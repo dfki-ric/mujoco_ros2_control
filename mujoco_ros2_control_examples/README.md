@@ -43,6 +43,32 @@ ros2 launch mujoco_ros2_control_examples franka.launch.py
 | `load_gripper`     | `true`         | Attach an end-effector.                                  |
 | `ee_id`            | `franka_hand`  | End-effector: `none`, `franka_hand`, `cobot_pump`.       |
 | `arm_id`           | `fr3`          | Arm: `fer`, `fr3`, `fp3`.                                |
+| `load_realsense`   | `true`         | Attach the simulated D435 wrist camera and official Franka mount. |
+| `realsense_xyz`    | `0.025 0 0.0075` | Centre of the front-side Hand M6 mounting hole.          |
+| `realsense_rpy`    | `0 0 0` | M6 parent pose; the assembly Y rotation is internal.      |
+
+The wrist camera publishes:
+
+```text
+/d435/color/image_raw
+/d435/color/camera_info
+/d435/depth/image_rect_raw
+/d435/depth/camera_info
+/d435/depth/points
+```
+
+Its stream settings are in `config/franka/realsense_d435.yaml`. Simulation uses
+the built-in MuJoCo RGB-D renderer, so neither `librealsense2` nor
+`realsense2_camera` is required. The standard description package is required:
+
+```bash
+sudo apt update
+sudo apt install ros-${ROS_DISTRO}-realsense2-description
+```
+
+Set `load_realsense:=false` to omit the camera. Camera rendering is automatically
+disabled by `headless:=true` because it requires an OpenGL context; the mount and
+camera remain in the robot description.
 
 ### Universal Robots (UR)
 
