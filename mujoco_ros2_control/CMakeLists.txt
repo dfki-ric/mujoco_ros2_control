@@ -128,6 +128,13 @@ ament_target_dependencies(mujoco_system_plugins
     urdf
 )
 
+# mujoco_system.cpp and mujoco_sensors.cpp call mj_name2id(), mj_id2name() and
+# mj_forward(), so this plugin library has to carry libmujoco itself rather
+# than relying on whichever process happens to dlopen it.
+target_link_libraries(mujoco_system_plugins
+    mujoco::mujoco
+)
+
 # Add executable for the main ROS2 control node
 add_executable(${PROJECT_NAME}
     src/mujoco_ros2_control_plugin.cpp
