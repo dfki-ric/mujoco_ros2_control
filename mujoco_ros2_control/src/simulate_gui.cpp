@@ -57,6 +57,7 @@ namespace mujoco_simulate_gui {
         mjv_defaultCamera(&cam);
 
         mjv_defaultOption(&opt);
+        opt.geomgroup[1] = 0;
 
         mjv_defaultPerturb(&pert);
 

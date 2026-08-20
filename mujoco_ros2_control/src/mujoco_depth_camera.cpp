@@ -137,6 +137,7 @@ namespace mujoco_rgbd_camera {
 
         mjr_defaultContext(&sensor_context_);
         mjv_defaultOption(&sensor_option_);
+        sensor_option_.geomgroup[1] = 0;
         mjv_defaultScene(&sensor_scene_);
 
         // create scene and context
