@@ -83,6 +83,10 @@ MujocoRos2Control::MujocoRos2Control(rclcpp::Node::SharedPtr &node) : nh_(node) 
       "mujoco_reset",
       std::bind(&MujocoRos2Control::mujocoResetCallback, this, std::placeholders::_1, std::placeholders::_2)
   );
+  mujoco_set_body_pose_service_ = nh_->create_service<mujoco_ros2_control::srv::SetBodyPose>(
+      "mujoco_set_body_pose",
+      std::bind(&MujocoRos2Control::mujocoSetBodyPoseCallback, this, std::placeholders::_1, std::placeholders::_2)
+  );
 
   // mujoco related parameters
   show_gui_ = params_.show_gui;
@@ -510,6 +514,46 @@ void mujoco_ros2_control::MujocoRos2Control::mujocoResetCallback(const std::shar
   resetSimulation();
   response->success = true;
   response->message = "Simulation reset completed.";
+}
+
+void mujoco_ros2_control::MujocoRos2Control::mujocoSetBodyPoseCallback(
+    const std::shared_ptr<mujoco_ros2_control::srv::SetBodyPose::Request> request,
+    std::shared_ptr<mujoco_ros2_control::srv::SetBodyPose::Response> response) {
+  int body_id = mj_name2id(mujoco_model_, mjOBJ_BODY, request->body_name.c_str());
+  if (body_id < 0) {
+    response->success = false;
+    response->message = "Unknown body name: " + request->body_name;
+    return;
+  }
+
+  int jnt_adr = mujoco_model_->body_jntadr[body_id];
+  if (mujoco_model_->body_jntnum[body_id] != 1 || mujoco_model_->jnt_type[jnt_adr] != mjJNT_FREE) {
+    response->success = false;
+    response->message = "Body '" + request->body_name + "' does not have a single free joint.";
+    return;
+  }
+
+  int qpos_adr = mujoco_model_->jnt_qposadr[jnt_adr];
+  int dof_adr = mujoco_model_->jnt_dofadr[jnt_adr];
+
+  std::lock_guard<std::mutex> step_lock(step_mutex_);
+  {
+    std::lock_guard<std::mutex> sim_lock(sim_mutex_);
+    mujoco_data_->qpos[qpos_adr + 0] = request->x;
+    mujoco_data_->qpos[qpos_adr + 1] = request->y;
+    mujoco_data_->qpos[qpos_adr + 2] = request->z;
+    mujoco_data_->qpos[qpos_adr + 3] = request->qw;
+    mujoco_data_->qpos[qpos_adr + 4] = request->qx;
+    mujoco_data_->qpos[qpos_adr + 5] = request->qy;
+    mujoco_data_->qpos[qpos_adr + 6] = request->qz;
+    for (int i = 0; i < 6; ++i) {
+      mujoco_data_->qvel[dof_adr + i] = 0.0;
+    }
+    mj_forward(mujoco_model_, mujoco_data_);
+  }
+
+  response->success = true;
+  response->message = "Body '" + request->body_name + "' repositioned.";
 }
 }  // namespace mujoco_ros2_control
 

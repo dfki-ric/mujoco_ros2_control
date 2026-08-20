@@ -42,6 +42,7 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
     pluginlib
     sensor_msgs
     std_srvs
+    rosidl_default_generators
 )
 
 foreach(Dependency IN ITEMS ${THIS_PACKAGE_INCLUDE_DEPENDS})
@@ -120,6 +121,16 @@ generate_parameter_library(mujoco_gl_lidar_parameters
     src/mujoco_gl_lidar_parameters.yaml
 )
 
+rosidl_generate_interfaces(${PROJECT_NAME}
+    srv/SetBodyPose.srv
+    DEPENDENCIES geometry_msgs
+)
+
+rosidl_get_typesupport_target(cpp_typesupport_target
+    ${PROJECT_NAME}
+    rosidl_typesupport_cpp
+)
+
 # Add system plugin
 add_library(mujoco_system_plugins SHARED src/mujoco_system.cpp src/mujoco_sensors.cpp)
 ament_target_dependencies(mujoco_system_plugins
@@ -135,14 +146,22 @@ target_link_libraries(mujoco_system_plugins
     mujoco::mujoco
 )
 
-# Add executable for the main ROS2 control node
-add_executable(${PROJECT_NAME}
+set(MUJOCO_ROS2_CONTROL_NODE_TARGET ${PROJECT_NAME}_node)
+
+# Add executable for the main ROS2 control node.
+# The CMake target name must differ from PROJECT_NAME because rosidl creates a
+# generated interface target with the package name.
+add_executable(${MUJOCO_ROS2_CONTROL_NODE_TARGET}
     src/mujoco_ros2_control_plugin.cpp
     src/mujoco_depth_camera.cpp
     src/mujoco_gl_lidar.cpp
 )
 
-ament_target_dependencies(${PROJECT_NAME}
+set_target_properties(${MUJOCO_ROS2_CONTROL_NODE_TARGET}
+    PROPERTIES OUTPUT_NAME ${PROJECT_NAME}
+)
+
+ament_target_dependencies(${MUJOCO_ROS2_CONTROL_NODE_TARGET}
     controller_manager
     hardware_interface
     rclcpp
@@ -157,7 +176,7 @@ ament_target_dependencies(${PROJECT_NAME}
 )
 
 # Link libraries to the main executable
-target_link_libraries(${PROJECT_NAME}
+target_link_libraries(${MUJOCO_ROS2_CONTROL_NODE_TARGET}
     mujoco::mujoco
     glfw
     ${PCL_LIBRARIES}
@@ -165,6 +184,7 @@ target_link_libraries(${PROJECT_NAME}
     ${PROJECT_NAME}_parameters
     mujoco_rgbd_camera_parameters
     mujoco_gl_lidar_parameters
+    "${cpp_typesupport_target}"
 )
 
 # Add GUI simulation library
@@ -177,8 +197,8 @@ target_link_libraries(simulate_gui PRIVATE
     glfw
 )
 
-# Link simulate_gui to the main project
-target_link_libraries(${PROJECT_NAME} simulate_gui)
+# Link simulate_gui to the main node
+target_link_libraries(${MUJOCO_ROS2_CONTROL_NODE_TARGET} simulate_gui)
 
 # Install targets
 install(TARGETS
@@ -187,7 +207,7 @@ install(TARGETS
 )
 
 install(TARGETS
-    ${PROJECT_NAME}
+    ${MUJOCO_ROS2_CONTROL_NODE_TARGET}
     DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -213,6 +233,7 @@ install(PROGRAMS
 ament_export_include_directories(include)
 ament_export_dependencies(ament_cmake)
 ament_export_dependencies(rclcpp)
+ament_export_dependencies(rosidl_default_runtime)
 ament_export_libraries(
     mujoco_system_plugins
 )

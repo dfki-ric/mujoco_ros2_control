@@ -87,6 +87,7 @@
 #include "geometry_msgs/msg/pose.hpp"
 #include "rosgraph_msgs/msg/clock.hpp"
 #include "std_srvs/srv/trigger.hpp"
+#include "mujoco_ros2_control/srv/set_body_pose.hpp"
 
 // URDF
 #include "urdf/urdf/model.h"
@@ -233,6 +234,8 @@ namespace mujoco_ros2_control
                                      std::shared_ptr<std_srvs::srv::Trigger::Response> response);
         void mujocoResetCallback(const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
                                  std::shared_ptr<std_srvs::srv::Trigger::Response> response);
+        void mujocoSetBodyPoseCallback(const std::shared_ptr<mujoco_ros2_control::srv::SetBodyPose::Request> request,
+                                        std::shared_ptr<mujoco_ros2_control::srv::SetBodyPose::Response> response);
 
         std::shared_ptr<rclcpp::Node> nh_; ///< ROS2 node handle
 
@@ -254,6 +257,7 @@ namespace mujoco_ros2_control
         // Mujoco ros services
         rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr mujoco_play_pause_service_; ///< Service to pause the Mujoco simulation
         rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr mujoco_reset_service_; ///< Service to reset the Mujoco simulation
+        rclcpp::Service<mujoco_ros2_control::srv::SetBodyPose>::SharedPtr mujoco_set_body_pose_service_; ///< Service to teleport a free body (e.g. the cube) to a new pose
 
         // Mujoco-related variables
         mjModel* mujoco_model_{}; ///< Pointer to the Mujoco model
@@ -303,8 +307,8 @@ namespace mujoco_ros2_control
         // time-consistent snapshot of mjData (e.g. MujocoGLLidar) take it
         // briefly to mj_copyData out of mujoco_data_ without racing mj_step.
         std::mutex sim_mutex_;
-        // Serializes reset and the autonomous simulation loop before they
-        // enter the lower-level mjData mutex.
+        // Serializes reset, teleport, and the autonomous simulation loop
+        // before they enter the lower-level mjData mutex.
         std::mutex step_mutex_;
 
         // std::shared_ptr<mujoco_ros2_sensors::MujocoRos2Sensors> mujoco_ros2_sensors_;
