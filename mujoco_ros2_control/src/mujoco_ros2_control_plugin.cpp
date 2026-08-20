@@ -103,7 +103,12 @@ MujocoRos2Control::MujocoRos2Control(rclcpp::Node::SharedPtr &node) : nh_(node) 
   pub_clock_frequency_ = params_.clock_publisher_frequency;
   running_.store(!params_.synchronous_mode, std::memory_order_release);
 
-  init_mujoco();
+  // Everything below dereferences mujoco_model_/mujoco_data_, so a model that
+  // failed to load has to end the setup here. main() reports the failure and
+  // exits; the destructor is safe on this half-built object.
+  if (!init_mujoco()) {
+    return;
+  }
 
   if (mujoco_model_->nkey > 0) {
     mj_resetDataKeyframe(mujoco_model_, mujoco_data_, 0);
@@ -135,6 +140,7 @@ MujocoRos2Control::MujocoRos2Control(rclcpp::Node::SharedPtr &node) : nh_(node) 
   }
 
   thread_sim_ = std::thread(&MujocoRos2Control::update, this);
+  initialized_ = true;
   RCLCPP_INFO(nh_->get_logger(), "Sim environment setup complete");
 }
 
@@ -147,8 +153,12 @@ MujocoRos2Control::~MujocoRos2Control()
   for (auto &thread : lidar_threads_) {
     thread.join();
   }
-  thread_sim_.join();
-  thread_executor_spin_.join();
+  if (thread_sim_.joinable()) {
+    thread_sim_.join();
+  }
+  if (thread_executor_spin_.joinable()) {
+    thread_executor_spin_.join();
+  }
   cameras_.clear();
   // deallocate existing mjModel
   mj_deleteModel(mujoco_model_);
@@ -156,7 +166,7 @@ MujocoRos2Control::~MujocoRos2Control()
   // deallocate existing mjData
   mj_deleteData(mujoco_data_);
 
-  if (show_gui_) {
+  if (show_gui_ && initialized_) {
     mj_vis_.terminate();
   }
 
@@ -322,7 +332,7 @@ void MujocoRos2Control::publish_sim_time(bool force) {
   }
 }
 
-void MujocoRos2Control::init_mujoco() {
+bool MujocoRos2Control::init_mujoco() {
   char error[1000];
 
   // create mjModel
@@ -330,7 +340,7 @@ void MujocoRos2Control::init_mujoco() {
 
   if (!mujoco_model_) {
     RCLCPP_FATAL(nh_->get_logger(), "Could not load mujoco model with error: %s.\n", error);
-    return;
+    return false;
   } else {
     // No problem with margins
     RCLCPP_INFO(nh_->get_logger(), "loaded mujoco model");
@@ -343,13 +353,14 @@ void MujocoRos2Control::init_mujoco() {
   mujoco_data_ = mj_makeData(mujoco_model_);
   if (!mujoco_data_) {
     RCLCPP_FATAL(nh_->get_logger(), "Could not create mujoco data from model.");
-    return;
+    return false;
   } else {
     RCLCPP_INFO(nh_->get_logger(), "Created mujoco data");
   }
 
   // get the Mujoco simulation period as ros duration
   mujoco_period_ = rclcpp::Duration::from_seconds(mujoco_model_->opt.timestep);
+  return true;
 }
 
     void MujocoRos2Control::init_controller_manager() {
@@ -726,6 +737,13 @@ int main(int argc, char** argv) {
   rclcpp::Node::SharedPtr node = rclcpp::Node::make_shared("mujoco_ros2_control");
   // create the mujoco_ros2_control_plugin
   mujoco_ros2_control::MujocoRos2Control mujoco_ros2_control_plugin(node);
+
+  if (!mujoco_ros2_control_plugin.initialized()) {
+    RCLCPP_FATAL(node->get_logger(),
+      "Mujoco simulation setup failed; shutting down.");
+    rclcpp::shutdown();
+    return 1;
+  }
 
   // create an executor and spin the created node with it
   rclcpp::executors::MultiThreadedExecutor executor;
