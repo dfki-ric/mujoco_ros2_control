@@ -133,7 +133,9 @@ MujocoRos2Control::~MujocoRos2Control()
   for (auto &thread : lidar_threads_) {
     thread.join();
   }
+  thread_sim_.join();
   thread_executor_spin_.join();
+  cameras_.clear();
   // deallocate existing mjModel
   mj_deleteModel(mujoco_model_);
 
@@ -144,8 +146,6 @@ MujocoRos2Control::~MujocoRos2Control()
     mj_vis_.terminate();
   }
 
-  // join simulation thread
-  thread_sim_.join();
 }
 
 void MujocoRos2Control::render() {
