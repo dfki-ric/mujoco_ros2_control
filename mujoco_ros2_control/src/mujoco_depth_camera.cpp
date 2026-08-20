@@ -465,24 +465,33 @@ namespace mujoco_rgbd_camera {
             return;
         }
 
-        cv_bridge::CvImagePtr cv_ptr = std::make_shared<cv_bridge::CvImage>();
-        sensor_msgs::msg::Image out_image;
-
         if (color_image_publisher_) {
-            cv_ptr->image = color_image_;
-            cv_ptr->encoding = "8UC3";
-            cv_ptr->toImageMsg(out_image);
+            sensor_msgs::msg::Image out_image;
             out_image.header.stamp = stamp_;
             out_image.header.frame_id = color_frame_;
+            out_image.height = color_image_.rows;
+            out_image.width = color_image_.cols;
+            out_image.encoding = sensor_msgs::image_encodings::BGR8;
+            out_image.is_bigendian = false;
+            out_image.step = static_cast<sensor_msgs::msg::Image::_step_type>(color_image_.step);
+            out_image.data.assign(
+                color_image_.datastart,
+                color_image_.datastart + static_cast<std::ptrdiff_t>(color_image_.step * color_image_.rows));
             color_image_publisher_->publish(out_image);
         }
 
         if (depth_image_publisher_) {
-            cv_ptr->image = depth_image_;
-            cv_ptr->encoding = "32FC1";
-            cv_ptr->toImageMsg(out_image);
+            sensor_msgs::msg::Image out_image;
             out_image.header.stamp = stamp_;
             out_image.header.frame_id = depth_frame_;
+            out_image.height = depth_image_.rows;
+            out_image.width = depth_image_.cols;
+            out_image.encoding = sensor_msgs::image_encodings::TYPE_32FC1;
+            out_image.is_bigendian = false;
+            out_image.step = static_cast<sensor_msgs::msg::Image::_step_type>(depth_image_.step);
+            out_image.data.assign(
+                depth_image_.datastart,
+                depth_image_.datastart + static_cast<std::ptrdiff_t>(depth_image_.step * depth_image_.rows));
             depth_image_publisher_->publish(out_image);
         }
 
