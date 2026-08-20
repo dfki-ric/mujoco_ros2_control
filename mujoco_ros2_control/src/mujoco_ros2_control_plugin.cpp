@@ -160,28 +160,17 @@ void MujocoRos2Control::update() {
       continue;
     }
 
+    // Handle a GUI reset even while the simulation is paused.
+    if (reset_requested_.exchange(false, std::memory_order_acq_rel)) {
+      resetSimulation();
+    }
+
     const bool keep_running = show_gui_ ? mj_vis_.sim->run : running_.load();
     if (!keep_running) {
       std::this_thread::sleep_for(std::chrono::milliseconds(1));
       continue;
     }
 
-    // Handle reset request from the UI thread safely on the sim thread
-    if (reset_requested_.exchange(false, std::memory_order_acq_rel)) {
-      if (mujoco_model_->nkey > 0) {
-        mj_resetDataKeyframe(mujoco_model_, mujoco_data_, 0);
-      } else {
-        mj_resetData(mujoco_model_, mujoco_data_);
-      }
-      mj_forward(mujoco_model_, mujoco_data_);
-      mujoco_start_time_ = mujoco_data_->time;
-      clock_gettime(CLOCK_MONOTONIC, &startTime_);
-      last_update_sim_time_ros_ = rclcpp::Time((int64_t)0, RCL_ROS_TIME);
-      last_pub_clock_time_ = 0.0;
-      reset_notify_publisher_->publish(std_msgs::msg::Empty());
-    }
-
-    mjtNum simstart = mujoco_data_->time;
     timespec currentTime{};
     param_listener_->refresh_dynamic_parameters();
     params_ = param_listener_->get_params();
@@ -191,27 +180,8 @@ void MujocoRos2Control::update() {
     if (double(currentTime.tv_sec - startTime_.tv_sec) +
         double(currentTime.tv_nsec - startTime_.tv_nsec) / 1e9 >=
       (mujoco_data_->time - mujoco_start_time_) * params_.real_time_factor) {
-      publish_sim_time();
-      rclcpp::Time sim_time_ros = rclcpp::Time((int64_t) (mujoco_data_->time * 1e+9), RCL_ROS_TIME);
-      rclcpp::Duration sim_period = sim_time_ros - last_update_sim_time_ros_;
-
-      // check if we should update the controllers
-      if (sim_period >= control_period_) {
-        // store simulation time
-        last_update_sim_time_ros_ = sim_time_ros;
-        // update the robot simulation with the state of the mujoco model
-        controller_manager_->read(sim_time_ros, sim_period);
-        // compute the controller commands
-        controller_manager_->update(sim_time_ros, sim_period);
-        // update the mujoco model with the result of the controller
-        controller_manager_->write(sim_time_ros, sim_period);
-      }
-
-      // Calculate the next mujoco step.
-      {
-        std::lock_guard<std::mutex> sim_lock(sim_mutex_);
-        mj_step(mujoco_model_, mujoco_data_);
-      }
+      std::lock_guard<std::mutex> step_lock(step_mutex_);
+      advanceSimulationStep();
 
       if (show_gui_) {
         mujoco::MutexLock lock(mj_vis_.sim->mtx);
@@ -219,6 +189,48 @@ void MujocoRos2Control::update() {
       }
     }
   }
+}
+
+void MujocoRos2Control::updateControllersAtCurrentTime() {
+  const rclcpp::Time sim_time_ros(
+    static_cast<int64_t>(mujoco_data_->time * 1e9), RCL_ROS_TIME);
+  const rclcpp::Duration sim_period = sim_time_ros - last_update_sim_time_ros_;
+  if (sim_period < control_period_) {
+    return;
+  }
+  last_update_sim_time_ros_ = sim_time_ros;
+  controller_manager_->read(sim_time_ros, sim_period);
+  controller_manager_->update(sim_time_ros, sim_period);
+  controller_manager_->write(sim_time_ros, sim_period);
+}
+
+void MujocoRos2Control::advanceSimulationStep() {
+  {
+    std::lock_guard<std::mutex> sim_lock(sim_mutex_);
+    updateControllersAtCurrentTime();
+    mj_step(mujoco_model_, mujoco_data_);
+  }
+  publish_sim_time();
+}
+
+void MujocoRos2Control::resetSimulation() {
+  std::lock_guard<std::mutex> step_lock(step_mutex_);
+  {
+    std::lock_guard<std::mutex> sim_lock(sim_mutex_);
+    if (mujoco_model_->nkey > 0) {
+      mj_resetDataKeyframe(mujoco_model_, mujoco_data_, 0);
+    } else {
+      mj_resetData(mujoco_model_, mujoco_data_);
+    }
+    mj_forward(mujoco_model_, mujoco_data_);
+    mujoco_start_time_ = mujoco_data_->time;
+    last_update_sim_time_ros_ = rclcpp::Time(
+      static_cast<int64_t>(mujoco_data_->time * 1e9), RCL_ROS_TIME);
+    last_pub_clock_time_ = -1.0;
+  }
+  clock_gettime(CLOCK_MONOTONIC, &startTime_);
+  publish_sim_time();
+  reset_notify_publisher_->publish(std_msgs::msg::Empty());
 }
 
 void MujocoRos2Control::publish_sim_time() {
@@ -495,9 +507,9 @@ void mujoco_ros2_control::MujocoRos2Control::mujocoPlayPauseCallback(const std::
 void mujoco_ros2_control::MujocoRos2Control::mujocoResetCallback(const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
                                  std::shared_ptr<std_srvs::srv::Trigger::Response> response) {
   (void)request;
-  reset_requested_.store(true);
+  resetSimulation();
   response->success = true;
-  response->message = "Simulation reset requested.";
+  response->message = "Simulation reset completed.";
 }
 }  // namespace mujoco_ros2_control
 

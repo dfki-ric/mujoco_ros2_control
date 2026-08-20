@@ -191,6 +191,10 @@ namespace mujoco_ros2_control
          */
         void publish_sim_time();
 
+        void updateControllersAtCurrentTime();
+        void advanceSimulationStep();
+        void resetSimulation();
+
         /**
          * @brief Initializes the controller manager and hardware interfaces.
          *
@@ -242,7 +246,7 @@ namespace mujoco_ros2_control
         rclcpp::Publisher<rosgraph_msgs::msg::Clock>::SharedPtr publisher_; ///< Publisher for the Clock message
         ClockPublisherPtr clock_publisher_; ///< Clock publisher object
         double pub_clock_frequency_; ///< Frequency the Clock is published
-        double last_pub_clock_time_; ///< Timestamp the clock was published
+        double last_pub_clock_time_{-1.0}; ///< Simulation timestamp last published
 
 
         rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr reset_notify_publisher_; ///< Notifies subscribers (e.g. the policy node) that the sim was reset
@@ -299,6 +303,9 @@ namespace mujoco_ros2_control
         // time-consistent snapshot of mjData (e.g. MujocoGLLidar) take it
         // briefly to mj_copyData out of mujoco_data_ without racing mj_step.
         std::mutex sim_mutex_;
+        // Serializes reset and the autonomous simulation loop before they
+        // enter the lower-level mjData mutex.
+        std::mutex step_mutex_;
 
         // std::shared_ptr<mujoco_ros2_sensors::MujocoRos2Sensors> mujoco_ros2_sensors_;
     };
