@@ -467,6 +467,18 @@ class Xacro2Mjcf(Node):
         sanitized = sanitized.strip("_")
         return sanitized or "part"
 
+    def mesh_asset_stub(self, source_file):
+        """Short, unique basename stem for a file generated from a mesh.
+
+        A full absolute source path does not fit in a single filename once it is
+        encoded into one - and a converted DAE encodes one twice, since the
+        expanded mesh is itself the source of a symlink. Keep the readable
+        basename and add a deterministic digest of the full path for uniqueness.
+        """
+        stem = os.path.splitext(os.path.basename(source_file))[0]
+        digest = hashlib.sha256(source_file.encode("utf-8")).hexdigest()[:16]
+        return f"{self.sanitize_name(stem)[:96]}_{digest}"
+
     def expand_dae_visuals(self, urdf_root, mujoco_files_path):
         """Replace each DAE <visual> with one STL <visual> per material group.
 
@@ -515,7 +527,7 @@ class Xacro2Mjcf(Node):
                 visual_replacements = []
                 scale = mesh.get("scale")
                 base_origin = visual.find("origin")
-                source_stub = self.sanitize_name(source_file)
+                source_stub = self.mesh_asset_stub(source_file)
 
                 for index, group in enumerate(triangle_groups):
                     material_name = group.get("material_id") or group.get("material_symbol") or f"part_{index}"
@@ -531,7 +543,7 @@ class Xacro2Mjcf(Node):
                         ]
                         target_file = os.path.join(
                             expanded_mesh_dir,
-                            f"{source_stub}__{self.sanitize_name(material_name)}"
+                            f"{source_stub}__{self.sanitize_name(material_name)[:64]}"
                             f"__chunk_{chunk_index:03d}.stl",
                         )
                         if not os.path.exists(target_file):
@@ -610,23 +622,12 @@ class Xacro2Mjcf(Node):
                 source_file = self.resolve_mesh_source_file(filename)
                 if source_file is None:
                     continue
-                # A full absolute source path can exceed the filesystem's
-                # per-component limit once a converted DAE path is encoded a
-                # second time. Keep a readable basename and a deterministic
-                # digest for uniqueness instead.
-                source_basename = os.path.basename(source_file)
-                source_stem, source_extension = os.path.splitext(source_basename)
-                readable_stem = self.sanitize_name(source_stem)[:96]
-                source_digest = hashlib.sha256(
-                    source_file.encode("utf-8")
-                ).hexdigest()[:16]
-                target_basename = (
-                    f"{readable_stem}_{source_digest}{source_extension.lower()}"
-                )
-                target_file = os.path.join(
-                    mujoco_files_path, "meshes", target_basename
-                )
                 source_extension = os.path.splitext(source_file)[1].lower()
+                target_file = os.path.join(
+                    mujoco_files_path,
+                    "meshes",
+                    f"{self.mesh_asset_stub(source_file)}{source_extension}",
+                )
 
                 if source_extension in [".stl", ".obj", ".msh"]:
                     self.get_logger().debug(f'mesh source file: {source_file}, target_file: {target_file}')
