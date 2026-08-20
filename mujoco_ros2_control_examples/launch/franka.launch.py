@@ -43,11 +43,18 @@ def create_nodes(context: LaunchContext):
             "hand": value("load_gripper"),
             "ee_id": ee_id,
             "headless": headless,
+            "base_xyz": value("robot_base_xyz"),
+            "base_rpy": "0 0 0",
+            "camera_xyz": "1 0 1.875",
         },
     ).toprettyxml(indent="  ")
 
     # Non-robot models are passed through unchanged as independent scene files.
     additional_files = [os.path.join(mujoco_share, "mjcf", "scene.xml")]
+    if value("load_imrk_table").lower() == "true":
+        additional_files.append(os.path.join(
+            examples_share, "urdf", "imrk_table", "imrk_table.urdf.xacro"
+        ))
     if load_task_table:
         task_table_xacro = os.path.join(
             examples_share, "urdf", "task_table", "task_table.urdf.xacro"
@@ -135,6 +142,8 @@ def generate_launch_description():
         DeclareLaunchArgument("arm_id", default_value="fr3"),
         DeclareLaunchArgument("load_gripper", default_value="true"),
         DeclareLaunchArgument("ee_id", default_value="franka_hand"),
+        DeclareLaunchArgument("robot_base_xyz", default_value="-0.308 0 0.875"),
+        DeclareLaunchArgument("load_imrk_table", default_value="true"),
         DeclareLaunchArgument("load_task_table", default_value="true"),
         DeclareLaunchArgument("synchronous_mode", default_value="false"),
         OpaqueFunction(function=create_nodes),

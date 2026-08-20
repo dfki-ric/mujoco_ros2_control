@@ -19,6 +19,9 @@
 
     <!-- Franka config -->
     <xacro:arg name="parent" default="world" />
+    <xacro:arg name="base_xyz" default="0 0 0" />
+    <xacro:arg name="base_rpy" default="0 0 0" />
+    <xacro:arg name="camera_xyz" default="1 0 1.0" />
     <xacro:arg name="load_gripper" default="true" />
     <xacro:arg name="ee_id" default="franka_hand" />
     <xacro:arg name="arm_id" default="fp3" />
@@ -38,7 +41,7 @@
 	<joint name="world_to_base" type="fixed">
 		<parent link="world" />
 		<child link="base" />
-		<origin rpy="0 0 0" xyz="0 0 0" />
+		<origin rpy="$(arg base_rpy)" xyz="$(arg base_xyz)" />
 	</joint>
     <xacro:include filename="$(find franka_description)/robots/$(arg arm_id)/$(arg arm_id).urdf.xacro" />
 
@@ -94,7 +97,7 @@
                     prefix=""
                     camera_name="camera"
                     parent_link="world"
-                    origin_xyz="1 0 1."
+                    origin_xyz="$(arg camera_xyz)"
                     origin_rpy="0 .9 ${pi}">
             </xacro:camera>
         </xacro:unless>
