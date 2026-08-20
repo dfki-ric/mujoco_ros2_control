@@ -1,5 +1,4 @@
 import os
-import re
 
 import xacro
 from ament_index_python import get_package_share_directory
@@ -31,7 +30,6 @@ def create_nodes(context: LaunchContext):
     ee_id = value("ee_id")
     headless = value("headless")
     headless_bool = headless.lower() == "true"
-    load_task_table = value("load_task_table").lower() == "true"
 
     franka_xacro = os.path.join(examples_share, "urdf", "franka", "franka.urdf.xacro")
     robot_xml = xacro.process_file(
@@ -48,6 +46,7 @@ def create_nodes(context: LaunchContext):
             "camera_xyz": "1 0 1.875",
         },
     ).toprettyxml(indent="  ")
+    robot_description = {"robot_description": robot_xml}
 
     # Non-robot models are passed through unchanged as independent scene files.
     additional_files = [os.path.join(mujoco_share, "mjcf", "scene.xml")]
@@ -55,17 +54,10 @@ def create_nodes(context: LaunchContext):
         additional_files.append(os.path.join(
             examples_share, "urdf", "imrk_table", "imrk_table.urdf.xacro"
         ))
-    if load_task_table:
-        task_table_xacro = os.path.join(
-            examples_share, "urdf", "task_table", "task_table.urdf.xacro"
-        )
-        additional_files.append(task_table_xacro)
-        # Merge the task table's ros2_control blocks into robot_description so
-        # the gear pose sensors are registered with the controller manager.
-        task_table_xml = xacro.process_file(task_table_xacro).toprettyxml(indent="  ")
-        for block in re.findall(r"(<ros2_control.*?</ros2_control>)", task_table_xml, re.DOTALL):
-            robot_xml = robot_xml.replace("</robot>", block + "\n</robot>")
-    robot_description = {"robot_description": robot_xml}
+    if value("load_industreal_board").lower() == "true":
+        additional_files.append(os.path.join(
+            examples_share, "urdf", "industreal", "industreal_task_board.urdf.xacro"
+        ))
 
     converter = Node(
         package="mujoco_ros2_control",
@@ -73,6 +65,7 @@ def create_nodes(context: LaunchContext):
         parameters=[{
             "robot_descriptions": [robot_xml],
             "input_files": additional_files,
+            "xacro_args": [f"task_board_config:={value('task_board_config')}"],
             "output_file": model_file,
             "mujoco_files_path": model_dir,
         }],
@@ -104,11 +97,6 @@ def create_nodes(context: LaunchContext):
         controller_nodes.append(
             _spawner(f"{arm_id}_franka_hand_joint_trajectory_controller", controllers)
         )
-    if load_task_table:
-        controller_nodes += [
-            _spawner(f"{gear}_pose_broadcaster", controllers)
-            for gear in ("gears_large", "gears_medium", "gears_small")
-        ]
 
     rviz = Node(
         condition=IfCondition(LaunchConfiguration("rviz")),
@@ -136,6 +124,7 @@ def create_nodes(context: LaunchContext):
 
 
 def generate_launch_description():
+    examples_share = get_package_share_directory("mujoco_ros2_control_examples")
     return LaunchDescription([
         DeclareLaunchArgument("rviz", default_value="true"),
         DeclareLaunchArgument("headless", default_value="false"),
@@ -144,7 +133,13 @@ def generate_launch_description():
         DeclareLaunchArgument("ee_id", default_value="franka_hand"),
         DeclareLaunchArgument("robot_base_xyz", default_value="-0.308 0 0.875"),
         DeclareLaunchArgument("load_imrk_table", default_value="true"),
-        DeclareLaunchArgument("load_task_table", default_value="true"),
+        DeclareLaunchArgument("load_industreal_board", default_value="true"),
         DeclareLaunchArgument("synchronous_mode", default_value="false"),
+        DeclareLaunchArgument(
+            "task_board_config",
+            default_value=os.path.join(
+                examples_share, "config", "franka", "industreal_task_board.yaml"
+            ),
+        ),
         OpaqueFunction(function=create_nodes),
     ])

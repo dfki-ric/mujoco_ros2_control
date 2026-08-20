@@ -1,0 +1,69 @@
+# Complete NVIDIA IndustReal benchmark-board layout. All xyz values are
+# relative to the workspace/table origin; the launch file adds table offsets.
+workspace:
+  # World pose of the task workspace. Change z to 0 when no table is loaded.
+  xyz: [-0.308, 0.0, 0.875]
+
+board:
+  enabled: true
+  xyz: [0.43, 0.0, 0.004]
+  size: [0.34, 0.46, 0.008]
+  rgba: [0.22, 0.24, 0.24, 1.0]
+
+components:
+  # Three rows matching the photographed board: 16, 12, then 8 mm.
+  round_peg_16mm:
+    enabled: true
+    pick_xyz: [0.53, -0.19, 0.008]
+    insert_xyz: [0.53, -0.125, 0.008]
+    peg_xyz: [0.53, -0.19, 0.033]
+  rectangular_peg_16mm:
+    enabled: true
+    pick_xyz: [0.53, -0.045, 0.008]
+    insert_xyz: [0.53, 0.020, 0.008]
+    peg_xyz: [0.53, -0.045, 0.033]
+  round_peg_12mm:
+    enabled: true
+    pick_xyz: [0.43, -0.19, 0.008]
+    insert_xyz: [0.43, -0.125, 0.008]
+    peg_xyz: [0.43, -0.19, 0.033]
+  rectangular_peg_12mm:
+    enabled: true
+    pick_xyz: [0.43, -0.045, 0.008]
+    insert_xyz: [0.43, 0.020, 0.008]
+    peg_xyz: [0.43, -0.045, 0.033]
+  round_peg_8mm:
+    enabled: true
+    pick_xyz: [0.33, -0.19, 0.008]
+    insert_xyz: [0.33, -0.125, 0.008]
+    peg_xyz: [0.33, -0.19, 0.033]
+  rectangular_peg_8mm:
+    enabled: true
+    pick_xyz: [0.33, -0.045, 0.008]
+    insert_xyz: [0.33, 0.020, 0.008]
+    peg_xyz: [0.33, -0.045, 0.033]
+
+  electrical_connectors:
+    enabled: false
+    # The public trays plus proxy geometry for the commercial plugs/sockets.
+    # Keep the electrical tasks in the rear-right area of the board.
+    nema_2_pick_xyz: [0.535, 0.095, 0.011]
+    nema_2_insert_xyz: [0.475, 0.095, 0.011]
+    nema_3_pick_xyz: [0.535, 0.175, 0.037]
+    nema_3_insert_xyz: [0.475, 0.175, 0.011]
+
+  gears:
+    enabled: true
+    # Front-right layout: shaft base in one column and each loose gear beside
+    # its corresponding shaft. The different x values account for gear radii.
+    # Z origins compensate for each STL's negative minimum Z so every base
+    # and loose gear starts directly on the breadboard top at z = 0.008 m.
+    base_xyz: [0.305, 0.135, 0.018621]
+    # Shaft centers in the base STL are at y offsets -0.037276, +0.013223,
+    # and +0.043723 m for the small, medium, and large gears respectively.
+    # Reverse only the loose-gear slots: large, medium, small from left to
+    # right. Use 60 mm Y centre spacing for visible clearance; the base and
+    # its three shaft positions remain unchanged.
+    large_xyz: [0.385, 0.088223, 0.013969]
+    medium_xyz: [0.385, 0.148223, 0.014361]
+    small_xyz: [0.385, 0.188223, 0.015374]

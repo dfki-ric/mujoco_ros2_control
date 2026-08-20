@@ -6,12 +6,6 @@ controller_manager:
       type: joint_state_broadcaster/JointStateBroadcaster
     ft_sensor_broadcaster:
       type: force_torque_sensor_broadcaster/ForceTorqueSensorBroadcaster
-    gears_large_pose_broadcaster:
-      type: pose_broadcaster/PoseBroadcaster
-    gears_medium_pose_broadcaster:
-      type: pose_broadcaster/PoseBroadcaster
-    gears_small_pose_broadcaster:
-      type: pose_broadcaster/PoseBroadcaster
 
     fer_joint_trajectory_controller:
       type: "joint_trajectory_controller/JointTrajectoryController"
@@ -145,30 +139,6 @@ ft_sensor_broadcaster:
   ros__parameters:
     sensor_name: "fr3_ft_sensor"
     frame_id: "fr3_link7"
-
-gears_large_pose_broadcaster:
-  ros__parameters:
-    pose_name: "gears_large_pose"
-    frame_id: "world"
-    tf:
-      enable: true
-      child_frame_id: "gears_large_link"
-
-gears_medium_pose_broadcaster:
-  ros__parameters:
-    pose_name: "gears_medium_pose"
-    frame_id: "world"
-    tf:
-      enable: true
-      child_frame_id: "gears_medium_link"
-
-gears_small_pose_broadcaster:
-  ros__parameters:
-    pose_name: "gears_small_pose"
-    frame_id: "world"
-    tf:
-      enable: true
-      child_frame_id: "gears_small_link"
 
 # Site depth camera (site "mjCam_camera" in mujoco_camera.urdf.xacro -> node
 # "camera", topics /camera/color/... and /camera/depth/...). Mounted in

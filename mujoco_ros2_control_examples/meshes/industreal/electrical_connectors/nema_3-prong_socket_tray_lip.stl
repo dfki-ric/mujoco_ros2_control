@@ -1,0 +1,226 @@
+solid Mesh
+  facet normal 0 -1 0
+    outer loop
+      vertex 0.02 -0.02 0.02936
+      vertex 0.02 -0.02 0.03254
+      vertex -0.02 -0.02 0.02936
+    endloop
+  endfacet
+  facet normal 0 -1 0
+    outer loop
+      vertex 0.02 -0.02 0.03254
+      vertex -0.02 -0.02 0.03254
+      vertex -0.02 -0.02 0.02936
+    endloop
+  endfacet
+  facet normal -1 0 0
+    outer loop
+      vertex -0.02 -0.02 0.03254
+      vertex -0.02 0.02 0.03254
+      vertex -0.02 -0.02 0.02936
+    endloop
+  endfacet
+  facet normal -1 0 0
+    outer loop
+      vertex -0.02 0.02 0.03254
+      vertex -0.02 0.02 0.02936
+      vertex -0.02 -0.02 0.02936
+    endloop
+  endfacet
+  facet normal 1 0 0
+    outer loop
+      vertex 0.02 0.02 0.02936
+      vertex 0.02 0.02 0.03254
+      vertex 0.02 -0.02 0.02936
+    endloop
+  endfacet
+  facet normal 1 0 0
+    outer loop
+      vertex 0.02 0.02 0.03254
+      vertex 0.02 -0.02 0.03254
+      vertex 0.02 -0.02 0.02936
+    endloop
+  endfacet
+  facet normal 1 0 0
+    outer loop
+      vertex -0.01275 0.01275 0.02936
+      vertex -0.01275 0.01275 0.03254
+      vertex -0.01275 -0.01275 0.02936
+    endloop
+  endfacet
+  facet normal 1 0 0
+    outer loop
+      vertex -0.01275 0.01275 0.03254
+      vertex -0.01275 -0.01275 0.03254
+      vertex -0.01275 -0.01275 0.02936
+    endloop
+  endfacet
+  facet normal -1 0 0
+    outer loop
+      vertex 0.01275 -0.01275 0.03254
+      vertex 0.01275 0.01275 0.03254
+      vertex 0.01275 -0.01275 0.02936
+    endloop
+  endfacet
+  facet normal -1 0 0
+    outer loop
+      vertex 0.01275 0.01275 0.03254
+      vertex 0.01275 0.01275 0.02936
+      vertex 0.01275 -0.01275 0.02936
+    endloop
+  endfacet
+  facet normal 0 0 1
+    outer loop
+      vertex -0.01275 0.01275 0.03254
+      vertex -0.02 0.02 0.03254
+      vertex -0.01275 -0.01275 0.03254
+    endloop
+  endfacet
+  facet normal 0 0 1
+    outer loop
+      vertex -0.02 0.02 0.03254
+      vertex -0.02 -0.02 0.03254
+      vertex -0.01275 -0.01275 0.03254
+    endloop
+  endfacet
+  facet normal 0 0 1
+    outer loop
+      vertex -0.01275 -0.01275 0.03254
+      vertex -0.02 -0.02 0.03254
+      vertex 0.01275 -0.01275 0.03254
+    endloop
+  endfacet
+  facet normal 0 0 1
+    outer loop
+      vertex -0.02 -0.02 0.03254
+      vertex 0.02 -0.02 0.03254
+      vertex 0.01275 -0.01275 0.03254
+    endloop
+  endfacet
+  facet normal 0 0 1
+    outer loop
+      vertex 0.01275 -0.01275 0.03254
+      vertex 0.02 -0.02 0.03254
+      vertex 0.01275 0.01275 0.03254
+    endloop
+  endfacet
+  facet normal 0 0 1
+    outer loop
+      vertex 0.02 -0.02 0.03254
+      vertex 0.02 0.02 0.03254
+      vertex 0.01275 0.01275 0.03254
+    endloop
+  endfacet
+  facet normal 0 0 1
+    outer loop
+      vertex 0.01275 0.01275 0.03254
+      vertex 0.02 0.02 0.03254
+      vertex -0.01275 0.01275 0.03254
+    endloop
+  endfacet
+  facet normal 0 0 1
+    outer loop
+      vertex 0.02 0.02 0.03254
+      vertex -0.02 0.02 0.03254
+      vertex -0.01275 0.01275 0.03254
+    endloop
+  endfacet
+  facet normal 0 0 -1
+    outer loop
+      vertex -0.01275 0.01275 0.02936
+      vertex -0.02 0.02 0.02936
+      vertex 0.01275 0.01275 0.02936
+    endloop
+  endfacet
+  facet normal 0 0 -1
+    outer loop
+      vertex -0.02 0.02 0.02936
+      vertex 0.02 0.02 0.02936
+      vertex 0.01275 0.01275 0.02936
+    endloop
+  endfacet
+  facet normal 0 0 -1
+    outer loop
+      vertex 0.01275 0.01275 0.02936
+      vertex 0.02 0.02 0.02936
+      vertex 0.01275 -0.01275 0.02936
+    endloop
+  endfacet
+  facet normal 0 0 -1
+    outer loop
+      vertex 0.02 0.02 0.02936
+      vertex 0.02 -0.02 0.02936
+      vertex 0.01275 -0.01275 0.02936
+    endloop
+  endfacet
+  facet normal 0 0 -1
+    outer loop
+      vertex 0.01275 -0.01275 0.02936
+      vertex 0.02 -0.02 0.02936
+      vertex -0.01275 -0.01275 0.02936
+    endloop
+  endfacet
+  facet normal 0 0 -1
+    outer loop
+      vertex 0.02 -0.02 0.02936
+      vertex -0.02 -0.02 0.02936
+      vertex -0.01275 -0.01275 0.02936
+    endloop
+  endfacet
+  facet normal 0 0 -1
+    outer loop
+      vertex -0.01275 -0.01275 0.02936
+      vertex -0.02 -0.02 0.02936
+      vertex -0.01275 0.01275 0.02936
+    endloop
+  endfacet
+  facet normal 0 0 -1
+    outer loop
+      vertex -0.02 -0.02 0.02936
+      vertex -0.02 0.02 0.02936
+      vertex -0.01275 0.01275 0.02936
+    endloop
+  endfacet
+  facet normal 0 -1 0
+    outer loop
+      vertex 0.01275 0.01275 0.02936
+      vertex 0.01275 0.01275 0.03254
+      vertex -0.01275 0.01275 0.02936
+    endloop
+  endfacet
+  facet normal 0 -1 0
+    outer loop
+      vertex 0.01275 0.01275 0.03254
+      vertex -0.01275 0.01275 0.03254
+      vertex -0.01275 0.01275 0.02936
+    endloop
+  endfacet
+  facet normal 0 1 0
+    outer loop
+      vertex -0.02 0.02 0.03254
+      vertex 0.02 0.02 0.03254
+      vertex -0.02 0.02 0.02936
+    endloop
+  endfacet
+  facet normal 0 1 0
+    outer loop
+      vertex 0.02 0.02 0.03254
+      vertex 0.02 0.02 0.02936
+      vertex -0.02 0.02 0.02936
+    endloop
+  endfacet
+  facet normal 0 1 0
+    outer loop
+      vertex -0.01275 -0.01275 0.03254
+      vertex 0.01275 -0.01275 0.03254
+      vertex -0.01275 -0.01275 0.02936
+    endloop
+  endfacet
+  facet normal 0 1 0
+    outer loop
+      vertex 0.01275 -0.01275 0.03254
+      vertex 0.01275 -0.01275 0.02936
+      vertex -0.01275 -0.01275 0.02936
+    endloop
+  endfacet
+endsolid Mesh

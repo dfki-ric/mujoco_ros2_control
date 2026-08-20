@@ -1,0 +1,110 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro" name="industreal_task_board">
+  <xacro:arg name="task_board_config" default="$(find mujoco_ros2_control_examples)/config/franka/industreal_task_board.yaml"/>
+  <xacro:property name="cfg" value="${xacro.load_yaml('$(arg task_board_config)')}"/>
+  <xacro:property name="wx" value="${cfg.workspace.xyz[0]}"/>
+  <xacro:property name="wy" value="${cfg.workspace.xyz[1]}"/>
+  <xacro:property name="wz" value="${cfg.workspace.xyz[2]}"/>
+
+  <link name="world"/>
+  <xacro:macro name="configured_origin" params="xyz">
+    <origin xyz="${wx + xyz[0]} ${wy + xyz[1]} ${wz + xyz[2]}" rpy="0 0 0"/>
+  </xacro:macro>
+
+  <xacro:macro name="inertial" params="mass:=0.1">
+    <inertial><origin xyz="0 0 0" rpy="0 0 0"/><mass value="${mass}"/><inertia ixx="0.0001" ixy="0" ixz="0" iyy="0.0001" iyz="0" izz="0.0001"/></inertial>
+  </xacro:macro>
+  <xacro:macro name="mesh_link" params="name mesh color mass:=0.1">
+    <link name="${name}">
+      <xacro:inertial mass="${mass}"/>
+      <visual><geometry><mesh filename="file://$(find mujoco_ros2_control_examples)/meshes/${mesh}"/></geometry><material name="${name}_material"><color rgba="${color}"/></material></visual>
+      <collision><geometry><mesh filename="file://$(find mujoco_ros2_control_examples)/meshes/${mesh}"/></geometry></collision>
+    </link>
+  </xacro:macro>
+
+  <xacro:if value="${cfg.board.enabled}">
+    <link name="industreal_breadboard_link">
+      <xacro:inertial mass="12.0"/>
+      <visual><geometry><box size="${str(cfg.board.size[0]) + ' ' + str(cfg.board.size[1]) + ' ' + str(cfg.board.size[2])}"/></geometry><material name="medium_dark_grey"><color rgba="${str(cfg.board.rgba[0]) + ' ' + str(cfg.board.rgba[1]) + ' ' + str(cfg.board.rgba[2]) + ' ' + str(cfg.board.rgba[3])}"/></material></visual>
+      <collision><geometry><box size="${str(cfg.board.size[0]) + ' ' + str(cfg.board.size[1]) + ' ' + str(cfg.board.size[2])}"/></geometry></collision>
+    </link>
+    <joint name="world_to_industreal_breadboard" type="fixed"><xacro:configured_origin xyz="${cfg.board.xyz}"/><parent link="world"/><child link="industreal_breadboard_link"/></joint>
+  </xacro:if>
+
+  <xacro:macro name="peg_assembly" params="name shape size fixtures_enabled object_enabled pick_xyz insert_xyz peg_xyz">
+    <xacro:if value="${fixtures_enabled}">
+      <xacro:mesh_link name="${name}_pick_tray_link" mesh="industreal/pegs/industreal_tray_pick_${shape}_peg_${size}mm.obj" color="0.92 0.92 0.88 1"/>
+      <xacro:mesh_link name="${name}_insert_tray_link" mesh="industreal/pegs/industreal_tray_insert_${shape}_peg_${size}mm.obj" color="0.92 0.92 0.88 1"/>
+      <joint name="world_to_${name}_pick_tray" type="fixed"><xacro:configured_origin xyz="${pick_xyz}"/><parent link="world"/><child link="${name}_pick_tray_link"/></joint>
+      <joint name="world_to_${name}_insert_tray" type="fixed"><xacro:configured_origin xyz="${insert_xyz}"/><parent link="world"/><child link="${name}_insert_tray_link"/></joint>
+    </xacro:if>
+    <xacro:if value="${object_enabled}">
+      <xacro:mesh_link name="${name}_link" mesh="industreal/pegs/industreal_${shape}_peg_${size}mm.obj" color="0.68 0.70 0.70 1" mass="0.04"/>
+      <joint name="world_to_${name}" type="floating"><xacro:configured_origin xyz="${peg_xyz}"/><parent link="world"/><child link="${name}_link"/></joint>
+    </xacro:if>
+  </xacro:macro>
+
+  <xacro:peg_assembly name="round_peg_8mm" shape="round" size="8" fixtures_enabled="${cfg.components.round_peg_8mm.enabled}" object_enabled="${cfg.components.round_peg_8mm.get('object_enabled', cfg.components.round_peg_8mm.enabled)}" pick_xyz="${cfg.components.round_peg_8mm.pick_xyz}" insert_xyz="${cfg.components.round_peg_8mm.insert_xyz}" peg_xyz="${cfg.components.round_peg_8mm.peg_xyz}"/>
+  <xacro:peg_assembly name="round_peg_12mm" shape="round" size="12" fixtures_enabled="${cfg.components.round_peg_12mm.enabled}" object_enabled="${cfg.components.round_peg_12mm.get('object_enabled', cfg.components.round_peg_12mm.enabled)}" pick_xyz="${cfg.components.round_peg_12mm.pick_xyz}" insert_xyz="${cfg.components.round_peg_12mm.insert_xyz}" peg_xyz="${cfg.components.round_peg_12mm.peg_xyz}"/>
+  <xacro:peg_assembly name="round_peg_16mm" shape="round" size="16" fixtures_enabled="${cfg.components.round_peg_16mm.enabled}" object_enabled="${cfg.components.round_peg_16mm.get('object_enabled', cfg.components.round_peg_16mm.enabled)}" pick_xyz="${cfg.components.round_peg_16mm.pick_xyz}" insert_xyz="${cfg.components.round_peg_16mm.insert_xyz}" peg_xyz="${cfg.components.round_peg_16mm.peg_xyz}"/>
+  <xacro:peg_assembly name="rectangular_peg_8mm" shape="rectangular" size="8" fixtures_enabled="${cfg.components.rectangular_peg_8mm.enabled}" object_enabled="${cfg.components.rectangular_peg_8mm.get('object_enabled', cfg.components.rectangular_peg_8mm.enabled)}" pick_xyz="${cfg.components.rectangular_peg_8mm.pick_xyz}" insert_xyz="${cfg.components.rectangular_peg_8mm.insert_xyz}" peg_xyz="${cfg.components.rectangular_peg_8mm.peg_xyz}"/>
+  <xacro:peg_assembly name="rectangular_peg_12mm" shape="rectangular" size="12" fixtures_enabled="${cfg.components.rectangular_peg_12mm.enabled}" object_enabled="${cfg.components.rectangular_peg_12mm.get('object_enabled', cfg.components.rectangular_peg_12mm.enabled)}" pick_xyz="${cfg.components.rectangular_peg_12mm.pick_xyz}" insert_xyz="${cfg.components.rectangular_peg_12mm.insert_xyz}" peg_xyz="${cfg.components.rectangular_peg_12mm.peg_xyz}"/>
+  <xacro:peg_assembly name="rectangular_peg_16mm" shape="rectangular" size="16" fixtures_enabled="${cfg.components.rectangular_peg_16mm.enabled}" object_enabled="${cfg.components.rectangular_peg_16mm.get('object_enabled', cfg.components.rectangular_peg_16mm.enabled)}" pick_xyz="${cfg.components.rectangular_peg_16mm.pick_xyz}" insert_xyz="${cfg.components.rectangular_peg_16mm.insert_xyz}" peg_xyz="${cfg.components.rectangular_peg_16mm.peg_xyz}"/>
+
+  <xacro:macro name="connector_fixture" params="name mesh xyz proxy_size is_pick object_enabled">
+    <link name="${name}_link">
+      <xacro:inertial/>
+      <!-- Exact NVIDIA printable tray; xacro2mjcf marks its surface mesh as
+           shell-inertia while collision remains a stable primitive. -->
+      <visual><geometry><mesh filename="file://$(find mujoco_ros2_control_examples)/meshes/industreal/electrical_connectors/${mesh}"/></geometry><material name="${name}_white"><color rgba="0.92 0.92 0.88 1"/></material></visual>
+      <collision><origin xyz="0 0 0.014"/><geometry><box size="0.075 0.075 0.028"/></geometry></collision>
+      <xacro:unless value="${is_pick}"><visual><origin xyz="0 0 0.034"/><geometry><box size="${proxy_size}"/></geometry><material name="${name}_black"><color rgba="0.025 0.025 0.025 1"/></material></visual></xacro:unless>
+    </link>
+    <joint name="world_to_${name}" type="fixed"><xacro:configured_origin xyz="${xyz}"/><parent link="world"/><child link="${name}_link"/></joint>
+    <xacro:if value="${is_pick and object_enabled}">
+      <!-- NVIDIA specifies commercial plug part numbers but does not
+           redistribute their meshes. This dimensioned plug is a free body,
+           separate from the exact tray, so it is graspable. -->
+      <link name="${name}_plug_link">
+        <xacro:inertial mass="0.08"/>
+        <visual><origin xyz="0 0 0.055"/><geometry><box size="${proxy_size}"/></geometry><material name="${name}_plug_black"><color rgba="0.025 0.025 0.025 1"/></material></visual>
+        <collision><origin xyz="0 0 0.055"/><geometry><box size="${proxy_size}"/></geometry></collision>
+      </link>
+      <joint name="world_to_${name}_plug" type="floating"><xacro:configured_origin xyz="${xyz}"/><parent link="world"/><child link="${name}_plug_link"/></joint>
+    </xacro:if>
+  </xacro:macro>
+  <xacro:if value="${cfg.components.electrical_connectors.enabled}">
+    <xacro:property name="connector_objects_enabled" value="${cfg.components.electrical_connectors.get('objects_enabled', cfg.components.electrical_connectors.enabled)}"/>
+    <xacro:connector_fixture name="nema_2_prong_pick" mesh="nema_2-prong_plug_tray.obj" xyz="${cfg.components.electrical_connectors.nema_2_pick_xyz}" proxy_size="0.028 0.022 0.045" is_pick="true" object_enabled="${connector_objects_enabled}"/>
+    <xacro:connector_fixture name="nema_2_prong_insert" mesh="nema_2-prong_socket_tray.obj" xyz="${cfg.components.electrical_connectors.nema_2_insert_xyz}" proxy_size="0.030 0.025 0.012" is_pick="false" object_enabled="${connector_objects_enabled}"/>
+    <xacro:connector_fixture name="nema_3_prong_pick" mesh="nema_3-prong_plug_tray.obj" xyz="${cfg.components.electrical_connectors.nema_3_pick_xyz}" proxy_size="0.034 0.028 0.050" is_pick="true" object_enabled="${connector_objects_enabled}"/>
+    <xacro:connector_fixture name="nema_3_prong_insert" mesh="nema_3-prong_socket_tray.obj" xyz="${cfg.components.electrical_connectors.nema_3_insert_xyz}" proxy_size="0.036 0.030 0.012" is_pick="false" object_enabled="${connector_objects_enabled}"/>
+    <link name="nema_3_prong_socket_lip_link"><xacro:inertial/><visual><geometry><mesh filename="file://$(find mujoco_ros2_control_examples)/meshes/industreal/electrical_connectors/nema_3-prong_socket_tray_lip.obj"/></geometry><material name="nema_3_lip_white"><color rgba="0.92 0.92 0.88 1"/></material></visual><collision><origin xyz="0 0 0.030"/><geometry><box size="0.044 0.044 0.004"/></geometry></collision></link>
+    <joint name="world_to_nema_3_prong_socket_lip" type="fixed"><xacro:configured_origin xyz="${cfg.components.electrical_connectors.nema_3_insert_xyz}"/><parent link="world"/><child link="nema_3_prong_socket_lip_link"/></joint>
+  </xacro:if>
+
+  <xacro:if value="${cfg.components.gears.enabled}">
+    <xacro:mesh_link name="gears_base_link" mesh="industreal/gears/gears_base.stl" color="0.12 0.45 0.25 1" mass="1.0"/>
+    <joint name="world_to_gears_base" type="fixed"><xacro:configured_origin xyz="${cfg.components.gears.base_xyz}"/><parent link="world"/><child link="gears_base_link"/></joint>
+  </xacro:if>
+  <xacro:if value="${cfg.components.gears.get('objects_enabled', cfg.components.gears.enabled)}">
+    <xacro:mesh_link name="gears_large_link" mesh="industreal/gears/gears_large.stl" color="0.92 0.92 0.88 1" mass="0.04"/>
+    <xacro:mesh_link name="gears_medium_link" mesh="industreal/gears/gears_medium.stl" color="0.92 0.92 0.88 1" mass="0.03"/>
+    <xacro:mesh_link name="gears_small_link" mesh="industreal/gears/gears_small.stl" color="0.92 0.92 0.88 1" mass="0.02"/>
+    <joint name="world_to_gears_large" type="floating"><xacro:configured_origin xyz="${cfg.components.gears.large_xyz}"/><parent link="world"/><child link="gears_large_link"/></joint>
+    <joint name="world_to_gears_medium" type="floating"><xacro:configured_origin xyz="${cfg.components.gears.medium_xyz}"/><parent link="world"/><child link="gears_medium_link"/></joint>
+    <joint name="world_to_gears_small" type="floating"><xacro:configured_origin xyz="${cfg.components.gears.small_xyz}"/><parent link="world"/><child link="gears_small_link"/></joint>
+
+  </xacro:if>
+
+  <mujoco>
+    <default><geom friction="0.5" solimp="0.95 0.99 0.001" solref="0.004 1"/></default>
+    <xacro:if value="${cfg.components.gears.get('objects_enabled', cfg.components.gears.enabled)}">
+      <sensor>
+        <framepos name="gears_large_pose" objtype="body" objname="gears_large_link" reftype="body" refname="world"/><framequat name="gears_large_quat" objtype="body" objname="gears_large_link" reftype="body" refname="world"/>
+        <framepos name="gears_medium_pose" objtype="body" objname="gears_medium_link" reftype="body" refname="world"/><framequat name="gears_medium_quat" objtype="body" objname="gears_medium_link" reftype="body" refname="world"/>
+        <framepos name="gears_small_pose" objtype="body" objname="gears_small_link" reftype="body" refname="world"/><framequat name="gears_small_quat" objtype="body" objname="gears_small_link" reftype="body" refname="world"/>
+      </sensor>
+    </xacro:if>
+  </mujoco>
+</robot>

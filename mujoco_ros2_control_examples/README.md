@@ -10,9 +10,9 @@ and `task_table_mujoco` packages. Assets are split per robot:
 
 ```
 launch/   <robot>.launch.py
-urdf/     franka/  ur/  unitree_h1/  task_table/
+urdf/     franka/  ur/  unitree_h1/  industreal/
 config/   franka/  ur/  unitree_h1/
-meshes/   task_board/         (Franka task table)
+meshes/   industreal/         (peg, connector-fixture and gear assets)
           unitree_h1/         (downloaded at build time)
 patches/  unitree_h1.urdf.patch
 test/     per-robot launch smoke tests
@@ -22,8 +22,8 @@ test/     per-robot launch smoke tests
 
 ### Franka
 
-Franka arm (optionally with the task table of high-resolution collision gears and
-pose sensors). Requires [`franka_description`](https://github.com/frankarobotics/franka_description).
+Franka arm (optionally with a modular NVIDIA IndustReal benchmark board).
+Requires [`franka_description`](https://github.com/frankarobotics/franka_description).
 
 > **Jazzy:** `franka_description` is not available from apt. Clone its `jazzy`
 > branch into your workspace `src/` and build it:
@@ -38,7 +38,8 @@ ros2 launch mujoco_ros2_control_examples franka.launch.py
 | Argument           | Default        | Description                                              |
 |--------------------|----------------|----------------------------------------------------------|
 | `rviz`             | `true`         | Start RViz.                                              |
-| `load_task_table`  | `true`         | Load the high-resolution collision objects + pose sensors. |
+| `load_industreal_board` | `true`      | Load the unified board as an additional scene model.       |
+| `task_board_config` | package default | YAML selecting gears, peg assemblies, and connector fixtures. |
 | `load_gripper`     | `true`         | Attach an end-effector.                                  |
 | `ee_id`            | `franka_hand`  | End-effector: `none`, `franka_hand`, `cobot_pump`.       |
 | `arm_id`           | `fr3`          | Arm: `fer`, `fr3`, `fp3`.                                |
@@ -95,7 +96,31 @@ DISABLE_OPENGL=1 colcon test --packages-select mujoco_ros2_control_examples   # 
 
 ## Task table assets
 
-See [`urdf/task_table/`](urdf/task_table) and [`meshes/task_board/`](meshes/task_board).
+See [`urdf/industreal/`](urdf/industreal) and [`meshes/industreal/`](meshes/industreal).
 The collision meshes were generated with [Phobos](https://github.com/dfki-ric/phobos)
 and [CoACD](https://github.com/SarahWeiii/CoACD); use `mujoco_ros2_control/scripts/run_coacd.py`
 to decompose a mesh into collision-friendly components.
+
+The default `config/franka/industreal_task_board.yaml` describes one unified
+board: a medium-dark-grey optical breadboard, the 8, 12, and 16 mm round and rectangular
+peg rows, all four NEMA fixture positions, and the gear base plus its three
+movable gears. Every group and every pose is configured in this single file;
+the gears are no longer loaded as a separate task-table model. Exact NVIDIA
+connector-tray meshes are used for rendering, with stable primitive collision
+shapes because the public meshes are non-watertight. NVIDIA only identifies the
+commercial plug/socket part numbers and does not redistribute those meshes;
+the pick-side plug bodies are therefore dimensioned approximations, but are
+independent free bodies and can be grasped. Pass an alternate file
+without changing the package:
+
+```bash
+ros2 launch mujoco_ros2_control_examples franka.launch.py \
+  task_board_config:=/absolute/path/to/my_task_board.yaml
+```
+
+The simulator-ready peg assets come from
+[`IsaacGymEnvs`](https://github.com/isaac-sim/IsaacGymEnvs/tree/main/isaacgymenvs/tasks/industreal),
+and connector fixtures come from
+[`IndustRealKit`](https://github.com/NVlabs/industrealkit). Their provenance and
+license notices are retained in `meshes/industreal/`; IndustRealKit assets are
+limited to non-commercial research/evaluation use.
