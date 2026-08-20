@@ -87,6 +87,10 @@ MujocoRos2Control::MujocoRos2Control(rclcpp::Node::SharedPtr &node) : nh_(node) 
       "mujoco_set_body_pose",
       std::bind(&MujocoRos2Control::mujocoSetBodyPoseCallback, this, std::placeholders::_1, std::placeholders::_2)
   );
+  mujoco_get_body_state_service_ = nh_->create_service<mujoco_ros2_control::srv::GetBodyState>(
+      "mujoco_get_body_state",
+      std::bind(&MujocoRos2Control::mujocoGetBodyStateCallback, this, std::placeholders::_1, std::placeholders::_2)
+  );
 
   // mujoco related parameters
   show_gui_ = params_.show_gui;
@@ -554,6 +558,39 @@ void mujoco_ros2_control::MujocoRos2Control::mujocoSetBodyPoseCallback(
 
   response->success = true;
   response->message = "Body '" + request->body_name + "' repositioned.";
+}
+
+void mujoco_ros2_control::MujocoRos2Control::mujocoGetBodyStateCallback(
+    const std::shared_ptr<mujoco_ros2_control::srv::GetBodyState::Request> request,
+    std::shared_ptr<mujoco_ros2_control::srv::GetBodyState::Response> response) {
+  const int body_id = mj_name2id(mujoco_model_, mjOBJ_BODY, request->body_name.c_str());
+  if (body_id < 0) {
+    response->success = false;
+    response->message = "Unknown body name: " + request->body_name;
+    return;
+  }
+
+  std::lock_guard<std::mutex> sim_lock(sim_mutex_);
+  const mjtNum *position = mujoco_data_->xpos + 3 * body_id;
+  const mjtNum *quaternion = mujoco_data_->xquat + 4 * body_id;
+  mjtNum velocity[6]{};
+  mj_objectVelocity(mujoco_model_, mujoco_data_, mjOBJ_BODY, body_id, velocity, 0);
+
+  response->pose.position.x = position[0];
+  response->pose.position.y = position[1];
+  response->pose.position.z = position[2];
+  response->pose.orientation.w = quaternion[0];
+  response->pose.orientation.x = quaternion[1];
+  response->pose.orientation.y = quaternion[2];
+  response->pose.orientation.z = quaternion[3];
+  response->twist.angular.x = velocity[0];
+  response->twist.angular.y = velocity[1];
+  response->twist.angular.z = velocity[2];
+  response->twist.linear.x = velocity[3];
+  response->twist.linear.y = velocity[4];
+  response->twist.linear.z = velocity[5];
+  response->success = true;
+  response->message = "Body state returned in the world frame.";
 }
 }  // namespace mujoco_ros2_control
 

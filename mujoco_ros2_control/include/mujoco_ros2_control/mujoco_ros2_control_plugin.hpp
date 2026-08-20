@@ -88,6 +88,7 @@
 #include "rosgraph_msgs/msg/clock.hpp"
 #include "std_srvs/srv/trigger.hpp"
 #include "mujoco_ros2_control/srv/set_body_pose.hpp"
+#include "mujoco_ros2_control/srv/get_body_state.hpp"
 
 // URDF
 #include "urdf/urdf/model.h"
@@ -236,6 +237,9 @@ namespace mujoco_ros2_control
                                  std::shared_ptr<std_srvs::srv::Trigger::Response> response);
         void mujocoSetBodyPoseCallback(const std::shared_ptr<mujoco_ros2_control::srv::SetBodyPose::Request> request,
                                         std::shared_ptr<mujoco_ros2_control::srv::SetBodyPose::Response> response);
+        void mujocoGetBodyStateCallback(
+            const std::shared_ptr<mujoco_ros2_control::srv::GetBodyState::Request> request,
+            std::shared_ptr<mujoco_ros2_control::srv::GetBodyState::Response> response);
 
         std::shared_ptr<rclcpp::Node> nh_; ///< ROS2 node handle
 
@@ -258,6 +262,7 @@ namespace mujoco_ros2_control
         rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr mujoco_play_pause_service_; ///< Service to pause the Mujoco simulation
         rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr mujoco_reset_service_; ///< Service to reset the Mujoco simulation
         rclcpp::Service<mujoco_ros2_control::srv::SetBodyPose>::SharedPtr mujoco_set_body_pose_service_; ///< Service to teleport a free body (e.g. the cube) to a new pose
+        rclcpp::Service<mujoco_ros2_control::srv::GetBodyState>::SharedPtr mujoco_get_body_state_service_;
 
         // Mujoco-related variables
         mjModel* mujoco_model_{}; ///< Pointer to the Mujoco model

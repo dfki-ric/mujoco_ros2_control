@@ -123,6 +123,7 @@ generate_parameter_library(mujoco_gl_lidar_parameters
 
 rosidl_generate_interfaces(${PROJECT_NAME}
     srv/SetBodyPose.srv
+    srv/GetBodyState.srv
     DEPENDENCIES geometry_msgs
 )
 
