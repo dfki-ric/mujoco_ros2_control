@@ -228,6 +228,7 @@ ament_python_install_package(scripts)
 install(PROGRAMS
     scripts/xacro2mjcf.py
     scripts/urdf2mjcf.py
+    scripts/dae2stl.py
     DESTINATION lib/${PROJECT_NAME}
 )
 
