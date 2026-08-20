@@ -37,6 +37,17 @@ import xml.etree.ElementTree as ET
 
 COLLADA_NS = {"c": "http://www.collada.org/2005/11/COLLADASchema"}
 
+## Face primitives this reader understands. <triangles> is a flat run of
+#  three-vertex faces; <polylist> prefixes the same index layout with a per-face
+#  corner count in <vcount>. Franka ships <triangles>, ur_description ships
+#  <polylist> for the ur5e and ur10e visuals, so both are needed. The remaining
+#  COLLADA primitives (<polygons>, <tristrips>, <trifans>) are not emitted by
+#  the exporters used in ROS robot descriptions.
+PRIMITIVE_TAGS = (
+    "{%s}triangles" % COLLADA_NS["c"],
+    "{%s}polylist" % COLLADA_NS["c"],
+)
+
 ## MuJoCo rejects a mesh with more than 200,000 faces. Callers split larger
 #  material groups at this size, which keeps a little headroom.
 MAX_TRIANGLES_PER_MESH = 190000
@@ -115,6 +126,33 @@ def _node_matrix(node):
     # COLLADA exports used by Franka put scale/rotation/translation in
     # row-major matrices. Applying these is required for meter-scale visuals.
     return values
+
+
+## @brief Number of corners of every face in a <triangles> or <polylist>.
+#
+#  <triangles> carries no <vcount>: its index list is a flat run of three-corner
+#  faces. <polylist> gives the corner count per face. A face that would read past
+#  the end of the index list ends the walk, so a truncated file still yields the
+#  faces it does contain.
+#
+#  @param primitive: the <triangles> or <polylist> element.
+#  @param index_count: number of integers in the primitive's <p> list.
+#  @param step: indices consumed per corner, i.e. the largest input offset + 1.
+#  @return list of corner counts, in face order.
+def _face_sizes(primitive, index_count, step):
+    vcount = primitive.find("c:vcount", COLLADA_NS)
+    if vcount is None or not vcount.text or not vcount.text.split():
+        return [3] * (index_count // (step * 3))
+
+    sizes = []
+    consumed = 0
+    for value in vcount.text.split():
+        size = int(value)
+        if consumed + size * step > index_count:
+            break
+        sizes.append(size)
+        consumed += size * step
+    return sizes
 
 
 ## @brief Collect every instantiation of each geometry in the visual scene.
@@ -236,12 +274,15 @@ def extract_triangle_groups(source_file):
             if position_input is not None:
                 vertices_map[vertices.get("id")] = position_input.get("source", "")[1:]
 
-        for triangles_element in mesh.findall("c:triangles", COLLADA_NS):
+        for primitive in mesh:
+            if primitive.tag not in PRIMITIVE_TAGS:
+                continue
+
             vertex_offset = None
             position_source_id = None
             max_offset = 0
 
-            for input_element in triangles_element.findall("c:input", COLLADA_NS):
+            for input_element in primitive.findall("c:input", COLLADA_NS):
                 offset = int(input_element.get("offset", "0"))
                 max_offset = max(max_offset, offset)
                 if input_element.get("semantic") == "VERTEX":
@@ -252,19 +293,20 @@ def extract_triangle_groups(source_file):
                 continue
 
             position_values, stride = sources[position_source_id]
-            point_list = triangles_element.find("c:p", COLLADA_NS)
+            point_list = primitive.find("c:p", COLLADA_NS)
             if point_list is None or not point_list.text:
                 continue
 
             indices = [int(value) for value in point_list.text.split()]
             step = max_offset + 1
+            face_sizes = _face_sizes(primitive, len(indices), step)
 
             instances = geometry_instances.get(
                 geometry_id,
                 [{"matrix": _identity_matrix(), "material_targets": {}}],
             )
             for instance in instances:
-                material_symbol = triangles_element.get("material", "default")
+                material_symbol = primitive.get("material", "default")
                 material_id = instance["material_targets"].get(
                     material_symbol,
                     default_material_targets.get(material_symbol, material_symbol),
@@ -278,17 +320,27 @@ def extract_triangle_groups(source_file):
                         "triangles": [],
                     }
 
-                for index in range(0, len(indices), step * 3):
-                    face_vertices = []
-                    for vertex_index in range(3):
-                        position_index = indices[index + vertex_index * step + vertex_offset]
+                cursor = 0
+                for face_size in face_sizes:
+                    corners = []
+                    for corner in range(face_size):
+                        position_index = indices[cursor + corner * step + vertex_offset]
                         start = position_index * stride
                         vertex = position_values[start:start + 3]
                         if len(vertex) == 3:
                             vertex = _transform_point(instance["matrix"], vertex)
-                        face_vertices.append(vertex)
-                    if all(len(vertex) == 3 for vertex in face_vertices):
-                        triangle_groups[group_key]["triangles"].append(face_vertices)
+                        corners.append(vertex)
+                    cursor += face_size * step
+
+                    if not all(len(vertex) == 3 for vertex in corners):
+                        continue
+                    # Fan the face around its first corner. COLLADA polygons are
+                    # planar and convex by specification, so a fan reproduces the
+                    # surface exactly; for the common face_size 3 it is a no-op.
+                    for corner in range(1, face_size - 1):
+                        triangle_groups[group_key]["triangles"].append(
+                            [corners[0], corners[corner], corners[corner + 1]]
+                        )
 
     return [group for group in triangle_groups.values() if group["triangles"]]
 
