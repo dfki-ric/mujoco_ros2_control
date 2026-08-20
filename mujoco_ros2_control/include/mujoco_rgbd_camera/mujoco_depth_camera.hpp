@@ -41,6 +41,7 @@
 #define MUJOCO_ROS2_CONTROL_MUJOCO_DEPTH_CAMERA_HPP
 
 #include "chrono"
+#include <mutex>
 
 // MuJoCo header file
 #include "mujoco/mujoco.h"
@@ -129,7 +130,7 @@ public:
      *       Creates ROS 2 publishers for camera information, color image, depth image, and point cloud data.
      */
     MujocoDepthCamera(rclcpp::Node::SharedPtr &node, mjModel_ *model, mjData_ *data,
-                      const std::string& name, std::atomic<bool>* stop,
+                      std::mutex* data_mutex, const std::string& name, std::atomic<bool>* stop,
                       Mount mount, int optical_id, int depth_id);
 
     /**
@@ -182,6 +183,8 @@ private:
 
     mjModel* mujoco_model_ = nullptr; ///< Pointer to the Mujoco model object used for rendering and simulation.
     mjData* mujoco_data_ = nullptr; ///< Pointer to the Mujoco data object representing the current state of the simulation.
+    mjData* render_data_ = nullptr; ///< Private, time-consistent snapshot used by the render thread.
+    std::mutex* data_mutex_ = nullptr; ///< Protects copying the live simulation state.
     std::string name_; ///< Name of the camera.
     std::string body_name_; ///< Resolved default frame_id (frame_id override, else the parent body name).
     std::string color_frame_; ///< header.frame_id for color image/info (the optical site's render frame / parent body).

@@ -369,7 +369,7 @@ void MujocoRos2Control::registerSensors() {
     // A <camera> serves both color and depth from one viewpoint, so the optical
     // and depth mount ids are the same camera id (single render pass).
     auto camera = std::make_shared<mujoco_rgbd_camera::MujocoDepthCamera>(
-      node, mujoco_model_, mujoco_data_, name, &stop_,
+      node, mujoco_model_, mujoco_data_, &sim_mutex_, name, &stop_,
       mujoco_rgbd_camera::MujocoDepthCamera::Mount::FixedCamera, id, id);
     cameras_.push_back(camera);
     camera_threads_.emplace_back([ObjectPtr = camera] { ObjectPtr->update(); });
@@ -431,7 +431,7 @@ void MujocoRos2Control::registerSensors() {
       camera_nodes_.push_back(node);
       executor_->add_node(node);
       auto camera = std::make_shared<mujoco_rgbd_camera::MujocoDepthCamera>(
-        node, mujoco_model_, mujoco_data_, node_name, &stop_,
+        node, mujoco_model_, mujoco_data_, &sim_mutex_, node_name, &stop_,
         mujoco_rgbd_camera::MujocoDepthCamera::Mount::Site, sites.optical_id, sites.depth_id);
       cameras_.push_back(camera);
       camera_threads_.emplace_back([ObjectPtr = camera] { ObjectPtr->update(); });

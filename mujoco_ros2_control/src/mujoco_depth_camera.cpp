@@ -41,11 +41,12 @@
 
 #include <algorithm>
 #include <cmath>
+#include <stdexcept>
 #include <vector>
 
 namespace mujoco_rgbd_camera {
     MujocoDepthCamera::MujocoDepthCamera(rclcpp::Node::SharedPtr &node, mjModel_ *model, mjData_ *data,
-                                         const std::string& name, std::atomic<bool>* stop, Mount mount,
+                                         std::mutex* data_mutex, const std::string& name, std::atomic<bool>* stop, Mount mount,
                                          int optical_id, int depth_id) {
         nh_ = node;
 
@@ -57,6 +58,11 @@ namespace mujoco_rgbd_camera {
 
         mujoco_model_ = model;
         mujoco_data_ = data;
+        data_mutex_ = data_mutex;
+        render_data_ = mj_makeData(mujoco_model_);
+        if (!render_data_) {
+            throw std::runtime_error("Could not allocate RGB-D camera state snapshot");
+        }
 
         width_ = params_.width;
         height_ = params_.height;
@@ -160,10 +166,15 @@ namespace mujoco_rgbd_camera {
     MujocoDepthCamera::~MujocoDepthCamera() {
         mjv_freeScene(&sensor_scene_);
         mjr_freeContext(&sensor_context_);
+        mj_deleteData(render_data_);
     }
 
     void MujocoDepthCamera::update() {
-        mjtNum last_update = mujoco_data_->time;
+        mjtNum last_update = 0.0;
+        {
+            std::lock_guard<std::mutex> lock(*data_mutex_);
+            last_update = mujoco_data_->time;
+        }
         const bool want_color = have_color_ && params_.color_image;
         const bool want_depth = have_depth_ && (params_.depth_image || params_.point_cloud);
         // A single shared render pass covers both streams for a <camera> mount or a
@@ -171,15 +182,24 @@ namespace mujoco_rgbd_camera {
         // and depth sites render in two passes (true parallax).
         const bool single_pass = (mount_ != Mount::Site) || (optical_id_ == depth_id_);
         while(rclcpp::ok() && !stop_->load()) {
+            mjtNum current_time;
+            {
+                std::lock_guard<std::mutex> lock(*data_mutex_);
+                current_time = mujoco_data_->time;
+            }
             // resync if the simulation was reset (sim time jumped backwards)
-            if (mujoco_data_->time < last_update) {
-                last_update = mujoco_data_->time;
+            if (current_time < last_update) {
+                last_update = current_time;
             }
             // update dynamic parameters
-            if (mujoco_data_->time - last_update >= 1.0 / frequency_) {
+            if (current_time - last_update >= 1.0 / frequency_) {
                 last_update += 1.0 / frequency_;
-                if (mujoco_data_->time - last_update >= 1.0 / frequency_) {
-                    last_update = mujoco_data_->time;
+                if (current_time - last_update >= 1.0 / frequency_) {
+                    last_update = current_time;
+                }
+                {
+                    std::lock_guard<std::mutex> lock(*data_mutex_);
+                    mj_copyData(render_data_, mujoco_model_, mujoco_data_);
                 }
                 auto context = glfwGetCurrentContext();
                 glfwMakeContextCurrent(window_);
@@ -195,7 +215,7 @@ namespace mujoco_rgbd_camera {
                     if (mount_ == Mount::Site) {
                         aim_at_site(have_depth_ ? depth_id_ : optical_id_);
                     }
-                    mjv_updateScene(mujoco_model_, mujoco_data_, &sensor_option_, NULL,
+                    mjv_updateScene(mujoco_model_, render_data_, &sensor_option_, NULL,
                                     &rgbd_camera_, mjCAT_ALL, &sensor_scene_);
                     mjr_render(viewport, &sensor_scene_, &sensor_context_);
                     const bool read_color = want_color || params_.point_cloud;
@@ -209,7 +229,7 @@ namespace mujoco_rgbd_camera {
                     // entirely if neither depth nor cloud is enabled.
                     if (want_depth) {
                         aim_at_site(depth_id_);
-                        mjv_updateScene(mujoco_model_, mujoco_data_, &sensor_option_, NULL,
+                        mjv_updateScene(mujoco_model_, render_data_, &sensor_option_, NULL,
                                         &rgbd_camera_, mjCAT_ALL, &sensor_scene_);
                         mjr_render(viewport, &sensor_scene_, &sensor_context_);
                         read_buffers(viewport,
@@ -219,13 +239,14 @@ namespace mujoco_rgbd_camera {
                     // Optical pass: published color image. Skipped if color is off.
                     if (want_color) {
                         aim_at_site(optical_id_);
-                        mjv_updateScene(mujoco_model_, mujoco_data_, &sensor_option_, NULL,
+                        mjv_updateScene(mujoco_model_, render_data_, &sensor_option_, NULL,
                                         &rgbd_camera_, mjCAT_ALL, &sensor_scene_);
                         mjr_render(viewport, &sensor_scene_, &sensor_context_);
                         read_buffers(viewport, &color_image_, nullptr);
                     }
                 }
-                stamp_ = nh_->now();
+                stamp_ = rclcpp::Time(
+                    static_cast<int64_t>(render_data_->time * 1e9), RCL_ROS_TIME);
 
                 // Swap OpenGL buffers
                 glfwSwapBuffers(window_);
@@ -279,8 +300,8 @@ namespace mujoco_rgbd_camera {
 
     void MujocoDepthCamera::aim_at_site(int site_id) {
         // Site world pose: position and 3x3 rotation (row-major).
-        const mjtNum *spos = mujoco_data_->site_xpos + 3 * site_id;
-        const mjtNum *smat = mujoco_data_->site_xmat + 9 * site_id;
+        const mjtNum *spos = render_data_->site_xpos + 3 * site_id;
+        const mjtNum *smat = render_data_->site_xmat + 9 * site_id;
 
         // The site frame is a REP-103 optical frame (+Z forward, +X right, +Y down).
         // MuJoCo's GL camera looks along +forward with +up as image-up, so the view
