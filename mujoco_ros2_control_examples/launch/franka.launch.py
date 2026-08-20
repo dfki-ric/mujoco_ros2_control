@@ -81,6 +81,7 @@ def create_nodes(context: LaunchContext):
             {
                 "simulation_frequency": 500.0,
                 "realtime_factor": 1.0,
+                "synchronous_mode": value("synchronous_mode").lower() == "true",
             },
             {"robot_model_path": model_file, "show_gui": not headless_bool},
         ],
@@ -135,5 +136,6 @@ def generate_launch_description():
         DeclareLaunchArgument("load_gripper", default_value="true"),
         DeclareLaunchArgument("ee_id", default_value="franka_hand"),
         DeclareLaunchArgument("load_task_table", default_value="true"),
+        DeclareLaunchArgument("synchronous_mode", default_value="false"),
         OpaqueFunction(function=create_nodes),
     ])
