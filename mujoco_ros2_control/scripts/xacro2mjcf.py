@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
+import os
 import subprocess
-
 import rclpy
 from ament_index_python.packages import get_package_share_directory
 from rclpy.node import Node
 import xml.etree.ElementTree as ET
-import os
 import uuid
 import collections
 import copy
@@ -89,6 +88,7 @@ class Xacro2Mjcf(Node):
                 ('input_files', rclpy.Parameter.Type.STRING_ARRAY),
                 ('output_file', rclpy.Parameter.Type.STRING),
                 ('robot_descriptions', rclpy.Parameter.Type.STRING_ARRAY),
+                ('xacro_args', rclpy.Parameter.Type.STRING_ARRAY),
                 ('mujoco_files_path', "/tmp/mujoco/"),
                 ('floating', False),
                 ('initial_position', "0 0 0"),
@@ -101,6 +101,10 @@ class Xacro2Mjcf(Node):
         input_files = self.get_parameter('input_files').value
         output_file = self.get_parameter('output_file').value
         robot_descriptions = self.get_parameter('robot_descriptions').value
+        try:
+            xacro_args = self.get_parameter('xacro_args').value
+        except rclpy.exceptions.ParameterUninitializedException:
+            xacro_args = []
         mujoco_files_path = self.get_parameter('mujoco_files_path').value
 
         initial_position = self.get_parameter('initial_position').value # x y z
@@ -151,7 +155,12 @@ class Xacro2Mjcf(Node):
 
                 if filename.split('.')[-1] == 'xacro':
                     # Convert Xacro to URDF
-                    os.system('xacro ' + filename + ' > ' + mujoco_files_path + '/tmp_' + name + '.urdf')
+                    with open(mujoco_files_path + '/tmp_' + name + '.urdf', 'w', encoding='utf-8') as output:
+                        subprocess.run(
+                            ['xacro', filename, *xacro_args],
+                            check=True,
+                            stdout=output,
+                        )
                     urdf_tree = ET.parse(mujoco_files_path + '/tmp_' + name + '.urdf')
                     tmp_urdf_root = urdf_tree.getroot()
 
