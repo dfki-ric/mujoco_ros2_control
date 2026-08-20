@@ -8,6 +8,7 @@ import xml.etree.ElementTree as ET
 import uuid
 import collections
 import copy
+import hashlib
 import math
 
 from urdf2mjcf import create_mjcf_from_urdf
@@ -426,24 +427,50 @@ class Xacro2Mjcf(Node):
             elements += self.get_elements(child, tag, attrib, value)
         return elements
 
+    def resolve_mesh_source_file(self, filename):
+        if not filename:
+            return None
+        if filename[:7] == "file://":
+            return filename[7:]
+        if filename[:10] == "package://":
+            file_name = filename[10:].split('/')
+            package_path = get_package_share_directory(file_name[0])
+            return os.path.join(package_path, *file_name[1:])
+        return filename
+
+    def sanitize_name(self, value):
+        sanitized = "".join(char if char.isalnum() else "_" for char in value)
+        sanitized = sanitized.strip("_")
+        return sanitized or "part"
+
     def create_symlinks(self, urdf_root, mujoco_files_path):
         self.add_composite_collisions(urdf_root)
         # Create symlinks to used meshes in the tmp folder
         for mesh in self.get_elements(urdf_root, "mesh"):
             filename = mesh.get('filename')
             if filename:
-                source_file = None
-                if filename[:7] == "file://":
-                    source_file = filename[7:]
-                elif filename[:10] == "package://":
-                    file_name = filename[10:].split('/')
-                    package_path = get_package_share_directory(file_name[0])
-                    source_file = os.path.join(package_path, *file_name[1:])
-                target_file = mujoco_files_path + "/meshes/" + source_file.replace("/", "_").replace(":", "_")
+                source_file = self.resolve_mesh_source_file(filename)
+                if source_file is None:
+                    continue
+                # A full absolute source path can exceed the filesystem's
+                # per-component limit once a converted DAE path is encoded a
+                # second time. Keep a readable basename and a deterministic
+                # digest for uniqueness instead.
+                source_basename = os.path.basename(source_file)
+                source_stem, source_extension = os.path.splitext(source_basename)
+                readable_stem = self.sanitize_name(source_stem)[:96]
+                source_digest = hashlib.sha256(
+                    source_file.encode("utf-8")
+                ).hexdigest()[:16]
+                target_basename = (
+                    f"{readable_stem}_{source_digest}{source_extension.lower()}"
+                )
+                target_file = os.path.join(
+                    mujoco_files_path, "meshes", target_basename
+                )
+                source_extension = os.path.splitext(source_file)[1].lower()
 
-                if source_file[-3:] == "stl" or source_file[-3:] == "STL" or \
-                   source_file[-3:] == "obj" or source_file[-3:] == "OBJ" or \
-                   source_file[-3:] == "msh" or source_file[-3:] == "MSH":
+                if source_extension in [".stl", ".obj", ".msh"]:
                     self.get_logger().debug(f'mesh source file: {source_file}, target_file: {target_file}')
                     if not os.path.exists(target_file):
                         os.symlink(source_file, target_file)
