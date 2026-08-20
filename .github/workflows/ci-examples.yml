@@ -15,8 +15,18 @@ jobs:
       DISABLE_OPENGL: "1"
 
     steps:
+      # actions/checkout shells out to git-lfs to fetch the mesh objects, and
+      # the ros:jazzy image ships git without it. This has to run before the
+      # checkout, or the working tree ends up holding pointer files.
+      - name: Install git-lfs
+        run: |
+          apt-get update
+          apt-get install -y git-lfs
+
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          lfs: true
 
       - name: Install non-rosdep system dependencies
         run: |
