@@ -52,6 +52,7 @@
 // This value is used when configuring the main loop to use SCHED_FIFO scheduling
 // We use a midpoint RT priority to allow maximum flexibility to users
 int const kSchedPriority = 50;
+constexpr auto kPausedClockHeartbeatPeriod = std::chrono::milliseconds(100);
 
 namespace mujoco_ros2_control {
 MujocoRos2Control::MujocoRos2Control(rclcpp::Node::SharedPtr &node) : nh_(node) {
@@ -87,6 +88,10 @@ MujocoRos2Control::MujocoRos2Control(rclcpp::Node::SharedPtr &node) : nh_(node) 
       "mujoco_set_body_pose",
       std::bind(&MujocoRos2Control::mujocoSetBodyPoseCallback, this, std::placeholders::_1, std::placeholders::_2)
   );
+  mujoco_step_simulation_service_ = nh_->create_service<mujoco_ros2_control::srv::StepSimulation>(
+      "mujoco_step_simulation",
+      std::bind(&MujocoRos2Control::mujocoStepSimulationCallback, this, std::placeholders::_1, std::placeholders::_2)
+  );
   mujoco_get_body_state_service_ = nh_->create_service<mujoco_ros2_control::srv::GetBodyState>(
       "mujoco_get_body_state",
       std::bind(&MujocoRos2Control::mujocoGetBodyStateCallback, this, std::placeholders::_1, std::placeholders::_2)
@@ -96,6 +101,7 @@ MujocoRos2Control::MujocoRos2Control(rclcpp::Node::SharedPtr &node) : nh_(node) 
   show_gui_ = params_.show_gui;
   real_time_factor_ = params_.real_time_factor;
   pub_clock_frequency_ = params_.clock_publisher_frequency;
+  running_.store(!params_.synchronous_mode, std::memory_order_release);
 
   init_mujoco();
 
@@ -162,7 +168,31 @@ void MujocoRos2Control::render() {
 }
 
 void MujocoRos2Control::update() {
+  bool initial_clock_heartbeat_sent = false;
   while (!stop_.load()) {
+    // Keep ROS time available even while controller-manager hardware is still
+    // configuring. This is especially important in synchronous mode because
+    // no autonomous physics step exists to publish the first clock sample.
+    if (params_.synchronous_mode) {
+      const auto wall_now = std::chrono::steady_clock::now();
+      bool sent_initial_heartbeat = false;
+      if (wall_now - last_clock_wall_publish_time_ >=
+          kPausedClockHeartbeatPeriod) {
+        std::lock_guard<std::mutex> step_lock(step_mutex_);
+        std::lock_guard<std::mutex> sim_lock(sim_mutex_);
+        publish_sim_time(true);
+        last_clock_wall_publish_time_ = wall_now;
+        sent_initial_heartbeat = !initial_clock_heartbeat_sent;
+        initial_clock_heartbeat_sent = true;
+      }
+      if (sent_initial_heartbeat) {
+        // Give the controller-manager executor one short scheduling window to
+        // consume its first /clock sample before its first update cycle.
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        continue;
+      }
+    }
+
     if (!system_configured_.load(std::memory_order_acquire)) {
       std::this_thread::sleep_for(std::chrono::milliseconds(1));
       continue;
@@ -171,6 +201,31 @@ void MujocoRos2Control::update() {
     // Handle a GUI reset even while the simulation is paused.
     if (reset_requested_.exchange(false, std::memory_order_acq_rel)) {
       resetSimulation();
+    }
+
+    if (params_.synchronous_mode) {
+      // Controller switches and action-goal handoff must still be serviced
+      // while physics time is frozen. This is deliberately a zero-duration
+      // controller cycle: only StepSimulation is allowed to call mj_step().
+      {
+        std::lock_guard<std::mutex> step_lock(step_mutex_);
+        std::lock_guard<std::mutex> sim_lock(sim_mutex_);
+        // controller_manager rejects a zero timestamp when use_sim_time is
+        // enabled. MuJoCo legitimately returns to t=0 after reset, so use the
+        // smallest non-zero controller timestamp for this zero-duration
+        // housekeeping cycle. Physics time and /clock remain exactly at zero.
+        const int64_t simulation_nanoseconds =
+          static_cast<int64_t>(mujoco_data_->time * 1e9);
+        const rclcpp::Time sim_time(
+          std::max<int64_t>(simulation_nanoseconds, 1), RCL_ROS_TIME);
+        const rclcpp::Duration zero_period(0, 0);
+        controller_manager_->read(sim_time, zero_period);
+        controller_manager_->update(sim_time, zero_period);
+        controller_manager_->write(sim_time, zero_period);
+
+      }
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      continue;
     }
 
     const bool keep_running = show_gui_ ? mj_vis_.sim->run : running_.load();
@@ -241,13 +296,27 @@ void MujocoRos2Control::resetSimulation() {
   reset_notify_publisher_->publish(std_msgs::msg::Empty());
 }
 
-void MujocoRos2Control::publish_sim_time() {
+void MujocoRos2Control::publish_sim_time(bool force) {
   double sim_time = mujoco_data_->time;
-  if (pub_clock_frequency_ > 0 && (sim_time - last_pub_clock_time_) < 1.0 / pub_clock_frequency_)
+  if (!force && pub_clock_frequency_ > 0 &&
+      (sim_time - last_pub_clock_time_) < 1.0 / pub_clock_frequency_)
     return;
   if (clock_publisher_->trylock()) {
-    clock_publisher_->msg_.clock.sec = std::floor(sim_time);
-    clock_publisher_->msg_.clock.nanosec = std::floor((sim_time - std::floor(sim_time)) * 1e9);
+    const int64_t simulation_nanoseconds =
+      static_cast<int64_t>(std::floor(sim_time * 1e9));
+    // rclcpp::Clock::started() deliberately reports false for ROS time zero.
+    // A synchronous reset legitimately leaves MuJoCo at t=0, but repeatedly
+    // publishing that value makes controller_manager warn that no /clock was
+    // received during its paused housekeeping cycles. Publish the smallest
+    // representable initialized ROS timestamp until the first physics step;
+    // service responses, sensor stamps, and MuJoCo time remain exactly zero.
+    const int64_t published_nanoseconds = params_.synchronous_mode
+      ? std::max<int64_t>(simulation_nanoseconds, 1)
+      : simulation_nanoseconds;
+    clock_publisher_->msg_.clock.sec =
+      static_cast<int32_t>(published_nanoseconds / 1000000000LL);
+    clock_publisher_->msg_.clock.nanosec =
+      static_cast<uint32_t>(published_nanoseconds % 1000000000LL);
     clock_publisher_->unlockAndPublish();
     last_pub_clock_time_ = sim_time;
   }
@@ -558,6 +627,58 @@ void mujoco_ros2_control::MujocoRos2Control::mujocoSetBodyPoseCallback(
 
   response->success = true;
   response->message = "Body '" + request->body_name + "' repositioned.";
+}
+
+void mujoco_ros2_control::MujocoRos2Control::mujocoStepSimulationCallback(
+    const std::shared_ptr<mujoco_ros2_control::srv::StepSimulation::Request> request,
+    std::shared_ptr<mujoco_ros2_control::srv::StepSimulation::Response> response) {
+  if (!params_.synchronous_mode) {
+    response->success = false;
+    response->message = "Synchronous stepping is disabled.";
+    return;
+  }
+  if (request->steps == 0 || request->steps > static_cast<uint32_t>(params_.max_step_batch)) {
+    response->success = false;
+    response->message = "steps must be in [1, " + std::to_string(params_.max_step_batch) + "].";
+    return;
+  }
+
+  std::lock_guard<std::mutex> step_lock(step_mutex_);
+  for (uint32_t i = 0; i < request->steps; ++i) {
+    advanceSimulationStep();
+  }
+  // Publish the post-step joint state before returning to the Gym client.
+  {
+    std::lock_guard<std::mutex> sim_lock(sim_mutex_);
+    updateControllersAtCurrentTime();
+  }
+  publish_sim_time();
+
+  // A periodic RGB-D thread may have captured an intermediate state while the
+  // batch was advancing. Force one render after the final step and wait until
+  // it has been published before returning the authoritative simulation time.
+  // The outer step lock freezes reset/teleport/physics throughout this wait.
+  std::vector<std::pair<
+      std::shared_ptr<mujoco_rgbd_camera::MujocoDepthCamera>, std::uint64_t>>
+      camera_requests;
+  camera_requests.reserve(cameras_.size());
+  for (const auto &camera : cameras_) {
+    camera_requests.emplace_back(camera, camera->request_synchronous_frame());
+  }
+  for (const auto &[camera, sequence] : camera_requests) {
+    if (!camera->wait_for_synchronous_frame(
+        sequence, std::chrono::seconds(5))) {
+      response->success = false;
+      response->message = "Timed out waiting for post-step RGB-D frame.";
+      return;
+    }
+  }
+
+  const int64_t nanoseconds = static_cast<int64_t>(mujoco_data_->time * 1e9);
+  response->simulation_time.sec = static_cast<int32_t>(nanoseconds / 1000000000LL);
+  response->simulation_time.nanosec = static_cast<uint32_t>(nanoseconds % 1000000000LL);
+  response->success = true;
+  response->message = "Advanced " + std::to_string(request->steps) + " physics steps.";
 }
 
 void mujoco_ros2_control::MujocoRos2Control::mujocoGetBodyStateCallback(

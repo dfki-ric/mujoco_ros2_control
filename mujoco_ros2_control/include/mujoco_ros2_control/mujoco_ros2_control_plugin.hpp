@@ -52,6 +52,7 @@
 
 // std libraries
 #include <algorithm>
+#include <chrono>
 #include <fstream>
 #include <string>
 #include <iostream>
@@ -88,6 +89,7 @@
 #include "rosgraph_msgs/msg/clock.hpp"
 #include "std_srvs/srv/trigger.hpp"
 #include "mujoco_ros2_control/srv/set_body_pose.hpp"
+#include "mujoco_ros2_control/srv/step_simulation.hpp"
 #include "mujoco_ros2_control/srv/get_body_state.hpp"
 
 // URDF
@@ -191,7 +193,7 @@ namespace mujoco_ros2_control
          * that the time is published at the desired rate. If the elapsed time since the last publication is less than the
          * reciprocal of the publishing frequency, the method returns without publishing.
          */
-        void publish_sim_time();
+        void publish_sim_time(bool force = false);
 
         void updateControllersAtCurrentTime();
         void advanceSimulationStep();
@@ -237,6 +239,9 @@ namespace mujoco_ros2_control
                                  std::shared_ptr<std_srvs::srv::Trigger::Response> response);
         void mujocoSetBodyPoseCallback(const std::shared_ptr<mujoco_ros2_control::srv::SetBodyPose::Request> request,
                                         std::shared_ptr<mujoco_ros2_control::srv::SetBodyPose::Response> response);
+        void mujocoStepSimulationCallback(
+            const std::shared_ptr<mujoco_ros2_control::srv::StepSimulation::Request> request,
+            std::shared_ptr<mujoco_ros2_control::srv::StepSimulation::Response> response);
         void mujocoGetBodyStateCallback(
             const std::shared_ptr<mujoco_ros2_control::srv::GetBodyState::Request> request,
             std::shared_ptr<mujoco_ros2_control::srv::GetBodyState::Response> response);
@@ -254,6 +259,7 @@ namespace mujoco_ros2_control
         ClockPublisherPtr clock_publisher_; ///< Clock publisher object
         double pub_clock_frequency_; ///< Frequency the Clock is published
         double last_pub_clock_time_{-1.0}; ///< Simulation timestamp last published
+        std::chrono::steady_clock::time_point last_clock_wall_publish_time_{}; ///< Wall time of the paused-clock heartbeat
 
 
         rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr reset_notify_publisher_; ///< Notifies subscribers (e.g. the policy node) that the sim was reset
@@ -262,6 +268,7 @@ namespace mujoco_ros2_control
         rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr mujoco_play_pause_service_; ///< Service to pause the Mujoco simulation
         rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr mujoco_reset_service_; ///< Service to reset the Mujoco simulation
         rclcpp::Service<mujoco_ros2_control::srv::SetBodyPose>::SharedPtr mujoco_set_body_pose_service_; ///< Service to teleport a free body (e.g. the cube) to a new pose
+        rclcpp::Service<mujoco_ros2_control::srv::StepSimulation>::SharedPtr mujoco_step_simulation_service_;
         rclcpp::Service<mujoco_ros2_control::srv::GetBodyState>::SharedPtr mujoco_get_body_state_service_;
 
         // Mujoco-related variables
@@ -312,8 +319,8 @@ namespace mujoco_ros2_control
         // time-consistent snapshot of mjData (e.g. MujocoGLLidar) take it
         // briefly to mj_copyData out of mujoco_data_ without racing mj_step.
         std::mutex sim_mutex_;
-        // Serializes reset, teleport, and the autonomous simulation loop
-        // before they enter the lower-level mjData mutex.
+        // Serializes reset, teleport, synchronous stepping, and the autonomous
+        // simulation loop before they enter the lower-level mjData mutex.
         std::mutex step_mutex_;
 
         // std::shared_ptr<mujoco_ros2_sensors::MujocoRos2Sensors> mujoco_ros2_sensors_;

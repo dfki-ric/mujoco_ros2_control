@@ -170,6 +170,21 @@ namespace mujoco_rgbd_camera {
         mj_deleteData(render_data_);
     }
 
+    std::uint64_t MujocoDepthCamera::request_synchronous_frame() {
+        std::lock_guard<std::mutex> lock(frame_request_mutex_);
+        const std::uint64_t sequence = ++requested_frame_sequence_;
+        frame_request_condition_.notify_all();
+        return sequence;
+    }
+
+    bool MujocoDepthCamera::wait_for_synchronous_frame(
+            std::uint64_t sequence, std::chrono::milliseconds timeout) {
+        std::unique_lock<std::mutex> lock(frame_request_mutex_);
+        return frame_request_condition_.wait_for(lock, timeout, [&] {
+            return completed_frame_sequence_ >= sequence || stop_->load();
+        }) && completed_frame_sequence_ >= sequence;
+    }
+
     void MujocoDepthCamera::update() {
         mjtNum last_update = 0.0;
         {
@@ -183,6 +198,14 @@ namespace mujoco_rgbd_camera {
         // and depth sites render in two passes (true parallax).
         const bool single_pass = (mount_ != Mount::Site) || (optical_id_ == depth_id_);
         while(rclcpp::ok() && !stop_->load()) {
+            std::uint64_t requested_sequence = 0;
+            bool synchronous_frame_requested = false;
+            {
+                std::lock_guard<std::mutex> lock(frame_request_mutex_);
+                requested_sequence = requested_frame_sequence_;
+                synchronous_frame_requested =
+                    requested_sequence > completed_frame_sequence_;
+            }
             mjtNum current_time;
             {
                 std::lock_guard<std::mutex> lock(*data_mutex_);
@@ -193,10 +216,15 @@ namespace mujoco_rgbd_camera {
                 last_update = current_time;
             }
             // update dynamic parameters
-            if (current_time - last_update >= 1.0 / frequency_) {
-                last_update += 1.0 / frequency_;
-                if (current_time - last_update >= 1.0 / frequency_) {
+            if (synchronous_frame_requested ||
+                current_time - last_update >= 1.0 / frequency_) {
+                if (synchronous_frame_requested) {
                     last_update = current_time;
+                } else {
+                    last_update += 1.0 / frequency_;
+                    if (current_time - last_update >= 1.0 / frequency_) {
+                        last_update = current_time;
+                    }
                 }
                 {
                     std::lock_guard<std::mutex> lock(*data_mutex_);
@@ -256,6 +284,19 @@ namespace mujoco_rgbd_camera {
                 publish_point_cloud();
                 publish_camera_info();
                 glfwMakeContextCurrent(context);
+                if (synchronous_frame_requested) {
+                    std::lock_guard<std::mutex> lock(frame_request_mutex_);
+                    completed_frame_sequence_ = std::max(
+                        completed_frame_sequence_, requested_sequence);
+                    frame_request_condition_.notify_all();
+                }
+            } else {
+                std::unique_lock<std::mutex> lock(frame_request_mutex_);
+                frame_request_condition_.wait_for(
+                    lock, std::chrono::milliseconds(1), [&] {
+                        return requested_frame_sequence_ >
+                            completed_frame_sequence_ || stop_->load();
+                    });
             }
         }
     }
