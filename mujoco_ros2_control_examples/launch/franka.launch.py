@@ -47,7 +47,6 @@ def create_nodes(context: LaunchContext):
             "realsense_rpy": value("realsense_rpy"),
             "base_xyz": value("robot_base_xyz"),
             "base_rpy": "0 0 0",
-            "camera_xyz": "1 0 1.875",
         },
     ).toprettyxml(indent="  ")
     robot_description = {"robot_description": robot_xml}
