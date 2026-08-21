@@ -44,7 +44,7 @@ components:
     peg_xyz: [0.33, -0.045, 0.033]
 
   electrical_connectors:
-    enabled: false
+    enabled: true
     # The public trays plus proxy geometry for the commercial plugs/sockets.
     # Keep the electrical tasks in the rear-right area of the board.
     nema_2_pick_xyz: [0.535, 0.095, 0.011]
