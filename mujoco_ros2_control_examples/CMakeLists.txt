@@ -9,6 +9,13 @@ find_package(ament_cmake REQUIRED)
 option(DOWNLOAD_UNITREE_H1_ASSETS
   "Download and patch the Unitree H1 URDF and meshes at configure time" ON)
 
+# The IndustReal peg meshes are the upstream IsaacGymEnvs simulator assets and
+# are not redistributed here either. Turn this off for offline builds; the Franka
+# example then needs load_industreal_board:=false, or a task_board_config whose
+# peg rows are disabled.
+option(DOWNLOAD_INDUSTREAL_PEG_ASSETS
+  "Download the IndustReal peg meshes from IsaacGymEnvs at configure time" ON)
+
 ###########
 # INSTALL #
 ###########
@@ -155,6 +162,51 @@ if(DOWNLOAD_UNITREE_H1_ASSETS)
   install(DIRECTORY ${MESH_DEST_DIR}/
           DESTINATION share/${PROJECT_NAME}/meshes/unitree_h1
           FILES_MATCHING PATTERN "*.STL")
+endif()
+
+###############################
+# INDUSTREAL PEGS: GET MESHES #
+###############################
+if(DOWNLOAD_INDUSTREAL_PEG_ASSETS)
+  # Post-processed simulator meshes of the IndustReal peg task, pinned to the
+  # commit recorded in meshes/industreal/README.md so a rebuild cannot silently
+  # change the geometry the task-board layout was measured against. IndustRealKit
+  # itself publishes only the printable CAD, and does so through Git LFS, which
+  # file(DOWNLOAD) cannot resolve - it would fetch the pointer file instead.
+  set(PEG_BASE_URL "https://raw.githubusercontent.com/isaac-sim/IsaacGymEnvs/aeed298638a1f7b5421b38f5f3cc2d1079b6d9c3/assets/industreal/mesh/industreal_pegs")
+  set(PEG_DEST_DIR "${CMAKE_CURRENT_BINARY_DIR}/industreal_pegs")
+
+  file(MAKE_DIRECTORY ${PEG_DEST_DIR})
+
+  # One free peg plus its pick and insert tray per shape/size, matching the
+  # peg_assembly macro in urdf/industreal/industreal_task_board.urdf.xacro.
+  set(PEG_FILES "")
+  foreach(PEG_SHAPE round rectangular)
+    foreach(PEG_SIZE 8 12 16)
+      list(APPEND PEG_FILES
+           "industreal_${PEG_SHAPE}_peg_${PEG_SIZE}mm.obj"
+           "industreal_tray_pick_${PEG_SHAPE}_peg_${PEG_SIZE}mm.obj"
+           "industreal_tray_insert_${PEG_SHAPE}_peg_${PEG_SIZE}mm.obj")
+    endforeach()
+  endforeach()
+
+  foreach(PEG_FILE ${PEG_FILES})
+    file(DOWNLOAD "${PEG_BASE_URL}/${PEG_FILE}" "${PEG_DEST_DIR}/${PEG_FILE}"
+         STATUS DOWNLOAD_STATUS
+         TLS_VERIFY ON)
+    list(GET DOWNLOAD_STATUS 0 DL_STATUS)
+    if(NOT DL_STATUS EQUAL 0)
+      list(GET DOWNLOAD_STATUS 1 DL_ERROR)
+      # Leave no truncated file behind: a partial .obj would be installed and
+      # then fail inside MuJoCo instead of here.
+      file(REMOVE "${PEG_DEST_DIR}/${PEG_FILE}")
+      message(FATAL_ERROR "Failed to download ${PEG_FILE}: ${DL_ERROR}")
+    endif()
+  endforeach()
+
+  install(DIRECTORY ${PEG_DEST_DIR}/
+          DESTINATION share/${PROJECT_NAME}/meshes/industreal/pegs
+          FILES_MATCHING PATTERN "*.obj")
 endif()
 
 #########

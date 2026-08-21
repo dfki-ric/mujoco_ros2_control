@@ -12,7 +12,7 @@ and `task_table_mujoco` packages. Assets are split per robot:
 launch/   <robot>.launch.py
 urdf/     franka/  ur/  unitree_h1/  industreal/
 config/   franka/  ur/  unitree_h1/
-meshes/   industreal/         (peg, connector-fixture and gear assets)
+meshes/   industreal/         (connector-fixture and gear assets; pegs/ downloaded at build time)
           unitree_h1/         (downloaded at build time)
 patches/  unitree_h1.urdf.patch
 test/     per-robot launch smoke tests
@@ -97,12 +97,27 @@ repository and patched at build time (`patches/unitree_h1.urdf.patch`).
 ros2 launch mujoco_ros2_control_examples unitree_h1.launch.py
 ```
 
-To build the rest of the examples without network access, disable the download:
+See [Offline builds](#offline-builds) to build the other examples without
+downloading these.
+
+## Offline builds
+
+Two asset groups are fetched at configure time and can each be turned off:
+
+| CMake option                       | Default | Fetches                                        |
+|------------------------------------|---------|------------------------------------------------|
+| `DOWNLOAD_UNITREE_H1_ASSETS`       | `ON`    | The Unitree H1 URDF (patched) and its meshes.   |
+| `DOWNLOAD_INDUSTREAL_PEG_ASSETS`   | `ON`    | The IndustReal peg and tray meshes (~12 MB).    |
 
 ```bash
-colcon build --packages-select mujoco_ros2_control_examples \
-  --cmake-args -DDOWNLOAD_UNITREE_H1_ASSETS=OFF
+colcon build --packages-select mujoco_ros2_control_examples --cmake-args \
+  -DDOWNLOAD_UNITREE_H1_ASSETS=OFF -DDOWNLOAD_INDUSTREAL_PEG_ASSETS=OFF
 ```
+
+With the peg assets off, the Franka example must be launched without the peg
+rows - either `load_industreal_board:=false`, or a `task_board_config` whose
+`*_peg_*` components are all disabled. The connector fixtures and gears are
+in-tree and always available.
 
 ## Tests
 
@@ -145,8 +160,10 @@ ros2 launch mujoco_ros2_control_examples franka.launch.py \
 ```
 
 The simulator-ready peg assets come from
-[`IsaacGymEnvs`](https://github.com/isaac-sim/IsaacGymEnvs/tree/main/isaacgymenvs/tasks/industreal),
-and connector fixtures come from
-[`IndustRealKit`](https://github.com/NVlabs/industrealkit). Their provenance and
+[`IsaacGymEnvs`](https://github.com/isaac-sim/IsaacGymEnvs/tree/main/isaacgymenvs/tasks/industreal)
+and are **not** redistributed here; they are downloaded at build time, like the
+Unitree H1 meshes. The connector fixtures come from
+[`IndustRealKit`](https://github.com/NVlabs/industrealkit) and are kept in-tree,
+because IndustRealKit serves its meshes only through Git LFS. Their provenance and
 license notices are retained in `meshes/industreal/`; IndustRealKit assets are
 limited to non-commercial research/evaluation use.
