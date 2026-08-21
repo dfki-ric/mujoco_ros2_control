@@ -46,11 +46,17 @@ components:
   electrical_connectors:
     enabled: true
     # The public trays plus proxy geometry for the commercial plugs/sockets.
-    # Keep the electrical tasks in the rear-right area of the board.
-    nema_2_pick_xyz: [0.535, 0.095, 0.011]
-    nema_2_insert_xyz: [0.475, 0.095, 0.011]
-    nema_3_pick_xyz: [0.535, 0.175, 0.037]
-    nema_3_insert_xyz: [0.475, 0.175, 0.011]
+    # The electrical tasks occupy the strip right of the gears, so each station
+    # is one column with its plug tray behind its socket tray. The 2-prong plug
+    # tray is the largest fixture on the board at 110 x 80 mm; the xacro yaws it
+    # 90 degrees so its long side runs along y, which is what lets both columns
+    # fit beside the gears instead of overlapping each other.
+    # Z values put each tray's mesh bottom on the breadboard top: the 3-prong
+    # plug tray is modelled below its origin, hence 0.037 rather than 0.011.
+    nema_2_pick_xyz: [0.470, 0.165, 0.011]
+    nema_2_insert_xyz: [0.470, 0.070, 0.011]
+    nema_3_pick_xyz: [0.5575, 0.180, 0.037]
+    nema_3_insert_xyz: [0.5575, 0.090, 0.011]
 
   gears:
     enabled: true

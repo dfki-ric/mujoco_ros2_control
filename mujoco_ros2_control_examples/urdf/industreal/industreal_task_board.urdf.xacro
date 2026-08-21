@@ -7,8 +7,8 @@
   <xacro:property name="wz" value="${cfg.workspace.xyz[2]}"/>
 
   <link name="world"/>
-  <xacro:macro name="configured_origin" params="xyz">
-    <origin xyz="${wx + xyz[0]} ${wy + xyz[1]} ${wz + xyz[2]}" rpy="0 0 0"/>
+  <xacro:macro name="configured_origin" params="xyz yaw:=0">
+    <origin xyz="${wx + xyz[0]} ${wy + xyz[1]} ${wz + xyz[2]}" rpy="0 0 ${yaw}"/>
   </xacro:macro>
 
   <xacro:macro name="inertial" params="mass:=0.1">
@@ -51,16 +51,19 @@
   <xacro:peg_assembly name="rectangular_peg_12mm" shape="rectangular" size="12" fixtures_enabled="${cfg.components.rectangular_peg_12mm.enabled}" object_enabled="${cfg.components.rectangular_peg_12mm.get('object_enabled', cfg.components.rectangular_peg_12mm.enabled)}" pick_xyz="${cfg.components.rectangular_peg_12mm.pick_xyz}" insert_xyz="${cfg.components.rectangular_peg_12mm.insert_xyz}" peg_xyz="${cfg.components.rectangular_peg_12mm.peg_xyz}"/>
   <xacro:peg_assembly name="rectangular_peg_16mm" shape="rectangular" size="16" fixtures_enabled="${cfg.components.rectangular_peg_16mm.enabled}" object_enabled="${cfg.components.rectangular_peg_16mm.get('object_enabled', cfg.components.rectangular_peg_16mm.enabled)}" pick_xyz="${cfg.components.rectangular_peg_16mm.pick_xyz}" insert_xyz="${cfg.components.rectangular_peg_16mm.insert_xyz}" peg_xyz="${cfg.components.rectangular_peg_16mm.peg_xyz}"/>
 
-  <xacro:macro name="connector_fixture" params="name mesh xyz proxy_size is_pick object_enabled collision_size collision_z plug_z:=0">
+  <xacro:macro name="connector_fixture" params="name mesh xyz proxy_size is_pick object_enabled collision_size collision_z socket_z:=0 plug_z:=0 yaw:=0">
     <link name="${name}_link">
       <xacro:inertial/>
       <!-- Exact NVIDIA printable tray; xacro2mjcf marks its surface mesh as
            shell-inertia while collision remains a stable primitive. -->
       <visual><geometry><mesh filename="file://$(find mujoco_ros2_control_examples)/meshes/industreal/electrical_connectors/${mesh}"/></geometry><material name="${name}_white"><color rgba="0.92 0.92 0.88 1"/></material></visual>
       <collision><origin xyz="0 0 ${collision_z}"/><geometry><box size="${collision_size}"/></geometry></collision>
-      <xacro:unless value="${is_pick}"><visual><origin xyz="0 0 0.034"/><geometry><box size="${proxy_size}"/></geometry><material name="${name}_black"><color rgba="0.025 0.025 0.025 1"/></material></visual></xacro:unless>
+      <!-- NVIDIA press-fits the socket into the tray and glues the lip on
+           top of it, so socket_z sinks the proxy until its top face is flush
+           with this tray's own top face rather than floating above it. -->
+      <xacro:unless value="${is_pick}"><visual><origin xyz="0 0 ${socket_z}"/><geometry><box size="${proxy_size}"/></geometry><material name="${name}_black"><color rgba="0.025 0.025 0.025 1"/></material></visual></xacro:unless>
     </link>
-    <joint name="world_to_${name}" type="fixed"><xacro:configured_origin xyz="${xyz}"/><parent link="world"/><child link="${name}_link"/></joint>
+    <joint name="world_to_${name}" type="fixed"><xacro:configured_origin xyz="${xyz}" yaw="${yaw}"/><parent link="world"/><child link="${name}_link"/></joint>
     <xacro:if value="${is_pick and object_enabled}">
       <!-- NVIDIA specifies commercial plug part numbers but does not
            redistribute their meshes. This dimensioned plug is a free body,
@@ -73,15 +76,15 @@
         <visual><origin xyz="0 0 ${plug_z}"/><geometry><box size="${proxy_size}"/></geometry><material name="${name}_plug_black"><color rgba="0.025 0.025 0.025 1"/></material></visual>
         <collision><origin xyz="0 0 ${plug_z}"/><geometry><box size="${proxy_size}"/></geometry></collision>
       </link>
-      <joint name="world_to_${name}_plug" type="floating"><xacro:configured_origin xyz="${xyz}"/><parent link="world"/><child link="${name}_plug_link"/></joint>
+      <joint name="world_to_${name}_plug" type="floating"><xacro:configured_origin xyz="${xyz}" yaw="${yaw}"/><parent link="world"/><child link="${name}_plug_link"/></joint>
     </xacro:if>
   </xacro:macro>
   <xacro:if value="${cfg.components.electrical_connectors.enabled}">
     <xacro:property name="connector_objects_enabled" value="${cfg.components.electrical_connectors.get('objects_enabled', cfg.components.electrical_connectors.enabled)}"/>
-    <xacro:connector_fixture name="nema_2_prong_pick" mesh="nema_2-prong_plug_tray.obj" xyz="${cfg.components.electrical_connectors.nema_2_pick_xyz}" proxy_size="0.028 0.022 0.045" is_pick="true" object_enabled="${connector_objects_enabled}" collision_size="0.110 0.080 0.028" collision_z="0.011" plug_z="0.0485"/>
-    <xacro:connector_fixture name="nema_2_prong_insert" mesh="nema_2-prong_socket_tray.obj" xyz="${cfg.components.electrical_connectors.nema_2_insert_xyz}" proxy_size="0.030 0.025 0.012" is_pick="false" object_enabled="${connector_objects_enabled}" collision_size="0.070 0.040 0.0315" collision_z="0.01275"/>
+    <xacro:connector_fixture name="nema_2_prong_pick" mesh="nema_2-prong_plug_tray.obj" xyz="${cfg.components.electrical_connectors.nema_2_pick_xyz}" proxy_size="0.028 0.022 0.045" is_pick="true" object_enabled="${connector_objects_enabled}" collision_size="0.110 0.080 0.028" collision_z="0.011" plug_z="0.0485" yaw="${pi/2}"/>
+    <xacro:connector_fixture name="nema_2_prong_insert" mesh="nema_2-prong_socket_tray.obj" xyz="${cfg.components.electrical_connectors.nema_2_insert_xyz}" proxy_size="0.030 0.025 0.012" is_pick="false" object_enabled="${connector_objects_enabled}" collision_size="0.070 0.040 0.0315" collision_z="0.01275" socket_z="0.0225"/>
     <xacro:connector_fixture name="nema_3_prong_pick" mesh="nema_3-prong_plug_tray.obj" xyz="${cfg.components.electrical_connectors.nema_3_pick_xyz}" proxy_size="0.034 0.028 0.050" is_pick="true" object_enabled="${connector_objects_enabled}" collision_size="0.065 0.065 0.029" collision_z="-0.0145" plug_z="0.026"/>
-    <xacro:connector_fixture name="nema_3_prong_insert" mesh="nema_3-prong_socket_tray.obj" xyz="${cfg.components.electrical_connectors.nema_3_insert_xyz}" proxy_size="0.036 0.030 0.012" is_pick="false" object_enabled="${connector_objects_enabled}" collision_size="0.065 0.065 0.0324" collision_z="0.0132"/>
+    <xacro:connector_fixture name="nema_3_prong_insert" mesh="nema_3-prong_socket_tray.obj" xyz="${cfg.components.electrical_connectors.nema_3_insert_xyz}" proxy_size="0.036 0.030 0.012" is_pick="false" object_enabled="${connector_objects_enabled}" collision_size="0.065 0.065 0.0324" collision_z="0.0132" socket_z="0.0234"/>
     <link name="nema_3_prong_socket_lip_link"><xacro:inertial/><visual><geometry><mesh filename="file://$(find mujoco_ros2_control_examples)/meshes/industreal/electrical_connectors/nema_3-prong_socket_tray_lip.obj"/></geometry><material name="nema_3_lip_white"><color rgba="0.92 0.92 0.88 1"/></material></visual><collision><origin xyz="0 0 0.030"/><geometry><box size="0.044 0.044 0.004"/></geometry></collision></link>
     <joint name="world_to_nema_3_prong_socket_lip" type="fixed"><xacro:configured_origin xyz="${cfg.components.electrical_connectors.nema_3_insert_xyz}"/><parent link="world"/><child link="nema_3_prong_socket_lip_link"/></joint>
   </xacro:if>
