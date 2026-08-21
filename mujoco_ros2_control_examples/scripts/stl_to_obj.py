@@ -3,10 +3,10 @@
 
 MuJoCo's STL decoder rejects any file with more than 200000 faces, which is a
 limit of that decoder and not of the model: the same geometry loads through the
-OBJ path. Franka's printable D435 camera mount (see meshes/franka/README.md) is
-295768 faces, so it is converted here at configure time rather than decimated -
-the URDF's visual origin and its box collision stand-in are measured against the
-exact upstream part.
+OBJ path. Franka's printable D435 camera mount (see "The camera mount mesh" in
+the package README) is 295768 faces, so it is converted here at configure time
+rather than decimated - the URDF's visual origin and its box collision stand-in
+are measured against the exact upstream part.
 
 Only the triangle soup is carried over. STL has no normals worth keeping (the
 per-facet normal is recomputed by every consumer) and no texture coordinates, so

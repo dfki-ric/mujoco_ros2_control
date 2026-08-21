@@ -227,7 +227,7 @@ if(DOWNLOAD_FRANKA_CAMERA_MOUNT_ASSET)
   # way the IndustReal peg commit is; the recorded hash below is only checked to
   # warn when upstream republishes, because the visual origin in
   # urdf/franka/realsense_d435_wrist.urdf.xacro is measured against this
-  # geometry. See meshes/franka/README.md.
+  # geometry. See "The camera mount mesh" in README.md.
   set(MOUNT_URL "https://download.franka.de/camera_mount_guide.zip")
   set(MOUNT_ARCHIVE "${CMAKE_CURRENT_BINARY_DIR}/camera_mount_guide.zip")
   set(MOUNT_DEST_DIR "${CMAKE_CURRENT_BINARY_DIR}/franka_camera_mount")
@@ -255,7 +255,7 @@ if(DOWNLOAD_FRANKA_CAMERA_MOUNT_ASSET)
       "${MOUNT_URL} no longer matches the recorded SHA256 "
       "(got ${MOUNT_SHA256}). Franka may have revised the mount; re-check the "
       "visual origin in urdf/franka/realsense_d435_wrist.urdf.xacro and update "
-      "MOUNT_KNOWN_SHA256 plus meshes/franka/README.md.")
+      "MOUNT_KNOWN_SHA256 plus the README.")
   endif()
 
   # `cmake -E tar` rather than file(ARCHIVE_EXTRACT) so this stays within the
