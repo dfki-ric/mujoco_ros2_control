@@ -184,16 +184,40 @@ ros2 launch mujoco_ros2_control_examples franka.launch.py \
   task_board_config:=/absolute/path/to/my_task_board.yaml
 ```
 
-The simulator-ready peg assets come from
-[`IsaacGymEnvs`](https://github.com/isaac-sim/IsaacGymEnvs/tree/main/isaacgymenvs/tasks/industreal)
-and are **not** redistributed here; they are downloaded at build time, like the
-Unitree H1 meshes. The gears are derived from
-[`IndustRealKit`](https://github.com/NVlabs/industrealkit) CAD and cannot be
-re-fetched, so they stay in-tree. Provenance and license notices are retained in
-`meshes/industreal/`; IndustRealKit assets and derivatives are limited to
-non-commercial research/evaluation use.
+### Asset provenance and licences
+
+Three of the four asset groups this package uses are downloaded at build time
+and never redistributed here: the Unitree H1 URDF and meshes, the IndustReal peg
+and tray meshes from
+[`IsaacGymEnvs`](https://github.com/isaac-sim/IsaacGymEnvs/tree/main/isaacgymenvs/tasks/industreal),
+and the Franka camera mount. See [Offline builds](#offline-builds).
+
+The gears are the exception, and the one asset group **not covered by this
+package's licence**. They are a derivative work of
+[`IndustRealKit`](https://github.com/NVlabs/industrealkit) CAD, they cannot be
+re-fetched, and the NVIDIA License they carry limits them and any derivative to
+**non-commercial research or evaluation use**. The specific files and the reason
+the restriction has to be named are set out in
+[`meshes/industreal/README.md`](meshes/industreal/README.md); the licence text
+itself is in `meshes/industreal/licenses/`. Build with a `task_board_config`
+whose `gears.enabled` is `false` to get a board without that restriction
+attached.
 
 The board does not model IndustReal's electrical-connector task. Its plugs and
 sockets are commercial parts that NVIDIA identifies by part number but does not
 redistribute, so only the printable trays are public and there is no geometry
 for the parts that actually mate.
+
+## License
+
+BSD-3-Clause, Copyright (c) 2025 DFKI GmbH, Robotics Innovation Center - the
+same terms as the rest of this repository. See [`LICENSE`](LICENSE).
+
+One exception: the gear meshes under `meshes/industreal/gears/` are a derivative
+of NVIDIA IndustRealKit CAD and stay under the NVIDIA License, which restricts
+them to non-commercial research or evaluation use. They are the only files in
+this package not covered by the line above. Everything else the examples pull
+from third parties - the Unitree H1 description, the IndustReal peg meshes, the
+Franka camera mount - is downloaded at build time and never redistributed here,
+so no third-party terms attach to this repository for them. See
+[Asset provenance and licences](#asset-provenance-and-licences).

@@ -223,27 +223,6 @@ class Xacro2Mjcf(Node):
 
                 self.mjcf_root = mjcf_tree.getroot()
 
-                # Surface-only visual meshes (for example the exact NVIDIA
-                # electrical fixture OBJs) have no enclosed volume. MuJoCo can
-                # still render them when their mesh inertia mode is "shell".
-                visual_meshes = {
-                    geom.get('mesh')
-                    for geom in self.mjcf_root.iter('geom')
-                    if geom.get('group') == '0' and geom.get('mesh')
-                }
-                asset = self.mjcf_root.find('asset')
-                if asset is not None:
-                    for mesh in asset.findall('mesh'):
-                        mesh_name = mesh.get('name', '')
-                        mesh_file = mesh.get('file', '')
-                        is_electrical_fixture = (
-                            'electrical_connectors' in mesh_file
-                            or mesh_name.startswith('nema_')
-                        )
-                        if (mesh_name in visual_meshes
-                                and is_electrical_fixture):
-                            mesh.set('inertia', 'shell')
-
                 # Add limited=true to all joints with range (limits)
                 joints = self.get_elements(self.mjcf_root, 'joint', 'range')
                 for joint in joints:

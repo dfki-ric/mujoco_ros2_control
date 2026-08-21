@@ -9,7 +9,7 @@
 
   <maintainer email="adrian.danzglock@dfki.de">Adrian Danzglock</maintainer>
 
-  <license>GPL3</license>
+  <license>BSD-3-Clause</license>
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <!-- Common runtime dependencies -->
