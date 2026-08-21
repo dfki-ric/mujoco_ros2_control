@@ -12,9 +12,11 @@ and `task_table_mujoco` packages. Assets are split per robot:
 launch/   <robot>.launch.py
 urdf/     franka/  ur/  unitree_h1/  industreal/
 config/   franka/  ur/  unitree_h1/
-meshes/   industreal/         (connector-fixture and gear assets; pegs/ downloaded at build time)
+meshes/   franka/             (D435 wrist mount, downloaded at build time)
+          industreal/         (connector-fixture and gear assets; pegs/ downloaded at build time)
           unitree_h1/         (downloaded at build time)
 patches/  unitree_h1.urdf.patch
+scripts/  stl_to_obj.py       (build-time mesh conversion)
 test/     per-robot launch smoke tests
 ```
 
@@ -70,6 +72,12 @@ Set `load_realsense:=false` to omit the camera. Camera rendering is automaticall
 disabled by `headless:=true` because it requires an OpenGL context; the mount and
 camera remain in the robot description.
 
+The mount mesh is Franka's own printable bracket and is **not** redistributed
+here; it is downloaded from `download.franka.de` at build time and rewritten as
+an OBJ, because MuJoCo's STL decoder rejects its 295768 faces. See
+[`meshes/franka/README.md`](meshes/franka/README.md) and
+[Offline builds](#offline-builds).
+
 ### Universal Robots (UR)
 
 UR arm loaded from [`ur_description`](https://github.com/UniversalRobots/Universal_Robots_ROS2_Description).
@@ -102,21 +110,24 @@ downloading these.
 
 ## Offline builds
 
-Two asset groups are fetched at configure time and can each be turned off:
+Three asset groups are fetched at configure time and can each be turned off:
 
-| CMake option                       | Default | Fetches                                        |
-|------------------------------------|---------|------------------------------------------------|
-| `DOWNLOAD_UNITREE_H1_ASSETS`       | `ON`    | The Unitree H1 URDF (patched) and its meshes.   |
-| `DOWNLOAD_INDUSTREAL_PEG_ASSETS`   | `ON`    | The IndustReal peg and tray meshes (~12 MB).    |
+| CMake option                        | Default | Fetches                                       |
+|-------------------------------------|---------|-----------------------------------------------|
+| `DOWNLOAD_UNITREE_H1_ASSETS`        | `ON`    | The Unitree H1 URDF (patched) and its meshes.  |
+| `DOWNLOAD_INDUSTREAL_PEG_ASSETS`    | `ON`    | The IndustReal peg and tray meshes (~12 MB).   |
+| `DOWNLOAD_FRANKA_CAMERA_MOUNT_ASSET`| `ON`    | The Franka printable D435 mount (~6 MB zip).   |
 
 ```bash
 colcon build --packages-select mujoco_ros2_control_examples --cmake-args \
-  -DDOWNLOAD_UNITREE_H1_ASSETS=OFF -DDOWNLOAD_INDUSTREAL_PEG_ASSETS=OFF
+  -DDOWNLOAD_UNITREE_H1_ASSETS=OFF -DDOWNLOAD_INDUSTREAL_PEG_ASSETS=OFF \
+  -DDOWNLOAD_FRANKA_CAMERA_MOUNT_ASSET=OFF
 ```
 
 With the peg assets off, the Franka example must be launched without the peg
 rows - either `load_industreal_board:=false`, or a `task_board_config` whose
-`*_peg_*` components are all disabled. The connector fixtures and gears are
+`*_peg_*` components are all disabled. With the camera mount off it must be
+launched with `load_realsense:=false`. The connector fixtures and gears are
 in-tree and always available.
 
 ## Tests

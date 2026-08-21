@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.8)
 project(mujoco_ros2_control_examples)
 
 find_package(ament_cmake REQUIRED)
+# Interpreter only, for the configure-time mesh conversion below.
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
 # The Unitree H1 URDF and meshes are not redistributed here; they are fetched and
 # patched from upstream at configure time. Turn this off (e.g. for offline or
@@ -15,6 +17,13 @@ option(DOWNLOAD_UNITREE_H1_ASSETS
 # peg rows are disabled.
 option(DOWNLOAD_INDUSTREAL_PEG_ASSETS
   "Download the IndustReal peg meshes from IsaacGymEnvs at configure time" ON)
+
+# Franka's printable D435 wrist mount is published as a download on franka.de
+# under plain copyright, with no licence granting redistribution, so it is not
+# vendored here either. Turn this off for offline builds; the Franka example
+# then needs load_realsense:=false.
+option(DOWNLOAD_FRANKA_CAMERA_MOUNT_ASSET
+  "Download the Franka printable D435 camera mount at configure time" ON)
 
 ###########
 # INSTALL #
@@ -207,6 +216,89 @@ if(DOWNLOAD_INDUSTREAL_PEG_ASSETS)
   install(DIRECTORY ${PEG_DEST_DIR}/
           DESTINATION share/${PROJECT_NAME}/meshes/industreal/pegs
           FILES_MATCHING PATTERN "*.obj")
+endif()
+
+#################################
+# FRANKA CAMERA MOUNT: GET MESH #
+#################################
+if(DOWNLOAD_FRANKA_CAMERA_MOUNT_ASSET)
+  # The mount Franka Robotics documents in guide R02241, shipped as a ZIP of two
+  # STL/STEP pairs. The URL is unversioned, so the archive cannot be pinned the
+  # way the IndustReal peg commit is; the recorded hash below is only checked to
+  # warn when upstream republishes, because the visual origin in
+  # urdf/franka/realsense_d435_wrist.urdf.xacro is measured against this
+  # geometry. See meshes/franka/README.md.
+  set(MOUNT_URL "https://download.franka.de/camera_mount_guide.zip")
+  set(MOUNT_ARCHIVE "${CMAKE_CURRENT_BINARY_DIR}/camera_mount_guide.zip")
+  set(MOUNT_DEST_DIR "${CMAKE_CURRENT_BINARY_DIR}/franka_camera_mount")
+  set(MOUNT_STL "RealSenseD435_Camera_Mount.STL")
+  set(MOUNT_OBJ "RealSenseD435_Camera_Mount.obj")
+  set(MOUNT_KNOWN_SHA256 "0b8c53aadee5978132b1a7f2e2ef3a127b2a6e5321a1da31f27dede87b637913")
+
+  file(DOWNLOAD ${MOUNT_URL} ${MOUNT_ARCHIVE}
+       SHOW_PROGRESS
+       STATUS DOWNLOAD_STATUS
+       TLS_VERIFY ON)
+
+  list(GET DOWNLOAD_STATUS 0 DL_STATUS)
+  if(NOT DL_STATUS EQUAL 0)
+    list(GET DOWNLOAD_STATUS 1 DL_ERROR)
+    # Leave no truncated archive behind: extraction would fail on it with a
+    # less informative message than the download error itself.
+    file(REMOVE ${MOUNT_ARCHIVE})
+    message(FATAL_ERROR "Failed to download ${MOUNT_URL}: ${DL_ERROR}")
+  endif()
+
+  file(SHA256 ${MOUNT_ARCHIVE} MOUNT_SHA256)
+  if(NOT MOUNT_SHA256 STREQUAL MOUNT_KNOWN_SHA256)
+    message(WARNING
+      "${MOUNT_URL} no longer matches the recorded SHA256 "
+      "(got ${MOUNT_SHA256}). Franka may have revised the mount; re-check the "
+      "visual origin in urdf/franka/realsense_d435_wrist.urdf.xacro and update "
+      "MOUNT_KNOWN_SHA256 plus meshes/franka/README.md.")
+  endif()
+
+  # `cmake -E tar` rather than file(ARCHIVE_EXTRACT) so this stays within the
+  # CMake version this package declares. The archive also carries a generic
+  # 1/4"-20 mount and both STEP sources; only the STL is used. Extraction
+  # overwrites, so the destination is created but never cleared - removing it
+  # first raced with libarchive opening its output files.
+  file(MAKE_DIRECTORY ${MOUNT_DEST_DIR})
+  execute_process(
+      COMMAND ${CMAKE_COMMAND} -E tar xf ${MOUNT_ARCHIVE}
+      WORKING_DIRECTORY ${MOUNT_DEST_DIR}
+      RESULT_VARIABLE EXTRACT_RESULT
+      ERROR_VARIABLE EXTRACT_ERROR
+  )
+  if(NOT EXTRACT_RESULT EQUAL 0)
+    message(FATAL_ERROR
+      "Failed to extract ${MOUNT_ARCHIVE} into ${MOUNT_DEST_DIR}: ${EXTRACT_ERROR}")
+  endif()
+
+  if(NOT EXISTS "${MOUNT_DEST_DIR}/${MOUNT_STL}")
+    message(FATAL_ERROR
+      "${MOUNT_STL} is missing from ${MOUNT_URL}; its contents have changed.")
+  endif()
+
+  # MuJoCo's STL decoder rejects anything over 200000 faces and the mount is
+  # 295768, so it is rewritten as an OBJ - the same triangles through a loader
+  # without that limit, rather than a decimation that would no longer match the
+  # measured visual origin.
+  execute_process(
+      COMMAND ${Python3_EXECUTABLE}
+              "${CMAKE_CURRENT_SOURCE_DIR}/scripts/stl_to_obj.py"
+              "${MOUNT_DEST_DIR}/${MOUNT_STL}"
+              "${MOUNT_DEST_DIR}/${MOUNT_OBJ}"
+      RESULT_VARIABLE CONVERT_RESULT
+  )
+  if(NOT CONVERT_RESULT EQUAL 0)
+    file(REMOVE "${MOUNT_DEST_DIR}/${MOUNT_OBJ}")
+    message(FATAL_ERROR "Failed to convert ${MOUNT_STL} to OBJ")
+  endif()
+
+  install(FILES "${MOUNT_DEST_DIR}/${MOUNT_OBJ}"
+          DESTINATION share/${PROJECT_NAME}/meshes/franka/realsense_d435
+  )
 endif()
 
 #########

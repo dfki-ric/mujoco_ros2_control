@@ -2,7 +2,12 @@
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
   <!-- The camera body, its frame tree and its nominal extrinsics all come from
        realsense2_description; only the bracket that bolts it to the Franka Hand
-       is ours, because Franka's printable mount is not part of any ROS package. -->
+       is ours, because Franka's printable mount is not part of any ROS package.
+       The mount mesh itself is not redistributed here - CMakeLists.txt fetches
+       it from franka.de at configure time and rewrites it as an OBJ, because
+       MuJoCo's STL decoder rejects its face count (see
+       ../../meshes/franka/README.md), so it is present only in the install
+       tree, never in the source tree. -->
   <xacro:include filename="$(find realsense2_description)/urdf/_d435.urdf.xacro" />
 
   <!-- Franka's official D435/D435i wrist mount uses an M6 threaded hole on
@@ -20,12 +25,12 @@
              180-degree X rotation to its existing 180-degree Y pose. -->
         <origin xyz="0.036 0.030 0" rpy="3.14159265359 3.14159265359 0"/>
         <geometry>
-          <mesh filename="package://mujoco_ros2_control_examples/meshes/franka/realsense_d435/RealSenseD435_Camera_Mount_mujoco.stl"
+          <mesh filename="package://mujoco_ros2_control_examples/meshes/franka/realsense_d435/RealSenseD435_Camera_Mount.obj"
                 scale="0.001 0.001 0.001"/>
         </geometry>
         <material name="realsense_mount_dark_grey"><color rgba="0.18 0.19 0.20 1"/></material>
       </visual>
-      <!-- A simple collision avoids turning a 295k-triangle printable mesh
+      <!-- A simple collision avoids turning the 296k-triangle printable mesh
            into hundreds of convex MuJoCo collision pieces. -->
       <collision>
         <origin xyz="0.012 0 0.025"/>
