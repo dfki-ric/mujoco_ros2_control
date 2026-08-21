@@ -24,7 +24,7 @@ We provide one example with the franka description and the gears from the Indust
 ```bash
   ros2 launch mujoco_ros2_control_examples franka.launch.py
 ```
-![](./paper/figures/franka_rgbd_example.png)
+![](./images/franka_rgbd_example.png)
 *RGBD Camera inside of MuJoCo ([MuJoCo Visualizer](https://github.com/google-deepmind/mujoco/tree/main/simulate) \[left\], [rviz2](https://index.ros.org/p/rviz2/) \[right\])*
 
 and one example with a unitree H1 that can be started with
@@ -34,7 +34,7 @@ and one example with a unitree H1 that can be started with
 ![](./paper/figures/unitree_h1_example.png)
 *Unitree H1 with floating joint between world and pelvis ([MuJoCo Visualizer](https://github.com/google-deepmind/mujoco/tree/main/simulate) \[left\], [rqt_joint_trajectory_controller](https://index.ros.org/p/rqt_joint_trajectory_controller/)/[rviz2](https://index.ros.org/p/rviz2/) \[right\])*
 
-![](./paper/figures/unitree_g1_lidar.png)
+![](./images/unitree_g1_lidar.png)
 *Unitree G1 with floating joint between world and pelvis and attached LIDAR and RGBD Camera*
 
 ### Docker
