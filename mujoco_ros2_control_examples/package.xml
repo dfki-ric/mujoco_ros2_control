@@ -9,7 +9,7 @@
 
   <maintainer email="adrian.danzglock@dfki.de">Adrian Danzglock</maintainer>
 
-  <license>GPL3</license>
+  <license>BSD-3-Clause</license>
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <!-- Common runtime dependencies -->
@@ -18,6 +18,7 @@
   <exec_depend>mujoco_ros2_control</exec_depend>
   <exec_depend>urdf</exec_depend>
   <exec_depend>xacro</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
   <exec_depend>robot_state_publisher</exec_depend>
   <exec_depend>controller_manager</exec_depend>
   <exec_depend>rviz2</exec_depend>
@@ -32,6 +33,7 @@
 
   <!-- Robot descriptions (Franka and UR are pulled from these packages) -->
   <exec_depend>franka_description</exec_depend>
+  <exec_depend>realsense2_description</exec_depend>
   <exec_depend>ur_description</exec_depend>
 
   <!-- Tests -->

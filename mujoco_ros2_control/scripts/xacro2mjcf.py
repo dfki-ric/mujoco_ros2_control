@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
+import os
 import subprocess
-
 import rclpy
 from ament_index_python.packages import get_package_share_directory
 from rclpy.node import Node
 import xml.etree.ElementTree as ET
-import os
 import uuid
 import collections
 import copy
+import hashlib
 import math
 
+from dae2stl import MAX_TRIANGLES_PER_MESH, convert_dae_to_stl, extract_triangle_groups, write_binary_stl
 from urdf2mjcf import create_mjcf_from_urdf
 
 
@@ -89,6 +90,7 @@ class Xacro2Mjcf(Node):
                 ('input_files', rclpy.Parameter.Type.STRING_ARRAY),
                 ('output_file', rclpy.Parameter.Type.STRING),
                 ('robot_descriptions', rclpy.Parameter.Type.STRING_ARRAY),
+                ('xacro_args', rclpy.Parameter.Type.STRING_ARRAY),
                 ('mujoco_files_path', "/tmp/mujoco/"),
                 ('floating', False),
                 ('initial_position', "0 0 0"),
@@ -101,6 +103,10 @@ class Xacro2Mjcf(Node):
         input_files = self.get_parameter('input_files').value
         output_file = self.get_parameter('output_file').value
         robot_descriptions = self.get_parameter('robot_descriptions').value
+        try:
+            xacro_args = self.get_parameter('xacro_args').value
+        except rclpy.exceptions.ParameterUninitializedException:
+            xacro_args = []
         mujoco_files_path = self.get_parameter('mujoco_files_path').value
 
         initial_position = self.get_parameter('initial_position').value # x y z
@@ -151,7 +157,12 @@ class Xacro2Mjcf(Node):
 
                 if filename.split('.')[-1] == 'xacro':
                     # Convert Xacro to URDF
-                    os.system('xacro ' + filename + ' > ' + mujoco_files_path + '/tmp_' + name + '.urdf')
+                    with open(mujoco_files_path + '/tmp_' + name + '.urdf', 'w', encoding='utf-8') as output:
+                        subprocess.run(
+                            ['xacro', filename, *xacro_args],
+                            check=True,
+                            stdout=output,
+                        )
                     urdf_tree = ET.parse(mujoco_files_path + '/tmp_' + name + '.urdf')
                     tmp_urdf_root = urdf_tree.getroot()
 
@@ -171,6 +182,7 @@ class Xacro2Mjcf(Node):
 
                     self.convert_camera_links(tmp_urdf_root)
                     self.correct_visual_mesh(tmp_urdf_root)
+                    self.expand_dae_visuals(tmp_urdf_root, mujoco_files_path)
                     self.create_symlinks(tmp_urdf_root, mujoco_files_path)
 
                     output_tree = ET.ElementTree(tmp_urdf_root)
@@ -198,6 +210,7 @@ class Xacro2Mjcf(Node):
 
                     self.convert_camera_links(tmp_urdf_root)
                     self.correct_visual_mesh(tmp_urdf_root)
+                    self.expand_dae_visuals(tmp_urdf_root, mujoco_files_path)
                     self.create_symlinks(tmp_urdf_root, mujoco_files_path)
 
                     output_tree = ET.ElementTree(tmp_urdf_root)
@@ -417,28 +430,215 @@ class Xacro2Mjcf(Node):
             elements += self.get_elements(child, tag, attrib, value)
         return elements
 
+    def resolve_mesh_source_file(self, filename):
+        if not filename:
+            return None
+        if filename[:7] == "file://":
+            return filename[7:]
+        if filename[:10] == "package://":
+            file_name = filename[10:].split('/')
+            package_path = get_package_share_directory(file_name[0])
+            return os.path.join(package_path, *file_name[1:])
+        return filename
+
+    def sanitize_name(self, value):
+        sanitized = "".join(char if char.isalnum() else "_" for char in value)
+        sanitized = sanitized.strip("_")
+        return sanitized or "part"
+
+    def mesh_asset_stub(self, source_file):
+        """Short, unique basename stem for a file generated from a mesh.
+
+        A full absolute source path does not fit in a single filename once it is
+        encoded into one - and a converted DAE encodes one twice, since the
+        expanded mesh is itself the source of a symlink. Keep the readable
+        basename and add a deterministic digest of the full path for uniqueness.
+        """
+        stem = os.path.splitext(os.path.basename(source_file))[0]
+        digest = hashlib.sha256(source_file.encode("utf-8")).hexdigest()[:16]
+        return f"{self.sanitize_name(stem)[:96]}_{digest}"
+
+    def expand_dae_visuals(self, urdf_root, mujoco_files_path):
+        """Replace each DAE <visual> with one STL <visual> per material group.
+
+        MuJoCo cannot load COLLADA and MJCF carries no per-face materials, so a
+        multi-material DAE only keeps its colours if it is split into one mesh
+        per material. Visuals that already declare an explicit rgba, and files
+        whose materials carry no colour at all, are left for the plain
+        whole-file conversion in create_symlinks().
+        """
+        expanded_mesh_dir = os.path.join(mujoco_files_path, "dae_expanded")
+        os.makedirs(expanded_mesh_dir, exist_ok=True)
+
+        for link in self.get_elements(urdf_root, "link"):
+            original_visuals = [child for child in list(link) if child.tag == "visual"]
+            replacements = []
+
+            for visual in original_visuals:
+                mesh = visual.find("./geometry/mesh")
+                if mesh is None:
+                    continue
+
+                source_file = self.resolve_mesh_source_file(mesh.get("filename"))
+                if source_file is None or os.path.splitext(source_file)[1].lower() != ".dae":
+                    continue
+
+                explicit_color = visual.find("./material/color")
+                if explicit_color is not None and explicit_color.get("rgba"):
+                    continue
+
+                try:
+                    triangle_groups = extract_triangle_groups(source_file)
+                except Exception as error:
+                    # Leave the visual as it is: create_symlinks() attempts the
+                    # plain whole-file conversion next and drops the geometry if
+                    # that fails too, so the failure is reported in one place.
+                    self.get_logger().warning(
+                        f'could not read dae mesh {source_file}: {error}'
+                    )
+                    continue
+                if not triangle_groups:
+                    continue
+
+                if all(group.get("rgba") is None for group in triangle_groups):
+                    continue
+
+                visual_replacements = []
+                scale = mesh.get("scale")
+                base_origin = visual.find("origin")
+                source_stub = self.mesh_asset_stub(source_file)
+
+                for index, group in enumerate(triangle_groups):
+                    material_name = group.get("material_id") or group.get("material_symbol") or f"part_{index}"
+                    triangles = group["triangles"]
+                    # A single material group can exceed MuJoCo's face limit;
+                    # the stock RealSense D435 DAE has one that does. Split it
+                    # into several visually equivalent meshes.
+                    for chunk_index, chunk_start in enumerate(
+                        range(0, len(triangles), MAX_TRIANGLES_PER_MESH)
+                    ):
+                        triangle_chunk = triangles[
+                            chunk_start:chunk_start + MAX_TRIANGLES_PER_MESH
+                        ]
+                        target_file = os.path.join(
+                            expanded_mesh_dir,
+                            f"{source_stub}__{self.sanitize_name(material_name)[:64]}"
+                            f"__chunk_{chunk_index:03d}.stl",
+                        )
+                        if not os.path.exists(target_file):
+                            header_hint = (
+                                f"{os.path.basename(source_file)}:{material_name}:"
+                                f"{chunk_index}"
+                            )
+                            write_binary_stl(
+                                triangle_chunk, target_file, header_hint
+                            )
+
+                        expanded_visual = ET.Element("visual")
+                        if base_origin is not None:
+                            expanded_visual.append(copy.deepcopy(base_origin))
+
+                        geometry = ET.SubElement(expanded_visual, "geometry")
+                        mesh_attrib = {"filename": "file://" + target_file}
+                        if scale:
+                            mesh_attrib["scale"] = scale
+                        ET.SubElement(geometry, "mesh", mesh_attrib)
+
+                        rgba = group.get("rgba")
+                        if rgba is not None:
+                            material = ET.SubElement(
+                                expanded_visual,
+                                "material",
+                                {"name": self.sanitize_name(material_name)},
+                            )
+                            rgba_str = " ".join(f"{value:.9g}" for value in rgba)
+                            ET.SubElement(material, "color", {"rgba": rgba_str})
+
+                        visual_replacements.append(expanded_visual)
+
+                if visual_replacements:
+                    replacements.append((visual, visual_replacements))
+
+            for original_visual, visual_replacements in replacements:
+                insert_index = list(link).index(original_visual)
+                link.remove(original_visual)
+                for offset, replacement in enumerate(visual_replacements):
+                    link.insert(insert_index + offset, replacement)
+
+    def drop_mesh_geometries(self, meshes, parents):
+        """Remove the <visual>/<collision> elements owning the given meshes.
+
+        Used when a mesh could not be converted: the geometry has to go, or the
+        MJCF would reference a mesh file that does not exist. A link that ends
+        up with no visual or collision at all is valid - it becomes a body
+        without geoms.
+        """
+        for mesh in meshes:
+            element = mesh
+            while element is not None and element.tag not in ("visual", "collision"):
+                element = parents.get(element)
+            if element is None:
+                continue
+            parent = parents.get(element)
+            if parent is None or element not in list(parent):
+                continue
+            self.get_logger().warning(
+                f'dropping <{element.tag}> that referenced the skipped mesh'
+            )
+            parent.remove(element)
+
     def create_symlinks(self, urdf_root, mujoco_files_path):
         self.add_composite_collisions(urdf_root)
+        # ElementTree keeps no parent pointers, and the failure path below needs
+        # the <visual>/<collision> that owns a mesh. Record the parents before
+        # anything is removed.
+        parents = {child: parent for parent in urdf_root.iter() for child in parent}
+        unconvertible_meshes = []
         # Create symlinks to used meshes in the tmp folder
         for mesh in self.get_elements(urdf_root, "mesh"):
             filename = mesh.get('filename')
             if filename:
-                source_file = None
-                if filename[:7] == "file://":
-                    source_file = filename[7:]
-                elif filename[:10] == "package://":
-                    file_name = filename[10:].split('/')
-                    package_path = get_package_share_directory(file_name[0])
-                    source_file = os.path.join(package_path, *file_name[1:])
-                target_file = mujoco_files_path + "/meshes/" + source_file.replace("/", "_").replace(":", "_")
+                source_file = self.resolve_mesh_source_file(filename)
+                if source_file is None:
+                    continue
+                source_extension = os.path.splitext(source_file)[1].lower()
+                target_file = os.path.join(
+                    mujoco_files_path,
+                    "meshes",
+                    f"{self.mesh_asset_stub(source_file)}{source_extension}",
+                )
 
-                if source_file[-3:] == "stl" or source_file[-3:] == "STL" or \
-                   source_file[-3:] == "obj" or source_file[-3:] == "OBJ" or \
-                   source_file[-3:] == "msh" or source_file[-3:] == "MSH":
+                if source_extension in [".stl", ".obj", ".msh"]:
                     self.get_logger().debug(f'mesh source file: {source_file}, target_file: {target_file}')
                     if not os.path.exists(target_file):
                         os.symlink(source_file, target_file)
                     mesh.attrib['filename'] = "file://" + target_file
+                elif source_extension == ".dae":
+                    converted_target = os.path.splitext(target_file)[0] + ".stl"
+                    self.get_logger().debug(
+                        f'converting dae mesh: {source_file} -> {converted_target}'
+                    )
+                    if not os.path.exists(converted_target):
+                        try:
+                            convert_dae_to_stl(source_file, converted_target)
+                        except Exception as error:
+                            # One unreadable mesh used to take down the whole
+                            # model. Keep converting the rest and drop just the
+                            # geometry that referenced it - MuJoCo would reject
+                            # a <mesh> pointing at a file that was never written.
+                            self.get_logger().warning(
+                                f'skipping mesh {source_file}: {error}'
+                            )
+                            if os.path.exists(converted_target):
+                                # A conversion that failed mid-write leaves a
+                                # truncated STL that would look done to the next
+                                # run.
+                                os.remove(converted_target)
+                            unconvertible_meshes.append(mesh)
+                            continue
+                    mesh.attrib['filename'] = "file://" + converted_target
+
+        self.drop_mesh_geometries(unconvertible_meshes, parents)
 
         compiler_elements = self.get_elements(urdf_root, "compiler")
         if compiler_elements:
@@ -511,20 +711,9 @@ class Xacro2Mjcf(Node):
                         link_element.append(inertial)
 
     def correct_visual_mesh(self, urdf_root):
-        for link in self.get_elements(urdf_root, "link"):
-            visual = link.find('visual')
-            collision = link.find('collision')
-            if visual is not None:
-                visual_geom = visual.find('geometry')
-                if visual_geom:
-                    visual_mesh = visual_geom.find('mesh')
-                    if visual_mesh is not None and visual_mesh.attrib['filename'][-3:] == "dae":
-                        link.remove(visual)
-                        if collision is not None:
-                            new_visual = ET.Element('visual')
-                            for element in collision:
-                                new_visual.append(element)
-                            link.append(new_visual)
+        # Keep visual meshes intact. DAE visuals are converted to STL later in
+        # expand_dae_visuals() and create_symlinks().
+        return
 
 
 
@@ -541,4 +730,3 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
-

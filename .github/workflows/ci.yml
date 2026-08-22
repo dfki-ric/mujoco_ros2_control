@@ -12,11 +12,24 @@ jobs:
     env:
       ROS_DISTRO: jazzy
       DEBIAN_FRONTEND: noninteractive
-      DISABLE_OPENGL: "1"
+      DISABLE_OPENGL: "0"
+      EGL_PLATFORM: surfaceless
+      LIBGL_ALWAYS_SOFTWARE: "1"
+      GALLIUM_DRIVER: llvmpipe
 
     steps:
+      # actions/checkout shells out to git-lfs to fetch the mesh objects, and
+      # the ros:jazzy image ships git without it. This has to run before the
+      # checkout, or the working tree ends up holding pointer files.
+      - name: Install git-lfs
+        run: |
+          apt-get update
+          apt-get install -y git-lfs
+
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          lfs: true
 
       # Only the deps rosdep cannot resolve: the MuJoCo simulate GUI build
       # headers (X11/Wayland/cmake-modules). Everything else (incl. urdfdom_py
@@ -25,12 +38,27 @@ jobs:
         run: |
           apt-get update
           apt-get install -y \
+            libegl-dev \
             libx11-dev \
             xorg-dev \
             libwayland-dev \
             libxkbcommon-dev \
             wayland-protocols \
             extra-cmake-modules
+
+      - name: Install Mesa software rendering (EGL/llvmpipe)
+        run: |
+          apt-get install -y \
+            libegl1 \
+            libglvnd0 \
+            libopengl0 \
+            libgl1-mesa-dri \
+            libglx-mesa0 \
+            mesa-utils
+
+      - name: Verify EGL software context
+        run: |
+          eglinfo -B || eglinfo || true
 
       - name: Set up workspace
         run: |

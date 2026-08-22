@@ -41,10 +41,13 @@
 #define MUJOCO_ROS2_CONTROL_MUJOCO_DEPTH_CAMERA_HPP
 
 #include "chrono"
+#include <condition_variable>
+#include <cstdint>
+#include <mutex>
 
 // MuJoCo header file
 #include "mujoco/mujoco.h"
-#include "GLFW/glfw3.h"
+#include <EGL/egl.h>
 #include "cstdio"
 #include "GL/gl.h"
 
@@ -87,7 +90,7 @@ namespace mujoco_rgbd_camera {
  * information, color images, depth images, and point cloud data. It provides methods for updating the camera data and
  * releasing resources when the camera is no longer needed.
  *
- * The class utilizes several dependencies, including rclcpp for ROS 2 integration, GLFW for window management, and PCL and
+ * The class utilizes several dependencies, including rclcpp for ROS 2 integration, EGL for offscreen rendering, and PCL and
  * OpenCV for point cloud and image processing. It provides various member variables and methods to handle camera-related
  * data and operations.
  */
@@ -123,13 +126,13 @@ public:
      *        @p depth_id the two streams share a single render pass.
      *
      * @post Initializes the MujocoDepthCamera object with the provided parameters and sets up the required ROS 2 publishers.
-     *       Initializes the GLFW library and creates a hidden GLFW window.
+     *       Initializes an EGL pbuffer surface and context for offscreen rendering.
      *       Sets up the Mujoco camera properties.
      *       Creates and initializes the Mujoco scene and context for rendering.
      *       Creates ROS 2 publishers for camera information, color image, depth image, and point cloud data.
      */
     MujocoDepthCamera(rclcpp::Node::SharedPtr &node, mjModel_ *model, mjData_ *data,
-                      const std::string& name, std::atomic<bool>* stop,
+                      std::mutex* data_mutex, const std::string& name, std::atomic<bool>* stop,
                       Mount mount, int optical_id, int depth_id);
 
     /**
@@ -147,19 +150,31 @@ public:
      * The method runs in a loop until the stop flag is set to true or ROS 2 is no longer okay.
      * It checks the time elapsed since the last update and, if enough time has passed according to the camera frequency,
      * performs the following steps:
-     *   - Makes the GLFW window's context current.
-     *   - Retrieves the framebuffer viewport size and sets camera intrinsics.
-     *   - Updates the Mujoco scene and renders it using the provided context and camera settings.
-     *   - Gets the RGB-D buffer from the Mujoco model and viewport.
+     *   - Binds the EGL context once before the loop.
+     *   - Sets camera intrinsics from the fixed pbuffer dimensions.
+     *   - Updates the Mujoco scene and renders it using the EGL context and camera settings.
+     *   - Reads the GL framebuffer into OpenCV images.
      *   - Retrieves the current timestamp.
-     *   - Swaps OpenGL buffers.
-     *   - Processes pending GUI events and GLFW callbacks.
      *   - Publishes the captured color image, depth image, point cloud, and camera information.
-     *   - Releases the buffer to avoid memory leaks.
      *
      * @post The camera data is continuously captured and published until the stop flag is set to true or ROS 2 is no longer okay.
      */
     void update();
+
+    /**
+     * @brief Request a frame from the next time-consistent MuJoCo snapshot.
+     *
+     * The returned sequence can be passed to wait_for_synchronous_frame().
+     * This is used by deterministic stepping so a service response is not
+     * returned before RGB-D for the final physics state has been published.
+     */
+    std::uint64_t request_synchronous_frame();
+
+    /**
+     * @brief Wait until a requested synchronous frame has been published.
+     */
+    bool wait_for_synchronous_frame(
+        std::uint64_t sequence, std::chrono::milliseconds timeout);
 
 private:
 
@@ -182,6 +197,8 @@ private:
 
     mjModel* mujoco_model_ = nullptr; ///< Pointer to the Mujoco model object used for rendering and simulation.
     mjData* mujoco_data_ = nullptr; ///< Pointer to the Mujoco data object representing the current state of the simulation.
+    mjData* render_data_ = nullptr; ///< Private, time-consistent snapshot used by the render thread.
+    std::mutex* data_mutex_ = nullptr; ///< Protects copying the live simulation state.
     std::string name_; ///< Name of the camera.
     std::string body_name_; ///< Resolved default frame_id (frame_id override, else the parent body name).
     std::string color_frame_; ///< header.frame_id for color image/info (the optical site's render frame / parent body).
@@ -199,7 +216,18 @@ private:
     int render_height_ = 0; ///< GL framebuffer height used for rendering.
     rclcpp::Time stamp_; ///< ROS 2 timestamp representing the time when camera data was last updated.
 
-    GLFWwindow* window_; ///< Pointer to the GLFW window used for rendering.
+    EGLDisplay egl_display_ = EGL_NO_DISPLAY;
+    EGLContext egl_context_ = EGL_NO_CONTEXT;
+    bool render_resources_ready_ = false; ///< True once the scene and render context exist.
+
+    /**
+     * @brief Frees every resource the constructor may have acquired.
+     *
+     * Safe to call on a partly-constructed object and safe to call twice; used
+     * by the destructor and by the constructor's failure path, where member
+     * destructors do not run.
+     */
+    void release_resources() noexcept;
     mjvCamera rgbd_camera_{}; ///< Mujoco visualization camera object representing the RGB-D camera.
     mjrContext sensor_context_{}; ///< Mujoco render context for the sensor camera.
     mjvScene sensor_scene_{}; ///< Mujoco visualization scene for rendering.
@@ -208,6 +236,11 @@ private:
     cv::Mat color_image_; ///< Published color image (rendered from the optical site).
     cv::Mat depth_image_; ///< Published depth image (rendered from the depth site).
     cv::Mat depth_color_image_; ///< Color rendered from the depth site, used to color the point cloud so RGB and depth stay aligned.
+
+    std::mutex frame_request_mutex_; ///< Protects synchronous frame sequences.
+    std::condition_variable frame_request_condition_; ///< Wakes render/service threads.
+    std::uint64_t requested_frame_sequence_ = 0; ///< Latest requested frame.
+    std::uint64_t completed_frame_sequence_ = 0; ///< Latest published frame.
 
     // OpenGL render range
     double extent_{};  ///< Depth scale (m) for the OpenGL render range.

@@ -10,11 +10,13 @@ and `task_table_mujoco` packages. Assets are split per robot:
 
 ```
 launch/   <robot>.launch.py
-urdf/     franka/  ur/  unitree_h1/  task_table/
+urdf/     franka/  ur/  unitree_h1/  industreal/
 config/   franka/  ur/  unitree_h1/
-meshes/   task_board/         (Franka task table)
+meshes/   industreal/         (gear assets; pegs/ downloaded at build time)
           unitree_h1/         (downloaded at build time)
+          franka/             (D435 wrist mount, downloaded at build time)
 patches/  unitree_h1.urdf.patch
+scripts/  stl_to_obj.py       (build-time mesh conversion)
 test/     per-robot launch smoke tests
 ```
 
@@ -22,8 +24,8 @@ test/     per-robot launch smoke tests
 
 ### Franka
 
-Franka arm (optionally with the task table of high-resolution collision gears and
-pose sensors). Requires [`franka_description`](https://github.com/frankarobotics/franka_description).
+Franka arm (optionally with a modular NVIDIA IndustReal benchmark board).
+Requires [`franka_description`](https://github.com/frankarobotics/franka_description).
 
 > **Jazzy:** `franka_description` is not available from apt. Clone its `jazzy`
 > branch into your workspace `src/` and build it:
@@ -38,10 +40,62 @@ ros2 launch mujoco_ros2_control_examples franka.launch.py
 | Argument           | Default        | Description                                              |
 |--------------------|----------------|----------------------------------------------------------|
 | `rviz`             | `true`         | Start RViz.                                              |
-| `load_task_table`  | `true`         | Load the high-resolution collision objects + pose sensors. |
+| `load_industreal_board` | `true`      | Load the unified board as an additional scene model.       |
+| `task_board_config` | package default | YAML selecting the gears and the peg assemblies.          |
 | `load_gripper`     | `true`         | Attach an end-effector.                                  |
 | `ee_id`            | `franka_hand`  | End-effector: `none`, `franka_hand`, `cobot_pump`.       |
 | `arm_id`           | `fr3`          | Arm: `fer`, `fr3`, `fp3`.                                |
+| `load_realsense`   | `true`         | Attach the simulated D435 wrist camera and official Franka mount. |
+| `realsense_xyz`    | `0.025 0 0.0075` | Centre of the front-side Hand M6 mounting hole.          |
+| `realsense_rpy`    | `0 0 0` | M6 parent pose; the assembly Y rotation is internal.      |
+
+The wrist camera publishes:
+
+```text
+/d435/color/image_raw
+/d435/color/camera_info
+/d435/depth/image_rect_raw
+/d435/depth/camera_info
+/d435/depth/points
+```
+
+Its stream settings are in `config/franka/realsense_d435.yaml`. Simulation uses
+the built-in MuJoCo RGB-D renderer, so neither `librealsense2` nor
+`realsense2_camera` is required. The standard description package is required:
+
+```bash
+sudo apt update
+sudo apt install ros-${ROS_DISTRO}-realsense2-description
+```
+
+Set `load_realsense:=false` to omit the camera. Camera rendering is automatically
+disabled by `headless:=true` because it requires an OpenGL context; the mount and
+camera remain in the robot description.
+
+#### The camera mount mesh
+
+The mount is Franka's own printable bracket, the one documented in *3D Printable
+Camera Mount Guide* R02241. It is **not** redistributed here: the archive Franka
+publishes ships no licence file and the guide carries only a copyright line, so
+nothing grants permission to copy or modify it. `DOWNLOAD_FRANKA_CAMERA_MOUNT_ASSET`
+fetches `https://download.franka.de/camera_mount_guide.zip` at configure time and
+installs one file out of it, so the mesh only ever exists in the install tree.
+
+Two details are worth knowing if it ever needs re-checking:
+
+- **The mesh is converted to OBJ on the way in.** MuJoCo's STL decoder rejects
+  anything over 200000 faces and the mount is 295768, so `scripts/stl_to_obj.py`
+  rewrites the triangle soup rather than decimating it. The conversion is
+  lossless - STL carries no texture coordinates and its per-facet normals are
+  recomputed by every consumer - and it preserves the exact 48 x 60 x 49.95 mm
+  bounds that the visual origin and the box collision were measured against.
+- **The download URL carries no revision**, so it cannot be pinned the way the
+  IndustReal peg commit is. CMake records the archive's SHA256 and *warns*
+  instead of failing when it stops matching: a revised mount would move the
+  camera with no other symptom, but a hard failure would break every build the
+  day Franka republishes.
+
+See also [Offline builds](#offline-builds).
 
 ### Universal Robots (UR)
 
@@ -70,12 +124,30 @@ repository and patched at build time (`patches/unitree_h1.urdf.patch`).
 ros2 launch mujoco_ros2_control_examples unitree_h1.launch.py
 ```
 
-To build the rest of the examples without network access, disable the download:
+See [Offline builds](#offline-builds) to build the other examples without
+downloading these.
+
+## Offline builds
+
+Three asset groups are fetched at configure time and can each be turned off:
+
+| CMake option                        | Default | Fetches                                       |
+|-------------------------------------|---------|-----------------------------------------------|
+| `DOWNLOAD_UNITREE_H1_ASSETS`        | `ON`    | The Unitree H1 URDF (patched) and its meshes.  |
+| `DOWNLOAD_INDUSTREAL_PEG_ASSETS`    | `ON`    | The IndustReal peg and tray meshes (~12 MB).   |
+| `DOWNLOAD_FRANKA_CAMERA_MOUNT_ASSET`| `ON`    | The Franka printable D435 mount (~6 MB zip).   |
 
 ```bash
-colcon build --packages-select mujoco_ros2_control_examples \
-  --cmake-args -DDOWNLOAD_UNITREE_H1_ASSETS=OFF
+colcon build --packages-select mujoco_ros2_control_examples --cmake-args \
+  -DDOWNLOAD_UNITREE_H1_ASSETS=OFF -DDOWNLOAD_INDUSTREAL_PEG_ASSETS=OFF \
+  -DDOWNLOAD_FRANKA_CAMERA_MOUNT_ASSET=OFF
 ```
+
+With the peg assets off, the Franka example must be launched without the peg
+rows - either `load_industreal_board:=false`, or a `task_board_config` whose
+`*_peg_*` components are all disabled. With the camera mount off it must be
+launched with `load_realsense:=false`. The gears are in-tree and always
+available.
 
 ## Tests
 
@@ -95,7 +167,57 @@ DISABLE_OPENGL=1 colcon test --packages-select mujoco_ros2_control_examples   # 
 
 ## Task table assets
 
-See [`urdf/task_table/`](urdf/task_table) and [`meshes/task_board/`](meshes/task_board).
+See [`urdf/industreal/`](urdf/industreal) and [`meshes/industreal/`](meshes/industreal).
 The collision meshes were generated with [Phobos](https://github.com/dfki-ric/phobos)
 and [CoACD](https://github.com/SarahWeiii/CoACD); use `mujoco_ros2_control/scripts/run_coacd.py`
 to decompose a mesh into collision-friendly components.
+
+The default `config/franka/industreal_task_board.yaml` describes one unified
+board: a medium-dark-grey optical breadboard, the 8, 12, and 16 mm round and
+rectangular peg rows, and the gear base plus its three movable gears. Every
+group and every pose is configured in this single file; the gears are no longer
+loaded as a separate task-table model. Pass an alternate file without changing
+the package:
+
+```bash
+ros2 launch mujoco_ros2_control_examples franka.launch.py \
+  task_board_config:=/absolute/path/to/my_task_board.yaml
+```
+
+### Asset provenance and licences
+
+Three of the four asset groups this package uses are downloaded at build time
+and never redistributed here: the Unitree H1 URDF and meshes, the IndustReal peg
+and tray meshes from
+[`IsaacGymEnvs`](https://github.com/isaac-sim/IsaacGymEnvs/tree/main/isaacgymenvs/tasks/industreal),
+and the Franka camera mount. See [Offline builds](#offline-builds).
+
+The gears are the exception, and the one asset group **not covered by this
+package's licence**. They are a derivative work of
+[`IndustRealKit`](https://github.com/NVlabs/industrealkit) CAD, they cannot be
+re-fetched, and the NVIDIA License they carry limits them and any derivative to
+**non-commercial research or evaluation use**. The specific files and the reason
+the restriction has to be named are set out in
+[`meshes/industreal/README.md`](meshes/industreal/README.md); the licence text
+itself is in `meshes/industreal/licenses/`. Build with a `task_board_config`
+whose `gears.enabled` is `false` to get a board without that restriction
+attached.
+
+The board does not model IndustReal's electrical-connector task. Its plugs and
+sockets are commercial parts that NVIDIA identifies by part number but does not
+redistribute, so only the printable trays are public and there is no geometry
+for the parts that actually mate.
+
+## License
+
+BSD-3-Clause, Copyright (c) 2025 DFKI GmbH, Robotics Innovation Center - the
+same terms as the rest of this repository. See [`LICENSE`](LICENSE).
+
+One exception: the gear meshes under `meshes/industreal/gears/` are a derivative
+of NVIDIA IndustRealKit CAD and stay under the NVIDIA License, which restricts
+them to non-commercial research or evaluation use. They are the only files in
+this package not covered by the line above. Everything else the examples pull
+from third parties - the Unitree H1 description, the IndustReal peg meshes, the
+Franka camera mount - is downloaded at build time and never redistributed here,
+so no third-party terms attach to this repository for them. See
+[Asset provenance and licences](#asset-provenance-and-licences).

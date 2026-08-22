@@ -5,7 +5,7 @@
   <version>1.0.0</version>
   <description>mujoco_ros2_control</description>
   <maintainer email="adrian.danzglock@dfki.de">Adrian Danzglock</maintainer>
-  <license>BSD 3-Clause</license>
+  <license>BSD-3-Clause</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
   <buildtool_depend>ament_cmake_python</buildtool_depend>
@@ -24,9 +24,12 @@
   <exec_depend>python3-scipy</exec_depend>
 
   <depend>geometry_msgs</depend>
+  <depend>builtin_interfaces</depend>
   <depend>rosgraph_msgs</depend>
   <depend>sensor_msgs</depend>
   <depend>std_srvs</depend>
+  <build_depend>rosidl_default_generators</build_depend>
+  <exec_depend>rosidl_default_runtime</exec_depend>
 
   <!-- <depend>mujoco</depend> -->
   <depend>libglfw3-dev</depend>
@@ -53,6 +56,8 @@
   <test_depend>pose_broadcaster</test_depend>
   <test_depend>tf2_ros</test_depend>
   <test_depend>geometry_msgs</test_depend>
+
+  <member_of_group>rosidl_interface_packages</member_of_group>
 
   <export>
     <build_type>ament_cmake</build_type>

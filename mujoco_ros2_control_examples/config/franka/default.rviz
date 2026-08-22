@@ -177,29 +177,9 @@ Visualization Manager:
         Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /camera/depth/points
+        Value: /d435/depth/points
       Use Fixed Frame: true
       Use rainbow: true
-      Value: true
-    - Alpha: 1
-      Axes Length: 1
-      Axes Radius: 0.10000000149011612
-      Class: rviz_default_plugins/Pose
-      Color: 255; 25; 0
-      Enabled: true
-      Head Length: 0.029999999329447746
-      Head Radius: 0.009999999776482582
-      Name: Camera Pose
-      Shaft Length: 0.10000000149011612
-      Shaft Radius: 0.004999999888241291
-      Shape: Arrow
-      Topic:
-        Depth: 5
-        Durability Policy: Volatile
-        Filter size: 10
-        History Policy: Keep Last
-        Reliability Policy: Reliable
-        Value: /camera_link_pose_sensor/position
       Value: true
     - Alpha: 1
       Axes Length: 1
@@ -273,7 +253,7 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /camera/color/image_raw
+        Value: /d435/color/image_raw
       Value: true
     - Class: rviz_default_plugins/Image
       Enabled: true
@@ -287,7 +267,7 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /camera/depth/image_rect_raw
+        Value: /d435/depth/image_rect_raw
       Value: true
     - Class: rviz_default_plugins/TF
       Enabled: true

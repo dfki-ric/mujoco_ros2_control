@@ -52,6 +52,7 @@
 // This value is used when configuring the main loop to use SCHED_FIFO scheduling
 // We use a midpoint RT priority to allow maximum flexibility to users
 int const kSchedPriority = 50;
+constexpr auto kPausedClockHeartbeatPeriod = std::chrono::milliseconds(100);
 
 namespace mujoco_ros2_control {
 MujocoRos2Control::MujocoRos2Control(rclcpp::Node::SharedPtr &node) : nh_(node) {
@@ -83,15 +84,31 @@ MujocoRos2Control::MujocoRos2Control(rclcpp::Node::SharedPtr &node) : nh_(node) 
       "mujoco_reset",
       std::bind(&MujocoRos2Control::mujocoResetCallback, this, std::placeholders::_1, std::placeholders::_2)
   );
+  mujoco_set_body_pose_service_ = nh_->create_service<mujoco_ros2_control::srv::SetBodyPose>(
+      "mujoco_set_body_pose",
+      std::bind(&MujocoRos2Control::mujocoSetBodyPoseCallback, this, std::placeholders::_1, std::placeholders::_2)
+  );
+  mujoco_step_simulation_service_ = nh_->create_service<mujoco_ros2_control::srv::StepSimulation>(
+      "mujoco_step_simulation",
+      std::bind(&MujocoRos2Control::mujocoStepSimulationCallback, this, std::placeholders::_1, std::placeholders::_2)
+  );
+  mujoco_get_body_state_service_ = nh_->create_service<mujoco_ros2_control::srv::GetBodyState>(
+      "mujoco_get_body_state",
+      std::bind(&MujocoRos2Control::mujocoGetBodyStateCallback, this, std::placeholders::_1, std::placeholders::_2)
+  );
 
   // mujoco related parameters
   show_gui_ = params_.show_gui;
   real_time_factor_ = params_.real_time_factor;
   pub_clock_frequency_ = params_.clock_publisher_frequency;
+  running_.store(!params_.synchronous_mode, std::memory_order_release);
 
-  init_mujoco();
-
-  init_controller_manager();
+  // Everything below dereferences mujoco_model_/mujoco_data_, so a model that
+  // failed to load has to end the setup here. main() reports the failure and
+  // exits; the destructor is safe on this half-built object.
+  if (!init_mujoco()) {
+    return;
+  }
 
   if (mujoco_model_->nkey > 0) {
     mj_resetDataKeyframe(mujoco_model_, mujoco_data_, 0);
@@ -106,6 +123,12 @@ MujocoRos2Control::MujocoRos2Control(rclcpp::Node::SharedPtr &node) : nh_(node) 
   mj_step(mujoco_model_, mujoco_data_);
   mujoco_start_time_ = mujoco_data_->time;
 
+  // Initialize MuJoCo completely before starting the controller-manager
+  // executor. Hardware initialization calls mj_forward() while registering
+  // joints; starting that executor earlier allowed it to race the mj_step()
+  // above and corrupt MuJoCo's constraint workspace.
+  init_controller_manager();
+
   clock_gettime(CLOCK_MONOTONIC, &startTime_);
 
   registerSensors();
@@ -117,6 +140,7 @@ MujocoRos2Control::MujocoRos2Control(rclcpp::Node::SharedPtr &node) : nh_(node) 
   }
 
   thread_sim_ = std::thread(&MujocoRos2Control::update, this);
+  initialized_ = true;
   RCLCPP_INFO(nh_->get_logger(), "Sim environment setup complete");
 }
 
@@ -129,19 +153,23 @@ MujocoRos2Control::~MujocoRos2Control()
   for (auto &thread : lidar_threads_) {
     thread.join();
   }
-  thread_executor_spin_.join();
+  if (thread_sim_.joinable()) {
+    thread_sim_.join();
+  }
+  if (thread_executor_spin_.joinable()) {
+    thread_executor_spin_.join();
+  }
+  cameras_.clear();
   // deallocate existing mjModel
   mj_deleteModel(mujoco_model_);
 
   // deallocate existing mjData
   mj_deleteData(mujoco_data_);
 
-  if (show_gui_) {
+  if (show_gui_ && initialized_) {
     mj_vis_.terminate();
   }
 
-  // join simulation thread
-  thread_sim_.join();
 }
 
 void MujocoRos2Control::render() {
@@ -150,8 +178,62 @@ void MujocoRos2Control::render() {
 }
 
 void MujocoRos2Control::update() {
+  bool initial_clock_heartbeat_sent = false;
   while (!stop_.load()) {
+    // Keep ROS time available even while controller-manager hardware is still
+    // configuring. This is especially important in synchronous mode because
+    // no autonomous physics step exists to publish the first clock sample.
+    if (params_.synchronous_mode) {
+      const auto wall_now = std::chrono::steady_clock::now();
+      bool sent_initial_heartbeat = false;
+      if (wall_now - last_clock_wall_publish_time_ >=
+          kPausedClockHeartbeatPeriod) {
+        std::lock_guard<std::mutex> step_lock(step_mutex_);
+        std::lock_guard<std::mutex> sim_lock(sim_mutex_);
+        publish_sim_time(true);
+        last_clock_wall_publish_time_ = wall_now;
+        sent_initial_heartbeat = !initial_clock_heartbeat_sent;
+        initial_clock_heartbeat_sent = true;
+      }
+      if (sent_initial_heartbeat) {
+        // Give the controller-manager executor one short scheduling window to
+        // consume its first /clock sample before its first update cycle.
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        continue;
+      }
+    }
+
     if (!system_configured_.load(std::memory_order_acquire)) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      continue;
+    }
+
+    // Handle a GUI reset even while the simulation is paused.
+    if (reset_requested_.exchange(false, std::memory_order_acq_rel)) {
+      resetSimulation();
+    }
+
+    if (params_.synchronous_mode) {
+      // Controller switches and action-goal handoff must still be serviced
+      // while physics time is frozen. This is deliberately a zero-duration
+      // controller cycle: only StepSimulation is allowed to call mj_step().
+      {
+        std::lock_guard<std::mutex> step_lock(step_mutex_);
+        std::lock_guard<std::mutex> sim_lock(sim_mutex_);
+        // controller_manager rejects a zero timestamp when use_sim_time is
+        // enabled. MuJoCo legitimately returns to t=0 after reset, so use the
+        // smallest non-zero controller timestamp for this zero-duration
+        // housekeeping cycle. Physics time and /clock remain exactly at zero.
+        const int64_t simulation_nanoseconds =
+          static_cast<int64_t>(mujoco_data_->time * 1e9);
+        const rclcpp::Time sim_time(
+          std::max<int64_t>(simulation_nanoseconds, 1), RCL_ROS_TIME);
+        const rclcpp::Duration zero_period(0, 0);
+        controller_manager_->read(sim_time, zero_period);
+        controller_manager_->update(sim_time, zero_period);
+        controller_manager_->write(sim_time, zero_period);
+
+      }
       std::this_thread::sleep_for(std::chrono::milliseconds(1));
       continue;
     }
@@ -162,22 +244,6 @@ void MujocoRos2Control::update() {
       continue;
     }
 
-    // Handle reset request from the UI thread safely on the sim thread
-    if (reset_requested_.exchange(false, std::memory_order_acq_rel)) {
-      if (mujoco_model_->nkey > 0) {
-        mj_resetDataKeyframe(mujoco_model_, mujoco_data_, 0);
-      } else {
-        mj_resetData(mujoco_model_, mujoco_data_);
-      }
-      mj_forward(mujoco_model_, mujoco_data_);
-      mujoco_start_time_ = mujoco_data_->time;
-      clock_gettime(CLOCK_MONOTONIC, &startTime_);
-      last_update_sim_time_ros_ = rclcpp::Time((int64_t)0, RCL_ROS_TIME);
-      last_pub_clock_time_ = 0.0;
-      reset_notify_publisher_->publish(std_msgs::msg::Empty());
-    }
-
-    mjtNum simstart = mujoco_data_->time;
     timespec currentTime{};
     param_listener_->refresh_dynamic_parameters();
     params_ = param_listener_->get_params();
@@ -187,27 +253,8 @@ void MujocoRos2Control::update() {
     if (double(currentTime.tv_sec - startTime_.tv_sec) +
         double(currentTime.tv_nsec - startTime_.tv_nsec) / 1e9 >=
       (mujoco_data_->time - mujoco_start_time_) * params_.real_time_factor) {
-      publish_sim_time();
-      rclcpp::Time sim_time_ros = rclcpp::Time((int64_t) (mujoco_data_->time * 1e+9), RCL_ROS_TIME);
-      rclcpp::Duration sim_period = sim_time_ros - last_update_sim_time_ros_;
-
-      // check if we should update the controllers
-      if (sim_period >= control_period_) {
-        // store simulation time
-        last_update_sim_time_ros_ = sim_time_ros;
-        // update the robot simulation with the state of the mujoco model
-        controller_manager_->read(sim_time_ros, sim_period);
-        // compute the controller commands
-        controller_manager_->update(sim_time_ros, sim_period);
-        // update the mujoco model with the result of the controller
-        controller_manager_->write(sim_time_ros, sim_period);
-      }
-
-      // Calculate the next mujoco step.
-      {
-        std::lock_guard<std::mutex> sim_lock(sim_mutex_);
-        mj_step(mujoco_model_, mujoco_data_);
-      }
+      std::lock_guard<std::mutex> step_lock(step_mutex_);
+      advanceSimulationStep();
 
       if (show_gui_) {
         mujoco::MutexLock lock(mj_vis_.sim->mtx);
@@ -217,19 +264,75 @@ void MujocoRos2Control::update() {
   }
 }
 
-void MujocoRos2Control::publish_sim_time() {
+void MujocoRos2Control::updateControllersAtCurrentTime() {
+  const rclcpp::Time sim_time_ros(
+    static_cast<int64_t>(mujoco_data_->time * 1e9), RCL_ROS_TIME);
+  const rclcpp::Duration sim_period = sim_time_ros - last_update_sim_time_ros_;
+  if (sim_period < control_period_) {
+    return;
+  }
+  last_update_sim_time_ros_ = sim_time_ros;
+  controller_manager_->read(sim_time_ros, sim_period);
+  controller_manager_->update(sim_time_ros, sim_period);
+  controller_manager_->write(sim_time_ros, sim_period);
+}
+
+void MujocoRos2Control::advanceSimulationStep() {
+  {
+    std::lock_guard<std::mutex> sim_lock(sim_mutex_);
+    updateControllersAtCurrentTime();
+    mj_step(mujoco_model_, mujoco_data_);
+  }
+  publish_sim_time();
+}
+
+void MujocoRos2Control::resetSimulation() {
+  std::lock_guard<std::mutex> step_lock(step_mutex_);
+  {
+    std::lock_guard<std::mutex> sim_lock(sim_mutex_);
+    if (mujoco_model_->nkey > 0) {
+      mj_resetDataKeyframe(mujoco_model_, mujoco_data_, 0);
+    } else {
+      mj_resetData(mujoco_model_, mujoco_data_);
+    }
+    mj_forward(mujoco_model_, mujoco_data_);
+    mujoco_start_time_ = mujoco_data_->time;
+    last_update_sim_time_ros_ = rclcpp::Time(
+      static_cast<int64_t>(mujoco_data_->time * 1e9), RCL_ROS_TIME);
+    last_pub_clock_time_ = -1.0;
+  }
+  clock_gettime(CLOCK_MONOTONIC, &startTime_);
+  publish_sim_time();
+  reset_notify_publisher_->publish(std_msgs::msg::Empty());
+}
+
+void MujocoRos2Control::publish_sim_time(bool force) {
   double sim_time = mujoco_data_->time;
-  if (pub_clock_frequency_ > 0 && (sim_time - last_pub_clock_time_) < 1.0 / pub_clock_frequency_)
+  if (!force && pub_clock_frequency_ > 0 &&
+      (sim_time - last_pub_clock_time_) < 1.0 / pub_clock_frequency_)
     return;
   if (clock_publisher_->trylock()) {
-    clock_publisher_->msg_.clock.sec = std::floor(sim_time);
-    clock_publisher_->msg_.clock.nanosec = std::floor((sim_time - std::floor(sim_time)) * 1e9);
+    const int64_t simulation_nanoseconds =
+      static_cast<int64_t>(std::floor(sim_time * 1e9));
+    // rclcpp::Clock::started() deliberately reports false for ROS time zero.
+    // A synchronous reset legitimately leaves MuJoCo at t=0, but repeatedly
+    // publishing that value makes controller_manager warn that no /clock was
+    // received during its paused housekeeping cycles. Publish the smallest
+    // representable initialized ROS timestamp until the first physics step;
+    // service responses, sensor stamps, and MuJoCo time remain exactly zero.
+    const int64_t published_nanoseconds = params_.synchronous_mode
+      ? std::max<int64_t>(simulation_nanoseconds, 1)
+      : simulation_nanoseconds;
+    clock_publisher_->msg_.clock.sec =
+      static_cast<int32_t>(published_nanoseconds / 1000000000LL);
+    clock_publisher_->msg_.clock.nanosec =
+      static_cast<uint32_t>(published_nanoseconds % 1000000000LL);
     clock_publisher_->unlockAndPublish();
     last_pub_clock_time_ = sim_time;
   }
 }
 
-void MujocoRos2Control::init_mujoco() {
+bool MujocoRos2Control::init_mujoco() {
   char error[1000];
 
   // create mjModel
@@ -237,7 +340,7 @@ void MujocoRos2Control::init_mujoco() {
 
   if (!mujoco_model_) {
     RCLCPP_FATAL(nh_->get_logger(), "Could not load mujoco model with error: %s.\n", error);
-    return;
+    return false;
   } else {
     // No problem with margins
     RCLCPP_INFO(nh_->get_logger(), "loaded mujoco model");
@@ -250,13 +353,14 @@ void MujocoRos2Control::init_mujoco() {
   mujoco_data_ = mj_makeData(mujoco_model_);
   if (!mujoco_data_) {
     RCLCPP_FATAL(nh_->get_logger(), "Could not create mujoco data from model.");
-    return;
+    return false;
   } else {
     RCLCPP_INFO(nh_->get_logger(), "Created mujoco data");
   }
 
   // get the Mujoco simulation period as ros duration
   mujoco_period_ = rclcpp::Duration::from_seconds(mujoco_model_->opt.timestep);
+  return true;
 }
 
     void MujocoRos2Control::init_controller_manager() {
@@ -365,7 +469,7 @@ void MujocoRos2Control::registerSensors() {
     // A <camera> serves both color and depth from one viewpoint, so the optical
     // and depth mount ids are the same camera id (single render pass).
     auto camera = std::make_shared<mujoco_rgbd_camera::MujocoDepthCamera>(
-      node, mujoco_model_, mujoco_data_, name, &stop_,
+      node, mujoco_model_, mujoco_data_, &sim_mutex_, name, &stop_,
       mujoco_rgbd_camera::MujocoDepthCamera::Mount::FixedCamera, id, id);
     cameras_.push_back(camera);
     camera_threads_.emplace_back([ObjectPtr = camera] { ObjectPtr->update(); });
@@ -427,7 +531,7 @@ void MujocoRos2Control::registerSensors() {
       camera_nodes_.push_back(node);
       executor_->add_node(node);
       auto camera = std::make_shared<mujoco_rgbd_camera::MujocoDepthCamera>(
-        node, mujoco_model_, mujoco_data_, node_name, &stop_,
+        node, mujoco_model_, mujoco_data_, &sim_mutex_, node_name, &stop_,
         mujoco_rgbd_camera::MujocoDepthCamera::Mount::Site, sites.optical_id, sites.depth_id);
       cameras_.push_back(camera);
       camera_threads_.emplace_back([ObjectPtr = camera] { ObjectPtr->update(); });
@@ -491,9 +595,134 @@ void mujoco_ros2_control::MujocoRos2Control::mujocoPlayPauseCallback(const std::
 void mujoco_ros2_control::MujocoRos2Control::mujocoResetCallback(const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
                                  std::shared_ptr<std_srvs::srv::Trigger::Response> response) {
   (void)request;
-  reset_requested_.store(true);
+  resetSimulation();
   response->success = true;
-  response->message = "Simulation reset requested.";
+  response->message = "Simulation reset completed.";
+}
+
+void mujoco_ros2_control::MujocoRos2Control::mujocoSetBodyPoseCallback(
+    const std::shared_ptr<mujoco_ros2_control::srv::SetBodyPose::Request> request,
+    std::shared_ptr<mujoco_ros2_control::srv::SetBodyPose::Response> response) {
+  int body_id = mj_name2id(mujoco_model_, mjOBJ_BODY, request->body_name.c_str());
+  if (body_id < 0) {
+    response->success = false;
+    response->message = "Unknown body name: " + request->body_name;
+    return;
+  }
+
+  int jnt_adr = mujoco_model_->body_jntadr[body_id];
+  if (mujoco_model_->body_jntnum[body_id] != 1 || mujoco_model_->jnt_type[jnt_adr] != mjJNT_FREE) {
+    response->success = false;
+    response->message = "Body '" + request->body_name + "' does not have a single free joint.";
+    return;
+  }
+
+  int qpos_adr = mujoco_model_->jnt_qposadr[jnt_adr];
+  int dof_adr = mujoco_model_->jnt_dofadr[jnt_adr];
+
+  std::lock_guard<std::mutex> step_lock(step_mutex_);
+  {
+    std::lock_guard<std::mutex> sim_lock(sim_mutex_);
+    mujoco_data_->qpos[qpos_adr + 0] = request->x;
+    mujoco_data_->qpos[qpos_adr + 1] = request->y;
+    mujoco_data_->qpos[qpos_adr + 2] = request->z;
+    mujoco_data_->qpos[qpos_adr + 3] = request->qw;
+    mujoco_data_->qpos[qpos_adr + 4] = request->qx;
+    mujoco_data_->qpos[qpos_adr + 5] = request->qy;
+    mujoco_data_->qpos[qpos_adr + 6] = request->qz;
+    for (int i = 0; i < 6; ++i) {
+      mujoco_data_->qvel[dof_adr + i] = 0.0;
+    }
+    mj_forward(mujoco_model_, mujoco_data_);
+  }
+
+  response->success = true;
+  response->message = "Body '" + request->body_name + "' repositioned.";
+}
+
+void mujoco_ros2_control::MujocoRos2Control::mujocoStepSimulationCallback(
+    const std::shared_ptr<mujoco_ros2_control::srv::StepSimulation::Request> request,
+    std::shared_ptr<mujoco_ros2_control::srv::StepSimulation::Response> response) {
+  if (!params_.synchronous_mode) {
+    response->success = false;
+    response->message = "Synchronous stepping is disabled.";
+    return;
+  }
+  if (request->steps == 0 || request->steps > static_cast<uint32_t>(params_.max_step_batch)) {
+    response->success = false;
+    response->message = "steps must be in [1, " + std::to_string(params_.max_step_batch) + "].";
+    return;
+  }
+
+  std::lock_guard<std::mutex> step_lock(step_mutex_);
+  for (uint32_t i = 0; i < request->steps; ++i) {
+    advanceSimulationStep();
+  }
+  // Publish the post-step joint state before returning to the Gym client.
+  {
+    std::lock_guard<std::mutex> sim_lock(sim_mutex_);
+    updateControllersAtCurrentTime();
+  }
+  publish_sim_time();
+
+  // A periodic RGB-D thread may have captured an intermediate state while the
+  // batch was advancing. Force one render after the final step and wait until
+  // it has been published before returning the authoritative simulation time.
+  // The outer step lock freezes reset/teleport/physics throughout this wait.
+  std::vector<std::pair<
+      std::shared_ptr<mujoco_rgbd_camera::MujocoDepthCamera>, std::uint64_t>>
+      camera_requests;
+  camera_requests.reserve(cameras_.size());
+  for (const auto &camera : cameras_) {
+    camera_requests.emplace_back(camera, camera->request_synchronous_frame());
+  }
+  for (const auto &[camera, sequence] : camera_requests) {
+    if (!camera->wait_for_synchronous_frame(
+        sequence, std::chrono::seconds(5))) {
+      response->success = false;
+      response->message = "Timed out waiting for post-step RGB-D frame.";
+      return;
+    }
+  }
+
+  const int64_t nanoseconds = static_cast<int64_t>(mujoco_data_->time * 1e9);
+  response->simulation_time.sec = static_cast<int32_t>(nanoseconds / 1000000000LL);
+  response->simulation_time.nanosec = static_cast<uint32_t>(nanoseconds % 1000000000LL);
+  response->success = true;
+  response->message = "Advanced " + std::to_string(request->steps) + " physics steps.";
+}
+
+void mujoco_ros2_control::MujocoRos2Control::mujocoGetBodyStateCallback(
+    const std::shared_ptr<mujoco_ros2_control::srv::GetBodyState::Request> request,
+    std::shared_ptr<mujoco_ros2_control::srv::GetBodyState::Response> response) {
+  const int body_id = mj_name2id(mujoco_model_, mjOBJ_BODY, request->body_name.c_str());
+  if (body_id < 0) {
+    response->success = false;
+    response->message = "Unknown body name: " + request->body_name;
+    return;
+  }
+
+  std::lock_guard<std::mutex> sim_lock(sim_mutex_);
+  const mjtNum *position = mujoco_data_->xpos + 3 * body_id;
+  const mjtNum *quaternion = mujoco_data_->xquat + 4 * body_id;
+  mjtNum velocity[6]{};
+  mj_objectVelocity(mujoco_model_, mujoco_data_, mjOBJ_BODY, body_id, velocity, 0);
+
+  response->pose.position.x = position[0];
+  response->pose.position.y = position[1];
+  response->pose.position.z = position[2];
+  response->pose.orientation.w = quaternion[0];
+  response->pose.orientation.x = quaternion[1];
+  response->pose.orientation.y = quaternion[2];
+  response->pose.orientation.z = quaternion[3];
+  response->twist.angular.x = velocity[0];
+  response->twist.angular.y = velocity[1];
+  response->twist.angular.z = velocity[2];
+  response->twist.linear.x = velocity[3];
+  response->twist.linear.y = velocity[4];
+  response->twist.linear.z = velocity[5];
+  response->success = true;
+  response->message = "Body state returned in the world frame.";
 }
 }  // namespace mujoco_ros2_control
 
@@ -508,6 +737,13 @@ int main(int argc, char** argv) {
   rclcpp::Node::SharedPtr node = rclcpp::Node::make_shared("mujoco_ros2_control");
   // create the mujoco_ros2_control_plugin
   mujoco_ros2_control::MujocoRos2Control mujoco_ros2_control_plugin(node);
+
+  if (!mujoco_ros2_control_plugin.initialized()) {
+    RCLCPP_FATAL(node->get_logger(),
+      "Mujoco simulation setup failed; shutting down.");
+    rclcpp::shutdown();
+    return 1;
+  }
 
   // create an executor and spin the created node with it
   rclcpp::executors::MultiThreadedExecutor executor;

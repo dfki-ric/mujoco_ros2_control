@@ -48,3 +48,20 @@ mujoco_ros2_control:
       gt: [ 0.0 ]
     }
   }
+
+  synchronous_mode: {
+    type: bool,
+    default_value: false,
+    read_only: true,
+    description: "Advance physics only through the mujoco_step_simulation service"
+  }
+
+  max_step_batch: {
+    type: int,
+    default_value: 10000,
+    read_only: true,
+    description: "Maximum number of physics steps accepted by one synchronous step request",
+    validation: {
+      gt: [0]
+    }
+  }

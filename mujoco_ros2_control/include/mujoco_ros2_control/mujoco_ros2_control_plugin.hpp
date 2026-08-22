@@ -52,6 +52,7 @@
 
 // std libraries
 #include <algorithm>
+#include <chrono>
 #include <fstream>
 #include <string>
 #include <iostream>
@@ -87,6 +88,9 @@
 #include "geometry_msgs/msg/pose.hpp"
 #include "rosgraph_msgs/msg/clock.hpp"
 #include "std_srvs/srv/trigger.hpp"
+#include "mujoco_ros2_control/srv/set_body_pose.hpp"
+#include "mujoco_ros2_control/srv/step_simulation.hpp"
+#include "mujoco_ros2_control/srv/get_body_state.hpp"
 
 // URDF
 #include "urdf/urdf/model.h"
@@ -181,6 +185,14 @@ namespace mujoco_ros2_control
          */
         bool gui_enabled() const { return show_gui_; }
 
+        /**
+         * @brief Whether the constructor brought the simulation up completely.
+         *
+         * False when the MJCF could not be loaded: the object is then inert
+         * (no model, no data, no threads) and the caller must not run it.
+         */
+        bool initialized() const { return initialized_; }
+
     private:
         /**
          * @brief Publishes the current simulation time.
@@ -189,7 +201,11 @@ namespace mujoco_ros2_control
          * that the time is published at the desired rate. If the elapsed time since the last publication is less than the
          * reciprocal of the publishing frequency, the method returns without publishing.
          */
-        void publish_sim_time();
+        void publish_sim_time(bool force = false);
+
+        void updateControllersAtCurrentTime();
+        void advanceSimulationStep();
+        void resetSimulation();
 
         /**
          * @brief Initializes the controller manager and hardware interfaces.
@@ -208,9 +224,12 @@ namespace mujoco_ros2_control
          * This method initializes the Mujoco simulation environment by loading the Mujoco model, setting the simulation frequency,
          * and creating the corresponding data structure. It also retrieves the Mujoco simulation period and stores it as a ROS duration.
          *
-         * @note If an error occurs during the initialization process, the method logs a fatal error message and returns.
+         * @return True when both mjModel and mjData were created. On failure the
+         *         method logs a fatal error and returns false, leaving
+         *         `mujoco_model_` and `mujoco_data_` null; the caller must not
+         *         continue the setup, as every step below dereferences them.
          */
-        void init_mujoco();
+        bool init_mujoco();
 
         /**
          * Initializes and configures camera objects based on the mujoco_model.
@@ -229,6 +248,14 @@ namespace mujoco_ros2_control
                                      std::shared_ptr<std_srvs::srv::Trigger::Response> response);
         void mujocoResetCallback(const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
                                  std::shared_ptr<std_srvs::srv::Trigger::Response> response);
+        void mujocoSetBodyPoseCallback(const std::shared_ptr<mujoco_ros2_control::srv::SetBodyPose::Request> request,
+                                        std::shared_ptr<mujoco_ros2_control::srv::SetBodyPose::Response> response);
+        void mujocoStepSimulationCallback(
+            const std::shared_ptr<mujoco_ros2_control::srv::StepSimulation::Request> request,
+            std::shared_ptr<mujoco_ros2_control::srv::StepSimulation::Response> response);
+        void mujocoGetBodyStateCallback(
+            const std::shared_ptr<mujoco_ros2_control::srv::GetBodyState::Request> request,
+            std::shared_ptr<mujoco_ros2_control::srv::GetBodyState::Response> response);
 
         std::shared_ptr<rclcpp::Node> nh_; ///< ROS2 node handle
 
@@ -242,7 +269,8 @@ namespace mujoco_ros2_control
         rclcpp::Publisher<rosgraph_msgs::msg::Clock>::SharedPtr publisher_; ///< Publisher for the Clock message
         ClockPublisherPtr clock_publisher_; ///< Clock publisher object
         double pub_clock_frequency_; ///< Frequency the Clock is published
-        double last_pub_clock_time_; ///< Timestamp the clock was published
+        double last_pub_clock_time_{-1.0}; ///< Simulation timestamp last published
+        std::chrono::steady_clock::time_point last_clock_wall_publish_time_{}; ///< Wall time of the paused-clock heartbeat
 
 
         rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr reset_notify_publisher_; ///< Notifies subscribers (e.g. the policy node) that the sim was reset
@@ -250,6 +278,9 @@ namespace mujoco_ros2_control
         // Mujoco ros services
         rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr mujoco_play_pause_service_; ///< Service to pause the Mujoco simulation
         rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr mujoco_reset_service_; ///< Service to reset the Mujoco simulation
+        rclcpp::Service<mujoco_ros2_control::srv::SetBodyPose>::SharedPtr mujoco_set_body_pose_service_; ///< Service to teleport a free body (e.g. the cube) to a new pose
+        rclcpp::Service<mujoco_ros2_control::srv::StepSimulation>::SharedPtr mujoco_step_simulation_service_;
+        rclcpp::Service<mujoco_ros2_control::srv::GetBodyState>::SharedPtr mujoco_get_body_state_service_;
 
         // Mujoco-related variables
         mjModel* mujoco_model_{}; ///< Pointer to the Mujoco model
@@ -260,6 +291,7 @@ namespace mujoco_ros2_control
         rclcpp::Time last_update_sim_time_ros_ = rclcpp::Time((int64_t)0, RCL_ROS_TIME); ///< Timestamp of the last update call
         double real_time_factor_; ///< Realtime factor of the simulation
         bool show_gui_; ///< Flag if the gui is loaded
+        bool initialized_ = false; ///< True once the constructor completed the whole setup
 
         std::atomic<bool> system_configured_{false}; ///< Set true once the resource manager has finished loading and activating all hardware components.
 
@@ -299,6 +331,9 @@ namespace mujoco_ros2_control
         // time-consistent snapshot of mjData (e.g. MujocoGLLidar) take it
         // briefly to mj_copyData out of mujoco_data_ without racing mj_step.
         std::mutex sim_mutex_;
+        // Serializes reset, teleport, synchronous stepping, and the autonomous
+        // simulation loop before they enter the lower-level mjData mutex.
+        std::mutex step_mutex_;
 
         // std::shared_ptr<mujoco_ros2_sensors::MujocoRos2Sensors> mujoco_ros2_sensors_;
     };

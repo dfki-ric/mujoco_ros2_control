@@ -41,11 +41,12 @@
 
 #include <algorithm>
 #include <cmath>
+#include <stdexcept>
 #include <vector>
 
 namespace mujoco_rgbd_camera {
     MujocoDepthCamera::MujocoDepthCamera(rclcpp::Node::SharedPtr &node, mjModel_ *model, mjData_ *data,
-                                         const std::string& name, std::atomic<bool>* stop, Mount mount,
+                                         std::mutex* data_mutex, const std::string& name, std::atomic<bool>* stop, Mount mount,
                                          int optical_id, int depth_id) {
         nh_ = node;
 
@@ -57,6 +58,21 @@ namespace mujoco_rgbd_camera {
 
         mujoco_model_ = model;
         mujoco_data_ = data;
+        data_mutex_ = data_mutex;
+        render_data_ = mj_makeData(mujoco_model_);
+        if (!render_data_) {
+            throw std::runtime_error("Could not allocate RGB-D camera state snapshot");
+        }
+
+        // An object whose constructor throws never gets its destructor called, so
+        // everything acquired past this point has to be released by hand. The guard
+        // does that unless construction reaches the end.
+        bool constructed = false;
+        struct ScopeGuard {
+            MujocoDepthCamera* self;
+            const bool* constructed;
+            ~ScopeGuard() { if (!*constructed) self->release_resources(); }
+        } guard{this, &constructed};
 
         width_ = params_.width;
         height_ = params_.height;
@@ -108,17 +124,48 @@ namespace mujoco_rgbd_camera {
 
         stop_ = stop;
 
-        // init GLFW
-        if (!glfwInit()) {
-            RCLCPP_ERROR(nh_->get_logger(), "Could not initialize GLFW");
+        // Init EGL for offscreen rendering (thread-safe: no main-thread requirement)
+        egl_display_ = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+        if (egl_display_ == EGL_NO_DISPLAY) {
+            throw std::runtime_error("MujocoDepthCamera: eglGetDisplay failed");
+        }
+        EGLint egl_major, egl_minor;
+        if (!eglInitialize(egl_display_, &egl_major, &egl_minor)) {
+            throw std::runtime_error("MujocoDepthCamera: eglInitialize failed");
+        }
+        if (!eglBindAPI(EGL_OPENGL_API)) {
+            throw std::runtime_error("MujocoDepthCamera: eglBindAPI(EGL_OPENGL_API) failed");
         }
 
-        glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
-        window_ = glfwCreateWindow(render_width_, render_height_, name_.c_str(), NULL, NULL);
-        glfwSetWindowAttrib(window_, GLFW_RESIZABLE, GLFW_FALSE);
-        auto context = glfwGetCurrentContext();
-        glfwMakeContextCurrent(window_);
-        glfwSwapInterval(0);
+        static const EGLint config_attribs[] = {
+            EGL_SURFACE_TYPE,    EGL_PBUFFER_BIT,
+            EGL_RENDERABLE_TYPE, EGL_OPENGL_BIT,
+            EGL_RED_SIZE,   8,
+            EGL_GREEN_SIZE, 8,
+            EGL_BLUE_SIZE,  8,
+            EGL_DEPTH_SIZE, 24,
+            EGL_NONE
+        };
+        EGLConfig egl_config;
+        EGLint num_configs = 0;
+        if (!eglChooseConfig(egl_display_, config_attribs, &egl_config, 1, &num_configs) || num_configs < 1) {
+            throw std::runtime_error("MujocoDepthCamera: eglChooseConfig failed");
+        }
+        egl_context_ = eglCreateContext(egl_display_, egl_config, EGL_NO_CONTEXT, nullptr);
+        if (egl_context_ == EGL_NO_CONTEXT) {
+            throw std::runtime_error("MujocoDepthCamera: eglCreateContext failed");
+        }
+        // Bind without a surface. A pbuffer gives MuJoCo a *complete* default
+        // framebuffer, so mjr_makeContext sets windowAvailable and treats it as a
+        // window; but a pbuffer reports GL_DOUBLEBUFFER == 0, so mjr_setBuffer,
+        // mjr_render and mjr_readPixels all select GL_FRONT, which a pbuffer does not
+        // have. That raises GL_INVALID_OPERATION (0x502) on every frame and only
+        // renders correctly because the failed call leaves GL_BACK in place.
+        // Surfaceless leaves the default framebuffer undefined, so MuJoCo renders into
+        // its own offscreen FBO instead -- the same thing MuJoCo's EGL helper does.
+        if (!eglMakeCurrent(egl_display_, EGL_NO_SURFACE, EGL_NO_SURFACE, egl_context_)) {
+            throw std::runtime_error("MujocoDepthCamera: eglMakeCurrent failed");
+        }
 
         // Set camera parameters
         if (mount_ == Mount::Site) {
@@ -131,13 +178,16 @@ namespace mujoco_rgbd_camera {
 
         mjr_defaultContext(&sensor_context_);
         mjv_defaultOption(&sensor_option_);
+        sensor_option_.geomgroup[1] = 0;
         mjv_defaultScene(&sensor_scene_);
 
         // create scene and context
         mjv_makeScene(mujoco_model_, &sensor_scene_, 2000);
         mjr_makeContext(mujoco_model_, &sensor_context_, mjFONTSCALE_150);
+        render_resources_ready_ = true;
 
-        mjr_setBuffer(mjFB_WINDOW, &sensor_context_);
+        mjr_resizeOffscreen(render_width_, render_height_, &sensor_context_);
+        mjr_setBuffer(mjFB_OFFSCREEN, &sensor_context_);
 
         // Topic namespace defaults to the node name but can be overridden. A stream
         // is only published if its mount (optical/depth site) is present.
@@ -153,17 +203,59 @@ namespace mujoco_rgbd_camera {
         if (params_.point_cloud && have_depth_) {
             pointcloud_publisher_ = nh_->create_publisher<sensor_msgs::msg::PointCloud2>("/" + ns + "/depth/points", 10);
         }
-        glfwMakeContextCurrent(context);
-
+        // Release the context so update() can claim it on the camera thread
+        eglMakeCurrent(egl_display_, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+        constructed = true;
     }
 
     MujocoDepthCamera::~MujocoDepthCamera() {
-        mjv_freeScene(&sensor_scene_);
-        mjr_freeContext(&sensor_context_);
+        release_resources();
+    }
+
+    void MujocoDepthCamera::release_resources() noexcept {
+        // The scene and render context hold GL objects, so they can only be freed
+        // with the context current. render_data_ is plain host memory and cannot be
+        // freed there, because the context may never have been created.
+        if (egl_context_ != EGL_NO_CONTEXT) {
+            eglMakeCurrent(egl_display_, EGL_NO_SURFACE, EGL_NO_SURFACE, egl_context_);
+            if (render_resources_ready_) {
+                mjv_freeScene(&sensor_scene_);
+                mjr_freeContext(&sensor_context_);
+                render_resources_ready_ = false;
+            }
+            eglMakeCurrent(egl_display_, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+            eglDestroyContext(egl_display_, egl_context_);
+            egl_context_ = EGL_NO_CONTEXT;
+        }
+        if (render_data_) {
+            mj_deleteData(render_data_);
+            render_data_ = nullptr;
+        }
+    }
+
+    std::uint64_t MujocoDepthCamera::request_synchronous_frame() {
+        std::lock_guard<std::mutex> lock(frame_request_mutex_);
+        const std::uint64_t sequence = ++requested_frame_sequence_;
+        frame_request_condition_.notify_all();
+        return sequence;
+    }
+
+    bool MujocoDepthCamera::wait_for_synchronous_frame(
+            std::uint64_t sequence, std::chrono::milliseconds timeout) {
+        std::unique_lock<std::mutex> lock(frame_request_mutex_);
+        return frame_request_condition_.wait_for(lock, timeout, [&] {
+            return completed_frame_sequence_ >= sequence || stop_->load();
+        }) && completed_frame_sequence_ >= sequence;
     }
 
     void MujocoDepthCamera::update() {
-        mjtNum last_update = mujoco_data_->time;
+        // Claim the EGL context for this worker thread and hold it for the whole loop.
+        eglMakeCurrent(egl_display_, EGL_NO_SURFACE, EGL_NO_SURFACE, egl_context_);
+        mjtNum last_update = 0.0;
+        {
+            std::lock_guard<std::mutex> lock(*data_mutex_);
+            last_update = mujoco_data_->time;
+        }
         const bool want_color = have_color_ && params_.color_image;
         const bool want_depth = have_depth_ && (params_.depth_image || params_.point_cloud);
         // A single shared render pass covers both streams for a <camera> mount or a
@@ -171,22 +263,40 @@ namespace mujoco_rgbd_camera {
         // and depth sites render in two passes (true parallax).
         const bool single_pass = (mount_ != Mount::Site) || (optical_id_ == depth_id_);
         while(rclcpp::ok() && !stop_->load()) {
+            std::uint64_t requested_sequence = 0;
+            bool synchronous_frame_requested = false;
+            {
+                std::lock_guard<std::mutex> lock(frame_request_mutex_);
+                requested_sequence = requested_frame_sequence_;
+                synchronous_frame_requested =
+                    requested_sequence > completed_frame_sequence_;
+            }
+            mjtNum current_time;
+            {
+                std::lock_guard<std::mutex> lock(*data_mutex_);
+                current_time = mujoco_data_->time;
+            }
             // resync if the simulation was reset (sim time jumped backwards)
-            if (mujoco_data_->time < last_update) {
-                last_update = mujoco_data_->time;
+            if (current_time < last_update) {
+                last_update = current_time;
             }
             // update dynamic parameters
-            if (mujoco_data_->time - last_update >= 1.0 / frequency_) {
-                last_update += 1.0 / frequency_;
-                if (mujoco_data_->time - last_update >= 1.0 / frequency_) {
-                    last_update = mujoco_data_->time;
+            if (synchronous_frame_requested ||
+                current_time - last_update >= 1.0 / frequency_) {
+                if (synchronous_frame_requested) {
+                    last_update = current_time;
+                } else {
+                    last_update += 1.0 / frequency_;
+                    if (current_time - last_update >= 1.0 / frequency_) {
+                        last_update = current_time;
+                    }
                 }
-                auto context = glfwGetCurrentContext();
-                glfwMakeContextCurrent(window_);
-
-                // get framebuffer viewport
-                mjrRect viewport = {0, 0, 0, 0};
-                glfwGetFramebufferSize(window_, &viewport.width, &viewport.height);
+                {
+                    std::lock_guard<std::mutex> lock(*data_mutex_);
+                    mj_copyData(render_data_, mujoco_model_, mujoco_data_);
+                }
+                // PBuffer dimensions are fixed at construction time
+                mjrRect viewport = {0, 0, render_width_, render_height_};
                 set_camera_intrinsics(viewport);
 
                 if (single_pass) {
@@ -195,7 +305,7 @@ namespace mujoco_rgbd_camera {
                     if (mount_ == Mount::Site) {
                         aim_at_site(have_depth_ ? depth_id_ : optical_id_);
                     }
-                    mjv_updateScene(mujoco_model_, mujoco_data_, &sensor_option_, NULL,
+                    mjv_updateScene(mujoco_model_, render_data_, &sensor_option_, NULL,
                                     &rgbd_camera_, mjCAT_ALL, &sensor_scene_);
                     mjr_render(viewport, &sensor_scene_, &sensor_context_);
                     const bool read_color = want_color || params_.point_cloud;
@@ -209,7 +319,7 @@ namespace mujoco_rgbd_camera {
                     // entirely if neither depth nor cloud is enabled.
                     if (want_depth) {
                         aim_at_site(depth_id_);
-                        mjv_updateScene(mujoco_model_, mujoco_data_, &sensor_option_, NULL,
+                        mjv_updateScene(mujoco_model_, render_data_, &sensor_option_, NULL,
                                         &rgbd_camera_, mjCAT_ALL, &sensor_scene_);
                         mjr_render(viewport, &sensor_scene_, &sensor_context_);
                         read_buffers(viewport,
@@ -219,23 +329,34 @@ namespace mujoco_rgbd_camera {
                     // Optical pass: published color image. Skipped if color is off.
                     if (want_color) {
                         aim_at_site(optical_id_);
-                        mjv_updateScene(mujoco_model_, mujoco_data_, &sensor_option_, NULL,
+                        mjv_updateScene(mujoco_model_, render_data_, &sensor_option_, NULL,
                                         &rgbd_camera_, mjCAT_ALL, &sensor_scene_);
                         mjr_render(viewport, &sensor_scene_, &sensor_context_);
                         read_buffers(viewport, &color_image_, nullptr);
                     }
                 }
-                stamp_ = nh_->now();
-
-                // Swap OpenGL buffers
-                glfwSwapBuffers(window_);
+                stamp_ = rclcpp::Time(
+                    static_cast<int64_t>(render_data_->time * 1e9), RCL_ROS_TIME);
 
                 publish_images();
                 publish_point_cloud();
                 publish_camera_info();
-                glfwMakeContextCurrent(context);
+                if (synchronous_frame_requested) {
+                    std::lock_guard<std::mutex> lock(frame_request_mutex_);
+                    completed_frame_sequence_ = std::max(
+                        completed_frame_sequence_, requested_sequence);
+                    frame_request_condition_.notify_all();
+                }
+            } else {
+                std::unique_lock<std::mutex> lock(frame_request_mutex_);
+                frame_request_condition_.wait_for(
+                    lock, std::chrono::milliseconds(1), [&] {
+                        return requested_frame_sequence_ >
+                            completed_frame_sequence_ || stop_->load();
+                    });
             }
         }
+        eglMakeCurrent(egl_display_, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
     }
 
     cv::Mat MujocoDepthCamera::linearize_depth(const cv::Mat& depth) const {
@@ -279,8 +400,8 @@ namespace mujoco_rgbd_camera {
 
     void MujocoDepthCamera::aim_at_site(int site_id) {
         // Site world pose: position and 3x3 rotation (row-major).
-        const mjtNum *spos = mujoco_data_->site_xpos + 3 * site_id;
-        const mjtNum *smat = mujoco_data_->site_xmat + 9 * site_id;
+        const mjtNum *spos = render_data_->site_xpos + 3 * site_id;
+        const mjtNum *smat = render_data_->site_xmat + 9 * site_id;
 
         // The site frame is a REP-103 optical frame (+Z forward, +X right, +Y down).
         // MuJoCo's GL camera looks along +forward with +up as image-up, so the view
@@ -444,24 +565,33 @@ namespace mujoco_rgbd_camera {
             return;
         }
 
-        cv_bridge::CvImagePtr cv_ptr = std::make_shared<cv_bridge::CvImage>();
-        sensor_msgs::msg::Image out_image;
-
         if (color_image_publisher_) {
-            cv_ptr->image = color_image_;
-            cv_ptr->encoding = "8UC3";
-            cv_ptr->toImageMsg(out_image);
+            sensor_msgs::msg::Image out_image;
             out_image.header.stamp = stamp_;
             out_image.header.frame_id = color_frame_;
+            out_image.height = color_image_.rows;
+            out_image.width = color_image_.cols;
+            out_image.encoding = sensor_msgs::image_encodings::BGR8;
+            out_image.is_bigendian = false;
+            out_image.step = static_cast<sensor_msgs::msg::Image::_step_type>(color_image_.step);
+            out_image.data.assign(
+                color_image_.datastart,
+                color_image_.datastart + static_cast<std::ptrdiff_t>(color_image_.step * color_image_.rows));
             color_image_publisher_->publish(out_image);
         }
 
         if (depth_image_publisher_) {
-            cv_ptr->image = depth_image_;
-            cv_ptr->encoding = "32FC1";
-            cv_ptr->toImageMsg(out_image);
+            sensor_msgs::msg::Image out_image;
             out_image.header.stamp = stamp_;
             out_image.header.frame_id = depth_frame_;
+            out_image.height = depth_image_.rows;
+            out_image.width = depth_image_.cols;
+            out_image.encoding = sensor_msgs::image_encodings::TYPE_32FC1;
+            out_image.is_bigendian = false;
+            out_image.step = static_cast<sensor_msgs::msg::Image::_step_type>(depth_image_.step);
+            out_image.data.assign(
+                depth_image_.datastart,
+                depth_image_.datastart + static_cast<std::ptrdiff_t>(depth_image_.step * depth_image_.rows));
             depth_image_publisher_->publish(out_image);
         }
 

@@ -1,0 +1,13 @@
+d435:
+  ros__parameters:
+    enabled: true
+    topic_namespace: d435
+    frequency: 30.0
+    width: 640
+    height: 480
+    # Intel RealSense D435 depth field of view.
+    fovx: 87.0
+    fovy: 58.0
+    color_image: true
+    depth_image: true
+    point_cloud: true

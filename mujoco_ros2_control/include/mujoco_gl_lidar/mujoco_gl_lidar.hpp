@@ -3,7 +3,7 @@
  *
  * @brief OpenGL-based lidar for MuJoCo. Renders a depth image at the lidar
  * site's pose, then samples per-beam ranges from the depth buffer. Reuses the
- * GLFW / mjvScene / mjrContext pattern from MujocoDepthCamera.
+ * EGL / mjvScene / mjrContext pattern from MujocoDepthCamera.
  *
  * @author Adrian Danzglock
  * @date 2026
@@ -23,7 +23,7 @@
 #include <vector>
 
 #include "mujoco/mujoco.h"
-#include "GLFW/glfw3.h"
+#include <EGL/egl.h>
 #include "GL/gl.h"
 
 #include "rclcpp/rclcpp.hpp"
@@ -131,8 +131,14 @@ private:
     };
     std::vector<BeamSample> beam_samples_;
 
-    // GL state
-    GLFWwindow* window_ = nullptr;
+    // EGL state for offscreen rendering
+    EGLDisplay egl_display_ = EGL_NO_DISPLAY;
+    EGLContext egl_context_ = EGL_NO_CONTEXT;
+    bool render_resources_ready_ = false;   // true once scene and render context exist
+
+    // Frees everything the constructor may have acquired. Safe on a
+    // partly-constructed object and safe to call twice.
+    void release_resources() noexcept;
     mjvScene  sensor_scene_{};
     mjrContext sensor_context_{};
     mjvOption sensor_option_{};

@@ -47,6 +47,10 @@ ROBOTS = {
         "requires_files": None,
         "xacro": ("urdf", "franka", "franka.urdf.xacro"),
         "controllers": ("config", "franka", "franka_controllers.yaml"),
+        # The wrist camera's stream settings live in their own file, the way
+        # franka.launch.py passes them; without it the D435 site is present but
+        # no camera is configured, so a GUI run would exercise no rendering.
+        "extra_configs": (("config", "franka", "realsense_d435.yaml"),),
         "mappings": {
             "name": "franka",
             "mujoco": "true",
@@ -118,8 +122,9 @@ def make_test_description(robot):
 
     xacro_file = os.path.join(share, *spec["xacro"])
     mappings = dict(spec["mappings"])
-    # The franka model carries a GL camera; exclude it when running headless so
-    # the node does not try to create an OpenGL context (DISABLE_OPENGL=1 in CI).
+    # The franka model's only GL camera is the D435 wrist camera; headless turns
+    # its rendering off so the node does not try to create an OpenGL context
+    # (DISABLE_OPENGL=1 in CI). The mount and camera stay in the description.
     if "headless" in spec.get("supports", ()):
         mappings["headless"] = "false" if opengl_enabled() else "true"
     robot_description = {
@@ -128,7 +133,9 @@ def make_test_description(robot):
         ).toprettyxml(indent="  ")
     }
 
-    controllers_file = os.path.join(share, *spec["controllers"])
+    config_files = [os.path.join(share, *spec["controllers"])]
+    for extra in spec.get("extra_configs", ()):
+        config_files.append(os.path.join(share, *extra))
     scene_file = os.path.join(
         get_package_share_directory("mujoco_ros2_control"), "mjcf", "scene.xml"
     )
@@ -159,7 +166,7 @@ def make_test_description(robot):
         executable="mujoco_ros2_control",
         parameters=[
             robot_description,
-            controllers_file,
+            *config_files,
             {"simulation_frequency": 200.0},
             {"realtime_factor": 1.0},
             {"robot_model_path": model_file},
