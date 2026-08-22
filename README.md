@@ -25,7 +25,7 @@ We provide one example with the franka description and the gears from the Indust
   ros2 launch mujoco_ros2_control_examples franka.launch.py
 ```
 ![](./images/franka_rgbd_example.png)
-*RGBD Camera inside of MuJoCo ([MuJoCo Visualizer](https://github.com/google-deepmind/mujoco/tree/main/simulate) \[left\], [rviz2](https://index.ros.org/p/rviz2/) \[right\])*
+*RGBD Camera (640x480px) inside of MuJoCo ([MuJoCo Visualizer](https://github.com/google-deepmind/mujoco/tree/main/simulate) \[left\], [rviz2](https://index.ros.org/p/rviz2/) \[right\])*
 
 and one example with a unitree H1 that can be started with
 ```bash
