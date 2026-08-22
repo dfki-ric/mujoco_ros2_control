@@ -186,19 +186,45 @@ MujocoGLLidar::MujocoGLLidar(rclcpp::Node::SharedPtr &node,
             "/" + name_ + "/points", 10);
     }
 
-    if (!glfwInit()) {
-        throw std::runtime_error("MujocoGLLidar: glfwInit failed");
+    // Init EGL for offscreen rendering (thread-safe: no main-thread requirement)
+    egl_display_ = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+    if (egl_display_ == EGL_NO_DISPLAY) {
+        throw std::runtime_error("MujocoGLLidar: eglGetDisplay failed");
     }
-    glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
-    window_ = glfwCreateWindow(render_width_, render_height_, name_.c_str(), nullptr, nullptr);
-    if (!window_) {
-        throw std::runtime_error("MujocoGLLidar: glfwCreateWindow failed");
+    EGLint egl_major, egl_minor;
+    if (!eglInitialize(egl_display_, &egl_major, &egl_minor)) {
+        throw std::runtime_error("MujocoGLLidar: eglInitialize failed");
     }
-    glfwSetWindowAttrib(window_, GLFW_RESIZABLE, GLFW_FALSE);
+    eglBindAPI(EGL_OPENGL_API);
 
-    auto prev_ctx = glfwGetCurrentContext();
-    glfwMakeContextCurrent(window_);
-    glfwSwapInterval(0);
+    static const EGLint config_attribs[] = {
+        EGL_SURFACE_TYPE,    EGL_PBUFFER_BIT,
+        EGL_RENDERABLE_TYPE, EGL_OPENGL_BIT,
+        EGL_RED_SIZE,   8,
+        EGL_GREEN_SIZE, 8,
+        EGL_BLUE_SIZE,  8,
+        EGL_DEPTH_SIZE, 24,
+        EGL_NONE
+    };
+    EGLConfig egl_config;
+    EGLint num_configs = 0;
+    if (!eglChooseConfig(egl_display_, config_attribs, &egl_config, 1, &num_configs) || num_configs < 1) {
+        throw std::runtime_error("MujocoGLLidar: eglChooseConfig failed");
+    }
+    const EGLint pbuffer_attribs[] = {
+        EGL_WIDTH,  render_width_,
+        EGL_HEIGHT, render_height_,
+        EGL_NONE
+    };
+    egl_surface_ = eglCreatePbufferSurface(egl_display_, egl_config, pbuffer_attribs);
+    if (egl_surface_ == EGL_NO_SURFACE) {
+        throw std::runtime_error("MujocoGLLidar: eglCreatePbufferSurface failed");
+    }
+    egl_context_ = eglCreateContext(egl_display_, egl_config, EGL_NO_CONTEXT, nullptr);
+    if (egl_context_ == EGL_NO_CONTEXT) {
+        throw std::runtime_error("MujocoGLLidar: eglCreateContext failed");
+    }
+    eglMakeCurrent(egl_display_, egl_surface_, egl_surface_, egl_context_);
 
     sensor_camera_.type = mjCAMERA_USER;  // set scene.camera directly per frame
     mjr_defaultContext(&sensor_context_);
@@ -208,7 +234,8 @@ MujocoGLLidar::MujocoGLLidar(rclcpp::Node::SharedPtr &node,
     mjr_makeContext(mujoco_model_, &sensor_context_, mjFONTSCALE_150);
     mjr_setBuffer(mjFB_WINDOW, &sensor_context_);
 
-    glfwMakeContextCurrent(prev_ctx);
+    // Release so update() can claim it on the lidar worker thread
+    eglMakeCurrent(egl_display_, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 
     RCLCPP_INFO(nh_->get_logger(),
                 "MujocoGLLidar '%s' on site_id=%d ready: %s, %d beams%s @ %.1f Hz, "
@@ -228,13 +255,15 @@ MujocoGLLidar::MujocoGLLidar(rclcpp::Node::SharedPtr &node,
 }
 
 MujocoGLLidar::~MujocoGLLidar() {
-    if (window_) {
-        auto prev_ctx = glfwGetCurrentContext();
-        glfwMakeContextCurrent(window_);
+    if (egl_context_ != EGL_NO_CONTEXT) {
+        eglMakeCurrent(egl_display_, egl_surface_, egl_surface_, egl_context_);
         mjv_freeScene(&sensor_scene_);
         mjr_freeContext(&sensor_context_);
-        glfwMakeContextCurrent(prev_ctx);
-        glfwDestroyWindow(window_);
+        eglMakeCurrent(egl_display_, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+        eglDestroyContext(egl_display_, egl_context_);
+    }
+    if (egl_surface_ != EGL_NO_SURFACE) {
+        eglDestroySurface(egl_display_, egl_surface_);
     }
     if (snapshot_data_) {
         mj_deleteData(snapshot_data_);
@@ -299,7 +328,6 @@ void MujocoGLLidar::render_depth() {
                        depth_buffers_.data() + s * slice_pixels,
                        viewport, &sensor_context_);
     }
-    glfwSwapBuffers(window_);
 }
 
 bool MujocoGLLidar::sample_beam(size_t beam_index, double &range,
@@ -520,6 +548,7 @@ void MujocoGLLidar::publish_cloud(const rclcpp::Time &stamp) {
 
 void MujocoGLLidar::update() {
     using namespace std::chrono_literals;
+    eglMakeCurrent(egl_display_, egl_surface_, egl_surface_, egl_context_);
     mjtNum last_update = mujoco_data_->time;
     const double period = 1.0 / frequency_;
 
@@ -544,16 +573,14 @@ void MujocoGLLidar::update() {
         // timestamp matches the world state we actually rendered.
         const rclcpp::Time stamp(static_cast<int64_t>(snapshot_data_->time * 1e9), RCL_ROS_TIME);
 
-        auto prev_ctx = glfwGetCurrentContext();
-        glfwMakeContextCurrent(window_);
         render_depth();
         if (output_kind_ == OutputKind::Scan) {
             publish_scan(stamp);
         } else {
             publish_cloud(stamp);
         }
-        glfwMakeContextCurrent(prev_ctx);
     }
+    eglMakeCurrent(egl_display_, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 }
 
 }  // namespace mujoco_gl_lidar

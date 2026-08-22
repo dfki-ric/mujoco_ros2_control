@@ -17,8 +17,9 @@ set(CMAKE_BUILD_TYPE Release)
 # Export compile commands for IDEs
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 
-# Set OpenGL preferences
-set(OpenGL_GL_PREFERENCE LEGACY)
+# Set OpenGL preferences (GLVND enables OpenGL::EGL for offscreen rendering)
+set(OpenGL_GL_PREFERENCE GLVND)
+find_package(OpenGL REQUIRED)
 
 # Package dependencies
 set(THIS_PACKAGE_INCLUDE_DEPENDS
@@ -67,6 +68,7 @@ set(MUJOCO_TEST_PYTHON_UTIL OFF CACHE BOOL "" FORCE)
 set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(BUILD_SHARED_LIBS ON CACHE BOOL "" FORCE)
 set(BUILD_SIMULATE ON CACHE BOOL "" FORCE)
+set(MUJOCO_SIMULATE_USE_SYSTEM_GLFW ON CACHE BOOL "" FORCE)
 
 FetchContent_MakeAvailable(mujoco)
 
@@ -181,6 +183,7 @@ ament_target_dependencies(${MUJOCO_ROS2_CONTROL_NODE_TARGET}
 target_link_libraries(${MUJOCO_ROS2_CONTROL_NODE_TARGET}
     mujoco::mujoco
     glfw
+    OpenGL::EGL
     ${PCL_LIBRARIES}
     ${OpenCV_LIBS}
     ${PROJECT_NAME}_parameters
