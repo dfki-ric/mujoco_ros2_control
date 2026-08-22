@@ -64,6 +64,16 @@ namespace mujoco_rgbd_camera {
             throw std::runtime_error("Could not allocate RGB-D camera state snapshot");
         }
 
+        // An object whose constructor throws never gets its destructor called, so
+        // everything acquired past this point has to be released by hand. The guard
+        // does that unless construction reaches the end.
+        bool constructed = false;
+        struct ScopeGuard {
+            MujocoDepthCamera* self;
+            const bool* constructed;
+            ~ScopeGuard() { if (!*constructed) self->release_resources(); }
+        } guard{this, &constructed};
+
         width_ = params_.width;
         height_ = params_.height;
         frequency_ = params_.frequency;
@@ -123,7 +133,9 @@ namespace mujoco_rgbd_camera {
         if (!eglInitialize(egl_display_, &egl_major, &egl_minor)) {
             throw std::runtime_error("MujocoDepthCamera: eglInitialize failed");
         }
-        eglBindAPI(EGL_OPENGL_API);
+        if (!eglBindAPI(EGL_OPENGL_API)) {
+            throw std::runtime_error("MujocoDepthCamera: eglBindAPI(EGL_OPENGL_API) failed");
+        }
 
         static const EGLint config_attribs[] = {
             EGL_SURFACE_TYPE,    EGL_PBUFFER_BIT,
@@ -139,20 +151,21 @@ namespace mujoco_rgbd_camera {
         if (!eglChooseConfig(egl_display_, config_attribs, &egl_config, 1, &num_configs) || num_configs < 1) {
             throw std::runtime_error("MujocoDepthCamera: eglChooseConfig failed");
         }
-        const EGLint pbuffer_attribs[] = {
-            EGL_WIDTH,  render_width_,
-            EGL_HEIGHT, render_height_,
-            EGL_NONE
-        };
-        egl_surface_ = eglCreatePbufferSurface(egl_display_, egl_config, pbuffer_attribs);
-        if (egl_surface_ == EGL_NO_SURFACE) {
-            throw std::runtime_error("MujocoDepthCamera: eglCreatePbufferSurface failed");
-        }
         egl_context_ = eglCreateContext(egl_display_, egl_config, EGL_NO_CONTEXT, nullptr);
         if (egl_context_ == EGL_NO_CONTEXT) {
             throw std::runtime_error("MujocoDepthCamera: eglCreateContext failed");
         }
-        eglMakeCurrent(egl_display_, egl_surface_, egl_surface_, egl_context_);
+        // Bind without a surface. A pbuffer gives MuJoCo a *complete* default
+        // framebuffer, so mjr_makeContext sets windowAvailable and treats it as a
+        // window; but a pbuffer reports GL_DOUBLEBUFFER == 0, so mjr_setBuffer,
+        // mjr_render and mjr_readPixels all select GL_FRONT, which a pbuffer does not
+        // have. That raises GL_INVALID_OPERATION (0x502) on every frame and only
+        // renders correctly because the failed call leaves GL_BACK in place.
+        // Surfaceless leaves the default framebuffer undefined, so MuJoCo renders into
+        // its own offscreen FBO instead -- the same thing MuJoCo's EGL helper does.
+        if (!eglMakeCurrent(egl_display_, EGL_NO_SURFACE, EGL_NO_SURFACE, egl_context_)) {
+            throw std::runtime_error("MujocoDepthCamera: eglMakeCurrent failed");
+        }
 
         // Set camera parameters
         if (mount_ == Mount::Site) {
@@ -171,8 +184,10 @@ namespace mujoco_rgbd_camera {
         // create scene and context
         mjv_makeScene(mujoco_model_, &sensor_scene_, 2000);
         mjr_makeContext(mujoco_model_, &sensor_context_, mjFONTSCALE_150);
+        render_resources_ready_ = true;
 
-        mjr_setBuffer(mjFB_WINDOW, &sensor_context_);
+        mjr_resizeOffscreen(render_width_, render_height_, &sensor_context_);
+        mjr_setBuffer(mjFB_OFFSCREEN, &sensor_context_);
 
         // Topic namespace defaults to the node name but can be overridden. A stream
         // is only published if its mount (optical/depth site) is present.
@@ -190,21 +205,32 @@ namespace mujoco_rgbd_camera {
         }
         // Release the context so update() can claim it on the camera thread
         eglMakeCurrent(egl_display_, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+        constructed = true;
     }
 
     MujocoDepthCamera::~MujocoDepthCamera() {
-        // Rendering resources need the GL context current; render_data_ does not.
+        release_resources();
+    }
+
+    void MujocoDepthCamera::release_resources() noexcept {
+        // The scene and render context hold GL objects, so they can only be freed
+        // with the context current. render_data_ is plain host memory and cannot be
+        // freed there, because the context may never have been created.
         if (egl_context_ != EGL_NO_CONTEXT) {
-            eglMakeCurrent(egl_display_, egl_surface_, egl_surface_, egl_context_);
-            mjv_freeScene(&sensor_scene_);
-            mjr_freeContext(&sensor_context_);
+            eglMakeCurrent(egl_display_, EGL_NO_SURFACE, EGL_NO_SURFACE, egl_context_);
+            if (render_resources_ready_) {
+                mjv_freeScene(&sensor_scene_);
+                mjr_freeContext(&sensor_context_);
+                render_resources_ready_ = false;
+            }
             eglMakeCurrent(egl_display_, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
             eglDestroyContext(egl_display_, egl_context_);
+            egl_context_ = EGL_NO_CONTEXT;
         }
-        if (egl_surface_ != EGL_NO_SURFACE) {
-            eglDestroySurface(egl_display_, egl_surface_);
+        if (render_data_) {
+            mj_deleteData(render_data_);
+            render_data_ = nullptr;
         }
-        mj_deleteData(render_data_);
     }
 
     std::uint64_t MujocoDepthCamera::request_synchronous_frame() {
@@ -224,7 +250,7 @@ namespace mujoco_rgbd_camera {
 
     void MujocoDepthCamera::update() {
         // Claim the EGL context for this worker thread and hold it for the whole loop.
-        eglMakeCurrent(egl_display_, egl_surface_, egl_surface_, egl_context_);
+        eglMakeCurrent(egl_display_, EGL_NO_SURFACE, EGL_NO_SURFACE, egl_context_);
         mjtNum last_update = 0.0;
         {
             std::lock_guard<std::mutex> lock(*data_mutex_);

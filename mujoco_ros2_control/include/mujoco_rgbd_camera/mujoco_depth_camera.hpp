@@ -218,7 +218,16 @@ private:
 
     EGLDisplay egl_display_ = EGL_NO_DISPLAY;
     EGLContext egl_context_ = EGL_NO_CONTEXT;
-    EGLSurface egl_surface_ = EGL_NO_SURFACE;
+    bool render_resources_ready_ = false; ///< True once the scene and render context exist.
+
+    /**
+     * @brief Frees every resource the constructor may have acquired.
+     *
+     * Safe to call on a partly-constructed object and safe to call twice; used
+     * by the destructor and by the constructor's failure path, where member
+     * destructors do not run.
+     */
+    void release_resources() noexcept;
     mjvCamera rgbd_camera_{}; ///< Mujoco visualization camera object representing the RGB-D camera.
     mjrContext sensor_context_{}; ///< Mujoco render context for the sensor camera.
     mjvScene sensor_scene_{}; ///< Mujoco visualization scene for rendering.

@@ -134,7 +134,11 @@ private:
     // EGL state for offscreen rendering
     EGLDisplay egl_display_ = EGL_NO_DISPLAY;
     EGLContext egl_context_ = EGL_NO_CONTEXT;
-    EGLSurface egl_surface_ = EGL_NO_SURFACE;
+    bool render_resources_ready_ = false;   // true once scene and render context exist
+
+    // Frees everything the constructor may have acquired. Safe on a
+    // partly-constructed object and safe to call twice.
+    void release_resources() noexcept;
     mjvScene  sensor_scene_{};
     mjrContext sensor_context_{};
     mjvOption sensor_option_{};

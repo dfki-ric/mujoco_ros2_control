@@ -42,6 +42,15 @@ MujocoGLLidar::MujocoGLLidar(rclcpp::Node::SharedPtr &node,
         throw std::runtime_error("MujocoGLLidar: mj_makeData failed");
     }
 
+    // A constructor that throws gets no destructor call, so release by hand
+    // unless construction runs to completion.
+    bool constructed = false;
+    struct ScopeGuard {
+        MujocoGLLidar* self;
+        const bool* constructed;
+        ~ScopeGuard() { if (!*constructed) self->release_resources(); }
+    } guard{this, &constructed};
+
     param_listener_ = std::make_shared<ParamListener>(nh_);
     param_listener_->refresh_dynamic_parameters();
     params_ = param_listener_->get_params();
@@ -195,7 +204,9 @@ MujocoGLLidar::MujocoGLLidar(rclcpp::Node::SharedPtr &node,
     if (!eglInitialize(egl_display_, &egl_major, &egl_minor)) {
         throw std::runtime_error("MujocoGLLidar: eglInitialize failed");
     }
-    eglBindAPI(EGL_OPENGL_API);
+    if (!eglBindAPI(EGL_OPENGL_API)) {
+        throw std::runtime_error("MujocoGLLidar: eglBindAPI(EGL_OPENGL_API) failed");
+    }
 
     static const EGLint config_attribs[] = {
         EGL_SURFACE_TYPE,    EGL_PBUFFER_BIT,
@@ -211,20 +222,21 @@ MujocoGLLidar::MujocoGLLidar(rclcpp::Node::SharedPtr &node,
     if (!eglChooseConfig(egl_display_, config_attribs, &egl_config, 1, &num_configs) || num_configs < 1) {
         throw std::runtime_error("MujocoGLLidar: eglChooseConfig failed");
     }
-    const EGLint pbuffer_attribs[] = {
-        EGL_WIDTH,  render_width_,
-        EGL_HEIGHT, render_height_,
-        EGL_NONE
-    };
-    egl_surface_ = eglCreatePbufferSurface(egl_display_, egl_config, pbuffer_attribs);
-    if (egl_surface_ == EGL_NO_SURFACE) {
-        throw std::runtime_error("MujocoGLLidar: eglCreatePbufferSurface failed");
-    }
     egl_context_ = eglCreateContext(egl_display_, egl_config, EGL_NO_CONTEXT, nullptr);
     if (egl_context_ == EGL_NO_CONTEXT) {
         throw std::runtime_error("MujocoGLLidar: eglCreateContext failed");
     }
-    eglMakeCurrent(egl_display_, egl_surface_, egl_surface_, egl_context_);
+        // Bind without a surface. A pbuffer gives MuJoCo a *complete* default
+    // framebuffer, so mjr_makeContext sets windowAvailable and treats it as a
+    // window; but a pbuffer reports GL_DOUBLEBUFFER == 0, so mjr_setBuffer,
+    // mjr_render and mjr_readPixels all select GL_FRONT, which a pbuffer does not
+    // have. That raises GL_INVALID_OPERATION (0x502) on every frame and only
+    // renders correctly because the failed call leaves GL_BACK in place.
+    // Surfaceless leaves the default framebuffer undefined, so MuJoCo renders into
+    // its own offscreen FBO instead -- the same thing MuJoCo's EGL helper does.
+    if (!eglMakeCurrent(egl_display_, EGL_NO_SURFACE, EGL_NO_SURFACE, egl_context_)) {
+        throw std::runtime_error("MujocoGLLidar: eglMakeCurrent failed");
+    }
 
     sensor_camera_.type = mjCAMERA_USER;  // set scene.camera directly per frame
     mjr_defaultContext(&sensor_context_);
@@ -232,7 +244,9 @@ MujocoGLLidar::MujocoGLLidar(rclcpp::Node::SharedPtr &node,
     mjv_defaultScene(&sensor_scene_);
     mjv_makeScene(mujoco_model_, &sensor_scene_, 2000);
     mjr_makeContext(mujoco_model_, &sensor_context_, mjFONTSCALE_150);
-    mjr_setBuffer(mjFB_WINDOW, &sensor_context_);
+    render_resources_ready_ = true;
+    mjr_resizeOffscreen(render_width_, render_height_, &sensor_context_);
+    mjr_setBuffer(mjFB_OFFSCREEN, &sensor_context_);
 
     // Release so update() can claim it on the lidar worker thread
     eglMakeCurrent(egl_display_, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
@@ -252,18 +266,26 @@ MujocoGLLidar::MujocoGLLidar(rclcpp::Node::SharedPtr &node,
                 total_h_fov * 180.0 / M_PI,
                 slice_render_h_fov_ * 180.0 / M_PI,
                 v_fov_ * 180.0 / M_PI);
+    constructed = true;
 }
 
 MujocoGLLidar::~MujocoGLLidar() {
+    release_resources();
+}
+
+void MujocoGLLidar::release_resources() noexcept {
+    // Scene and render context own GL objects and need the context current;
+    // snapshot_data_ is host memory and must not depend on the context existing.
     if (egl_context_ != EGL_NO_CONTEXT) {
-        eglMakeCurrent(egl_display_, egl_surface_, egl_surface_, egl_context_);
-        mjv_freeScene(&sensor_scene_);
-        mjr_freeContext(&sensor_context_);
+        eglMakeCurrent(egl_display_, EGL_NO_SURFACE, EGL_NO_SURFACE, egl_context_);
+        if (render_resources_ready_) {
+            mjv_freeScene(&sensor_scene_);
+            mjr_freeContext(&sensor_context_);
+            render_resources_ready_ = false;
+        }
         eglMakeCurrent(egl_display_, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
         eglDestroyContext(egl_display_, egl_context_);
-    }
-    if (egl_surface_ != EGL_NO_SURFACE) {
-        eglDestroySurface(egl_display_, egl_surface_);
+        egl_context_ = EGL_NO_CONTEXT;
     }
     if (snapshot_data_) {
         mj_deleteData(snapshot_data_);
@@ -548,7 +570,7 @@ void MujocoGLLidar::publish_cloud(const rclcpp::Time &stamp) {
 
 void MujocoGLLidar::update() {
     using namespace std::chrono_literals;
-    eglMakeCurrent(egl_display_, egl_surface_, egl_surface_, egl_context_);
+    eglMakeCurrent(egl_display_, EGL_NO_SURFACE, EGL_NO_SURFACE, egl_context_);
     mjtNum last_update = mujoco_data_->time;
     const double period = 1.0 / frequency_;
 
