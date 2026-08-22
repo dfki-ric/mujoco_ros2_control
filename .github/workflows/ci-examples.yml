@@ -36,6 +36,7 @@ jobs:
           apt-get update
           apt-get install -y \
             git \
+            libegl-dev \
             libx11-dev \
             xorg-dev \
             libwayland-dev \
