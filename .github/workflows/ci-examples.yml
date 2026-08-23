@@ -54,9 +54,14 @@ jobs:
             libglx-mesa0 \
             mesa-utils
 
+      # A real gate, not a smoke signal: if EGL cannot hand out a context then
+      # this job is not running with GL, and the camera/LiDAR tests below would
+      # fail with a confusing rendering error instead of failing here with an
+      # obvious one. `-B` is the brief form; older eglinfo builds lack it, so
+      # fall back to the full output, but do not swallow a genuine failure.
       - name: Verify EGL software context
         run: |
-          eglinfo -B || eglinfo || true
+          eglinfo -B || eglinfo
 
       - name: Set up workspace
         run: |
@@ -87,3 +92,17 @@ jobs:
           source install/setup.bash
           colcon test --packages-select mujoco_ros2_control_examples --event-handlers console_direct+
           colcon test-result --test-result-base build/mujoco_ros2_control_examples/test_results --verbose
+
+      # These jobs deliberately run with OpenGL on (DISABLE_OPENGL=0), so a GL
+      # test that reports "skipped" means the environment quietly lost EGL and
+      # the run proved less than it claims. Treat that as a failure.
+      - name: Fail if any test was skipped for lack of OpenGL
+        if: always()
+        working-directory: /ros2_ws
+        run: |
+          if grep -rl "OpenGL disabled" build/*/test_results/ 2>/dev/null | grep -q .; then
+            echo "::error::GL tests were skipped, but this job runs with OpenGL enabled"
+            grep -rn "OpenGL disabled" build/*/test_results/ || true
+            exit 1
+          fi
+          echo "No GL test was skipped."

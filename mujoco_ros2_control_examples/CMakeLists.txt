@@ -426,6 +426,7 @@ if(BUILD_TESTING)
 
   add_ros_isolated_launch_test(test/test_franka_example.test.py)
   add_ros_isolated_launch_test(test/test_ur_example.test.py)
+  add_ros_isolated_launch_test(test/test_ur_multi_example.test.py)
   add_ros_isolated_launch_test(test/test_unitree_h1_example.test.py)
   add_ros_isolated_launch_test(test/test_unitree_g1_example.test.py)
 endif()

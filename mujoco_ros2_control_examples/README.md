@@ -114,6 +114,57 @@ UR ships `.dae` visual meshes and `.stl` collision meshes. `xacro2mjcf.py` symli
 the `.stl` meshes into `<mujoco_files_path>/meshes` and substitutes the collision
 mesh for the (MuJoCo-unsupported) `.dae` visual.
 
+#### Several arms in a row
+
+`ur_multi.launch.py` stands several UR arms side by side in one MuJoCo world. By
+default they are three *different* arms — a ur3e, a ur5e and a ur10e:
+
+```bash
+ros2 launch mujoco_ros2_control_examples ur_multi.launch.py
+ros2 launch mujoco_ros2_control_examples ur_multi.launch.py ur_types:=ur3,ur10e
+ros2 launch mujoco_ros2_control_examples ur_multi.launch.py ur_types:=ur5e,ur5e,ur5e
+```
+
+| Argument   | Default            | Description                                                        |
+|------------|--------------------|--------------------------------------------------------------------|
+| `ur_types` | `ur3e,ur5e,ur10e`  | One UR type per arm, in row order. Its length is the arm count.     |
+| `spacing`  | `1.5`              | Distance between neighbouring bases along y, m.                     |
+| `rviz`     | `true`             | Start RViz.                                                        |
+
+Each arm is prefixed with its own type — `ur3e_`, `ur5e_`, `ur10e_` — so every
+joint, frame, hardware component and controller name says which robot it belongs
+to (`ur10e_joint_trajectory_controller`, `ur3e_wrist_3_link`, …). A type repeated
+in the list gets an occurrence suffix, so `ur_types:=ur5e,ur5e` yields `ur5e_` and
+`ur5e_2_` rather than colliding.
+
+One description holds every arm, so there is a single `robot_description`, a
+single MJCF and a single controller manager. Each arm lives under its `tf_prefix`,
+which names its links, joints, MuJoCo actuators, force/torque site and its own
+`<ros2_control>` block. The controller manager creates one `MujocoSystem`
+hardware component per block, so each arm has its own
+`<type>_joint_trajectory_controller` and `<type>_ft_sensor_broadcaster` and can be
+commanded independently; a single shared `joint_state_broadcaster` publishes every
+joint.
+
+`ur_multi.urdf.xacro` is the single definition of the prefixes; the launch file
+reads them back off the description it generated rather than deriving them again.
+
+An arm is `urdf/ur/ur_arm.urdf.xacro`, the same macro the single-arm example
+instantiates once — so the two examples cannot drift apart. The model-wide MuJoCo
+compiler and solver settings live in `urdf/ur/mujoco_options.urdf.xacro`, which a
+description includes exactly once however many arms it holds.
+
+Because the controller names follow the arm types, `config/ur/ur_multi_controllers.yaml`
+matches the default `ur_types` (`ur3e,ur5e,ur10e`). Launching a different list
+needs matching entries there.
+
+Each arm's MuJoCo actuators take their torque limits from that arm's own type
+(`ur_max_effort` in `urdf/ur/mujoco_actuators.urdf.xacro`, copied from
+`ur_description/config/<ur_type>/joint_limits.yaml`), with the gains tuned on the
+ur5e scaled by torque. Before this the ur5e row was hard-coded for every arm,
+which silently gave a ur3e 2.8× the shoulder torque it has and capped a ur10e at
+45% of its own — so it also affected `ur.launch.py ur_type:=ur10e`.
+
 ### Unitree H1
 
 Unitree H1 humanoid. The upstream URDF and meshes are **not** redistributed here;
@@ -231,11 +282,22 @@ starts the `mujoco_ros2_control` node headless, and asserts the node comes up
 description package is not installed, or - for the Unitree robots - when the
 upstream assets were not downloaded.
 
-The Unitree G1 test checks more than that the node starts: it brings the robot up
-on its default generated stepping-stones terrain.
+Two tests check more than that the node starts. The Unitree G1 test brings the
+robot up on its default generated stepping-stones terrain, and the `ur_multi`
+test asserts every arm reached the merged model, that the bases really are evenly
+spaced in a row, that the arm behind each prefix really is the type that prefix
+names, and that the controller manager instantiated one hardware component per
+arm.
 
-OpenGL is optional: export `DISABLE_OPENGL=1` to run fully headless (no GUI), as CI
-does. Without it, the MuJoCo GUI is shown.
+These run in CI in their own workflow, `.github/workflows/ci-examples.yml`, which
+builds the package and clones `franka_description` from source — it has no jazzy
+release — so every example runs there, Franka included.
+
+The interactive MuJoCo viewer is never opened by the tests. `DISABLE_OPENGL`
+controls offscreen rendering instead: leave it unset (or `0`) and the GL-backed
+sensors render through EGL; set `DISABLE_OPENGL=1` to drop them and run on a
+machine with no working GL. CI runs with GL **on**, so the camera and LiDAR paths
+are covered there, and a GL test that skips fails the job.
 
 ```bash
 colcon test --packages-select mujoco_ros2_control_examples

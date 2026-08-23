@@ -1,0 +1,107 @@
+<?xml version="1.0"?>
+<!-- Several Universal Robots arms standing in a row, simulated together by one
+     mujoco_ros2_control node.
+
+     One description holds every arm, so there is a single robot_description, a
+     single MJCF and a single controller manager. Each arm is an instance of the
+     ur_arm macro (shared with the single-arm ur.urdf.xacro) under its own
+     tf_prefix, which names its links, joints, actuators, sensors and its own
+     <ros2_control> hardware component. The controller manager creates one
+     MujocoSystem per component, so the arms are independent to ros2_control
+     while sharing one physics model.
+
+     `ur_types` lists one UR type per arm, so the row can mix a small, a medium
+     and a large arm. An arm's prefix is its own type - ur3e_, ur5e_, ur10e_ -
+     which makes every joint, frame and controller name say which robot it
+     belongs to. A type repeated in the list gets an occurrence suffix (ur5e_,
+     ur5e_2_, ...) so the names stay unique. -->
+<robot xmlns:xacro="http://wiki.ros.org/xacro" name="$(arg name)">
+
+    <!-- ============================ Arguments ============================ -->
+    <xacro:arg name="name" default="ur_multi"/>
+    <!-- One UR type per arm, in row order, comma separated. Each may be any type
+         ur_description ships: ur3, ur5, ur10, ur3e, ur5e, ur7e, ur10e, ur12e,
+         ur16e, ur20, ur30, ... The number of entries sets the number of arms. -->
+    <xacro:arg name="ur_types" default="ur3e,ur5e,ur10e"/>
+    <!-- How far apart the bases stand along y. 1.5 m clears the reach of the
+         largest arm in the default mix (a ur10e reaches 1.3 m) without spreading
+         the row so wide that it leaves the camera. -->
+    <xacro:arg name="spacing" default="1.5"/>
+
+    <!-- MuJoCo compiler options -->
+    <xacro:arg name="mujoco_model_path" default="/tmp/mujoco"/>
+    <xacro:arg name="autolimits" default="true"/>
+    <xacro:arg name="balanceinertia" default="true"/>
+    <!-- MuJoCo physics options -->
+    <xacro:arg name="integrator" default="implicitfast"/>
+    <xacro:arg name="gravity" default="0 0 -9.81"/>
+    <xacro:arg name="impratio" default="1"/>
+    <xacro:arg name="cone" default="elliptic"/>
+    <xacro:arg name="solver" default="Newton"/>
+    <xacro:arg name="noslip_iterations" default="3"/>
+    <xacro:arg name="multiccd" default="disable"/>
+
+    <!-- ros2_control / simulation switches -->
+    <xacro:arg name="mujoco" default="true"/>
+    <xacro:arg name="mujoco_effort" default="false"/>
+
+    <!-- Captured as properties because $(arg ...) does not resolve inside a
+         macro body; the recursive ur_row macro below reads these instead. -->
+    <xacro:property name="arm_types"
+                    value="${[t.strip() for t in '$(arg ur_types)'.split(',') if t.strip()]}"/>
+    <xacro:property name="count" value="${len(arm_types)}"/>
+    <xacro:property name="spacing" value="$(arg spacing)"/>
+    <xacro:property name="robot_name" value="$(arg name)"/>
+    <xacro:property name="use_mujoco" value="$(arg mujoco)"/>
+    <xacro:property name="use_mujoco_effort" value="$(arg mujoco_effort)"/>
+
+    <!-- ============================ Robots ============================ -->
+    <link name="world"/>
+
+    <xacro:include filename="$(find mujoco_ros2_control_examples)/urdf/ur/ur_arm.urdf.xacro"/>
+
+    <!-- Lay the row out symmetrically about the origin, so adding an arm grows
+         it in both directions instead of pushing the whole row off centre.
+
+         This macro is the single source of truth for the prefixes. Anything that
+         needs them - the launch file naming controllers, a test - reads them back
+         off the generated description rather than recomputing them here. -->
+    <xacro:macro name="ur_row" params="index">
+        <xacro:if value="${index &lt; count}">
+            <xacro:property name="y" value="${(index - (count - 1) / 2.0) * spacing}"/>
+            <!-- The type name, plus an occurrence number from the second time
+                 that type appears, so a repeated type cannot collide. -->
+            <xacro:property name="seen" value="${arm_types[:index].count(arm_types[index])}"/>
+            <xacro:property name="arm_prefix"
+                            value="${arm_types[index] + ('' if seen == 0 else '_%d' % (seen + 1)) + '_'}"/>
+            <xacro:ur_arm
+                name="${robot_name}_${arm_prefix[:-1]}"
+                ur_type="${arm_types[index]}"
+                tf_prefix="${arm_prefix}"
+                parent="world"
+                xyz="0 ${y} 0"
+                rpy="0 0 0"
+                mujoco="${use_mujoco}"
+                mujoco_effort="${use_mujoco_effort}"/>
+            <xacro:ur_row index="${index + 1}"/>
+        </xacro:if>
+    </xacro:macro>
+    <xacro:ur_row index="0"/>
+
+    <!-- ============================ MuJoCo config ============================ -->
+    <!-- Once for the whole model, however many arms it holds. -->
+    <xacro:if value="$(arg mujoco)">
+        <xacro:include filename="$(find mujoco_ros2_control_examples)/urdf/ur/mujoco_options.urdf.xacro"/>
+        <xacro:ur_mujoco_options
+            mujoco_model_path="$(arg mujoco_model_path)"
+            autolimits="$(arg autolimits)"
+            balanceinertia="$(arg balanceinertia)"
+            integrator="$(arg integrator)"
+            gravity="$(arg gravity)"
+            impratio="$(arg impratio)"
+            cone="$(arg cone)"
+            solver="$(arg solver)"
+            noslip_iterations="$(arg noslip_iterations)"
+            multiccd="$(arg multiccd)"/>
+    </xacro:if>
+</robot>
