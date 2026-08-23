@@ -1,0 +1,99 @@
+# Controllers for the multi-arm UR example.
+#
+# All the arms share one controller manager, because they share one MuJoCo model.
+# Every arm therefore needs its own uniquely named controllers, with joint and
+# sensor names carrying that arm's tf_prefix. The prefix is the arm's own UR type
+# (ur3e_, ur5e_, ur10e_ - see urdf/ur/ur_multi.urdf.xacro), so each controller
+# name says which robot it drives. The joint_state_broadcaster is the exception:
+# one instance publishes the state of every joint in the model.
+#
+# The entries below match the default `ur_types` of ur_multi.launch.py -
+# ur3e,ur5e,ur10e. Launching a different list needs matching entries here, since
+# the controller names follow the arm types.
+controller_manager:
+  ros__parameters:
+    update_rate: 500  # Hz
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+    ur3e_ft_sensor_broadcaster:
+      type: force_torque_sensor_broadcaster/ForceTorqueSensorBroadcaster
+    ur5e_ft_sensor_broadcaster:
+      type: force_torque_sensor_broadcaster/ForceTorqueSensorBroadcaster
+    ur10e_ft_sensor_broadcaster:
+      type: force_torque_sensor_broadcaster/ForceTorqueSensorBroadcaster
+
+    ur3e_joint_trajectory_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+    ur5e_joint_trajectory_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+    ur10e_joint_trajectory_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+
+ur3e_joint_trajectory_controller:
+  ros__parameters:
+    joints:
+      - ur3e_shoulder_pan_joint
+      - ur3e_shoulder_lift_joint
+      - ur3e_elbow_joint
+      - ur3e_wrist_1_joint
+      - ur3e_wrist_2_joint
+      - ur3e_wrist_3_joint
+    command_interfaces:
+      - position
+      - velocity
+    state_interfaces:
+      - position
+      - velocity
+    open_loop_control: true
+
+ur5e_joint_trajectory_controller:
+  ros__parameters:
+    joints:
+      - ur5e_shoulder_pan_joint
+      - ur5e_shoulder_lift_joint
+      - ur5e_elbow_joint
+      - ur5e_wrist_1_joint
+      - ur5e_wrist_2_joint
+      - ur5e_wrist_3_joint
+    command_interfaces:
+      - position
+      - velocity
+    state_interfaces:
+      - position
+      - velocity
+    open_loop_control: true
+
+ur10e_joint_trajectory_controller:
+  ros__parameters:
+    joints:
+      - ur10e_shoulder_pan_joint
+      - ur10e_shoulder_lift_joint
+      - ur10e_elbow_joint
+      - ur10e_wrist_1_joint
+      - ur10e_wrist_2_joint
+      - ur10e_wrist_3_joint
+    command_interfaces:
+      - position
+      - velocity
+    state_interfaces:
+      - position
+      - velocity
+    open_loop_control: true
+
+# sensor_name must match "<tf_prefix>tcp_ft_sensor" from ros2_control.urdf.xacro.
+ur3e_ft_sensor_broadcaster:
+  ros__parameters:
+    sensor_name: "ur3e_tcp_ft_sensor"
+    frame_id: "ur3e_wrist_3_link"
+
+ur5e_ft_sensor_broadcaster:
+  ros__parameters:
+    sensor_name: "ur5e_tcp_ft_sensor"
+    frame_id: "ur5e_wrist_3_link"
+
+ur10e_ft_sensor_broadcaster:
+  ros__parameters:
+    sensor_name: "ur10e_tcp_ft_sensor"
+    frame_id: "ur10e_wrist_3_link"

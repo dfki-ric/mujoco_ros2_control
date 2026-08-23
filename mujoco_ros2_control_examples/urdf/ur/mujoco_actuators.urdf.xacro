@@ -3,32 +3,88 @@
 
   <!-- Position + velocity actuator pair for a single UR joint.
        kp/forcerange follow the joint's torque capability; the velocity
-       actuator adds damping for a stable position hold. -->
+       actuator adds damping for a stable position hold.
+
+       The gains arrive as products, so a whole number would otherwise be written
+       "3000.0"; `tidy` prints it as "3000". Cosmetic - MuJoCo reads either - but
+       it keeps the emitted actuators identical to the hand-written ones. -->
   <xacro:macro name="ur_position_actuator" params="joint effort lower upper kp kv">
+    <xacro:property name="tidy" value="${lambda v: int(v) if float(v).is_integer() else v}"/>
     <position
       name="pos_${joint}"
       joint="${joint}"
       ctrlrange="${lower} ${upper}"
       forcerange="${-effort} ${effort}"
-      kp="${kp}"/>
+      kp="${tidy(kp)}"/>
     <velocity
       name="vel_${joint}"
       joint="${joint}"
       forcerange="${-effort} ${effort}"
-      kv="${kv}"/>
+      kv="${tidy(kv)}"/>
   </xacro:macro>
 
-  <!-- MuJoCo actuators for the six UR revolute joints.
-       Effort/position limits mirror ur_description/config/<ur_type>/joint_limits.yaml
-       (shoulder + elbow: 150 Nm, wrists: 28 Nm; elbow limited to +-pi). -->
-  <xacro:macro name="create_mujoco_actuators" params="tf_prefix">
+  <!-- max_effort per joint, in ur_description joint order
+       (shoulder_pan, shoulder_lift, elbow, wrist_1, wrist_2, wrist_3), copied
+       from ur_description/config/<ur_type>/joint_limits.yaml. That file cannot
+       be read here: it uses ur_description's own !degrees YAML tag, which the
+       plain loader behind xacro's load_yaml cannot construct.
+
+       These must be per type. Hard-coding one row - which used to be the case,
+       with the ur5e values - gives a ur3e 2.8x the shoulder torque it has and
+       caps a ur10e at 45% of its own, and both errors are silent. -->
+  <xacro:property name="ur_max_effort" value="${dict(
+      ur3     = [ 56,  56,  28,  12,  12,  12],
+      ur3e    = [ 54,  54,  28,   9,   9,   9],
+      ur5     = [150, 150, 150,  28,  28,  28],
+      ur5e    = [150, 150, 150,  28,  28,  28],
+      ur7e    = [150, 150, 150,  28,  28,  28],
+      ur10    = [330, 330, 150,  56,  56,  56],
+      ur10e   = [330, 330, 150,  54,  54,  54],
+      ur12e   = [330, 330, 150,  54,  54,  54],
+      ur16e   = [330, 330, 150,  54,  54,  54],
+      ur15    = [433, 433, 204,  70,  70,  70],
+      ur18    = [433, 433, 204,  70,  70,  70],
+      ur8long = [433, 433, 204,  70,  70,  70],
+      ur20    = [738, 738, 433, 107, 107, 107],
+      ur30    = [738, 738, 433, 107, 107, 107])}"/>
+
+  <!-- The gains were tuned on the ur5e, so they are carried to other sizes by
+       scaling with each joint's torque: an arm twice as strong gets twice the
+       stiffness and damping, which keeps the ur5e behaviour bit-for-bit and
+       gives every other type the same hold quality rather than one tuned for a
+       different arm. Reference row: 150 Nm -> kp 3000, kv 200 for the shoulder
+       and elbow; 28 Nm -> kp 500, kv 50 for the wrists. -->
+  <xacro:property name="ur_arm_kp_per_nm" value="${3000.0 / 150.0}"/>
+  <xacro:property name="ur_arm_kv_per_nm" value="${200.0 / 150.0}"/>
+  <xacro:property name="ur_wrist_kp_per_nm" value="${500.0 / 28.0}"/>
+  <xacro:property name="ur_wrist_kv_per_nm" value="${50.0 / 28.0}"/>
+
+  <!-- MuJoCo actuators for the six UR revolute joints. Position limits mirror
+       ur_description: the elbow is restricted to +-pi, the rest to +-2*pi. -->
+  <xacro:macro name="create_mujoco_actuators" params="tf_prefix ur_type:=ur5e">
+    <!-- An unlisted type falls back to the ur5e row rather than failing the
+         build; check it against joint_limits.yaml before relying on it. -->
+    <xacro:property name="effort"
+                    value="${ur_max_effort.get(ur_type, ur_max_effort['ur5e'])}"/>
     <actuator>
-      <xacro:ur_position_actuator joint="${tf_prefix}shoulder_pan_joint"  effort="150" lower="${-2*pi}" upper="${2*pi}" kp="3000" kv="200"/>
-      <xacro:ur_position_actuator joint="${tf_prefix}shoulder_lift_joint" effort="150" lower="${-2*pi}" upper="${2*pi}" kp="3000" kv="200"/>
-      <xacro:ur_position_actuator joint="${tf_prefix}elbow_joint"         effort="150" lower="${-pi}"   upper="${pi}"   kp="3000" kv="200"/>
-      <xacro:ur_position_actuator joint="${tf_prefix}wrist_1_joint"       effort="28"  lower="${-2*pi}" upper="${2*pi}" kp="500"  kv="50"/>
-      <xacro:ur_position_actuator joint="${tf_prefix}wrist_2_joint"       effort="28"  lower="${-2*pi}" upper="${2*pi}" kp="500"  kv="50"/>
-      <xacro:ur_position_actuator joint="${tf_prefix}wrist_3_joint"       effort="28"  lower="${-2*pi}" upper="${2*pi}" kp="500"  kv="50"/>
+      <xacro:ur_position_actuator joint="${tf_prefix}shoulder_pan_joint"
+        effort="${effort[0]}" lower="${-2*pi}" upper="${2*pi}"
+        kp="${effort[0] * ur_arm_kp_per_nm}" kv="${effort[0] * ur_arm_kv_per_nm}"/>
+      <xacro:ur_position_actuator joint="${tf_prefix}shoulder_lift_joint"
+        effort="${effort[1]}" lower="${-2*pi}" upper="${2*pi}"
+        kp="${effort[1] * ur_arm_kp_per_nm}" kv="${effort[1] * ur_arm_kv_per_nm}"/>
+      <xacro:ur_position_actuator joint="${tf_prefix}elbow_joint"
+        effort="${effort[2]}" lower="${-pi}" upper="${pi}"
+        kp="${effort[2] * ur_arm_kp_per_nm}" kv="${effort[2] * ur_arm_kv_per_nm}"/>
+      <xacro:ur_position_actuator joint="${tf_prefix}wrist_1_joint"
+        effort="${effort[3]}" lower="${-2*pi}" upper="${2*pi}"
+        kp="${effort[3] * ur_wrist_kp_per_nm}" kv="${effort[3] * ur_wrist_kv_per_nm}"/>
+      <xacro:ur_position_actuator joint="${tf_prefix}wrist_2_joint"
+        effort="${effort[4]}" lower="${-2*pi}" upper="${2*pi}"
+        kp="${effort[4] * ur_wrist_kp_per_nm}" kv="${effort[4] * ur_wrist_kv_per_nm}"/>
+      <xacro:ur_position_actuator joint="${tf_prefix}wrist_3_joint"
+        effort="${effort[5]}" lower="${-2*pi}" upper="${2*pi}"
+        kp="${effort[5] * ur_wrist_kp_per_nm}" kv="${effort[5] * ur_wrist_kv_per_nm}"/>
     </actuator>
   </xacro:macro>
 </robot>

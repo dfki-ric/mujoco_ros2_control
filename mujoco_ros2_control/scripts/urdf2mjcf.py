@@ -98,8 +98,34 @@ def build_joint_link_tree(robot):
         
     return tree
 
+def read_global_material_colors(robot):
+    """Colours of the <material> elements declared at robot level, by name.
+
+    A URDF may declare a material once under <robot> and then only reference it
+    by name inside a <visual> (`<material name="dark"/>`). urdf_parser_py does
+    not resolve that reference, so such a visual carries a Material with a name
+    but no colour - the colour has to be looked up here.
+    """
+    return {
+        material.name: material.color.rgba
+        for material in (robot.materials or [])
+        if material.name and material.color
+    }
+
+
+def visual_rgba(visual, global_material_colors):
+    """rgba of a URDF <visual>, inline colour first, robot-level material next."""
+    material = visual.material
+    if material is None:
+        return None
+    if material.color:
+        return material.color.rgba
+    return global_material_colors.get(material.name)
+
+
 def create_mjcf(robot, robot_tree, mujoco_element, dynamics_overrides=None):
     dynamics_overrides = dynamics_overrides or {}
+    global_material_colors = read_global_material_colors(robot)
     # Create the root element of the MJCF
     mjcf = ET.Element("mujoco", model=robot.name)
     compiler = mujoco_element.find('compiler')
@@ -277,10 +303,10 @@ def create_mjcf(robot, robot_tree, mujoco_element, dynamics_overrides=None):
                 else:
                     print(type(visual.geometry))
 
-                if visual.material:
-                    if visual.material.color:
-                        r, g, b, a = visual.material.color.rgba
-                        geom.set("rgba", f"{r} {g} {b} {a}")
+                rgba = visual_rgba(visual, global_material_colors)
+                if rgba is not None:
+                    r, g, b, a = rgba
+                    geom.set("rgba", f"{r} {g} {b} {a}")
         
 
         # Recursively add child links and their joints

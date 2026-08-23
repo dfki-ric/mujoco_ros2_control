@@ -1,0 +1,84 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://wiki.ros.org/xacro">
+
+  <!-- One complete UR arm: the ur_description kinematics, its ros2_control
+       block, and its MuJoCo actuators and wrist force/torque sensor.
+
+       Everything it emits is named after `tf_prefix`, and its base pose is a
+       parameter, so the macro can be instantiated more than once in a single
+       description. ur.urdf.xacro uses it once with an empty prefix;
+       ur_multi.urdf.xacro uses it several times to stand arms side by side.
+       The caller supplies the `parent` link and the global <mujoco> compiler
+       and option settings, which must appear only once per model. -->
+  <xacro:macro name="ur_arm"
+               params="name
+                       ur_type
+                       tf_prefix
+                       parent:=world
+                       xyz:='0 0 0'
+                       rpy:='0 0 0'
+                       mujoco:=true
+                       mujoco_effort:=false">
+
+    <!-- ur_description config files for the selected ur_type -->
+    <xacro:property name="ur_config" value="$(find ur_description)/config/${ur_type}"/>
+
+    <!-- Initial joint configuration (also written as a MuJoCo keyframe via
+         ros2_control). Unprefixed keys - ros2_control.urdf.xacro adds the
+         prefix when it names the joints. -->
+    <xacro:property name="initial_positions"
+                    value="${dict(
+                        shoulder_pan_joint=0.0,
+                        shoulder_lift_joint=-1.5708,
+                        elbow_joint=1.5708,
+                        wrist_1_joint=-1.5708,
+                        wrist_2_joint=-1.5708,
+                        wrist_3_joint=0.0)}"/>
+
+    <!-- ============================ Robot ============================ -->
+    <xacro:include filename="$(find ur_description)/urdf/ur_macro.xacro"/>
+    <xacro:ur_robot
+        name="${name}"
+        tf_prefix="${tf_prefix}"
+        parent="${parent}"
+        joint_limits_parameters_file="${ur_config}/joint_limits.yaml"
+        kinematics_parameters_file="${ur_config}/default_kinematics.yaml"
+        physical_parameters_file="${ur_config}/physical_parameters.yaml"
+        visual_parameters_file="${ur_config}/visual_parameters.yaml"
+        force_abs_paths="false">
+        <origin xyz="${xyz}" rpy="${rpy}"/>
+    </xacro:ur_robot>
+
+    <!-- ============================ ros2_control ============================ -->
+    <!-- One hardware component per arm. The name must be unique across the
+         model: the controller manager creates a MujocoSystem instance per
+         <ros2_control> block and keys them by name. -->
+    <xacro:include filename="$(find mujoco_ros2_control_examples)/urdf/ur/ros2_control.urdf.xacro"/>
+    <xacro:ur_ros2_control
+        name="${tf_prefix}UrMujocoSystem"
+        tf_prefix="${tf_prefix}"
+        mujoco="${mujoco}"
+        mujoco_effort="${mujoco_effort}"
+        initial_positions="${initial_positions}"/>
+
+    <!-- ============================ MuJoCo ============================ -->
+    <!-- Actuators and sensors only. xacro2mjcf merges every <mujoco> element
+         in the description into one, so several arms may each contribute a
+         block of their own. -->
+    <xacro:if value="${mujoco}">
+      <mujoco>
+        <xacro:include filename="$(find mujoco_ros2_control_examples)/urdf/ur/mujoco_actuators.urdf.xacro"/>
+        <xacro:create_mujoco_actuators tf_prefix="${tf_prefix}" ur_type="${ur_type}"/>
+
+        <reference name="${tf_prefix}wrist_3_link">
+          <site name="${tf_prefix}tcp_ft_site" pos="0 0.1 0" quat="1 0 0 0"/>
+        </reference>
+        <sensor>
+          <force name="${tf_prefix}tcp_ft_force" site="${tf_prefix}tcp_ft_site"/>
+          <torque name="${tf_prefix}tcp_ft_torque" site="${tf_prefix}tcp_ft_site"/>
+        </sensor>
+      </mujoco>
+    </xacro:if>
+
+  </xacro:macro>
+</robot>

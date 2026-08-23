@@ -1,5 +1,5 @@
 #!/bin/env python3
-"""Launch smoke test for the franka example (no viewer; GL sensors off with DISABLE_OPENGL=1).
+"""Launch smoke test for the unitree_g1 example (no viewer; GL sensors off with DISABLE_OPENGL=1).
 
 See example_smoke.py for what is exercised and when the test self-skips.
 """
@@ -22,7 +22,7 @@ from example_smoke import (  # noqa: E402
     make_test_description,
 )
 
-ROBOT = "franka"
+ROBOT = "unitree_g1"
 _AVAILABLE, _SKIP_REASON = availability(ROBOT)
 
 
@@ -33,11 +33,11 @@ def generate_test_description():
     return make_test_description(ROBOT)
 
 
-class TestFrankaExample(unittest.TestCase):
+class TestUnitreeG1Example(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         rclpy.init()
-        cls.node = rclpy.node.Node("test_franka_example_node")
+        cls.node = rclpy.node.Node("test_unitree_g1_example_node")
 
     @classmethod
     def tearDownClass(cls):
@@ -55,5 +55,5 @@ class TestFrankaExample(unittest.TestCase):
                 return
         self.fail(
             "mujoco_ros2_control node did not come up; "
-            "MuJoCo failed to load the franka example model"
+            "MuJoCo failed to load the unitree_g1 example model"
         )

@@ -5,11 +5,14 @@ find_package(ament_cmake REQUIRED)
 # Interpreter only, for the configure-time mesh conversion below.
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
-# The Unitree H1 URDF and meshes are not redistributed here; they are fetched and
+# The Unitree H1/G1 URDF and meshes are not redistributed here; they are fetched and
 # patched from upstream at configure time. Turn this off (e.g. for offline or
 # network-restricted builds) to build only the Franka and UR examples.
 option(DOWNLOAD_UNITREE_H1_ASSETS
   "Download and patch the Unitree H1 URDF and meshes at configure time" ON)
+
+option(DOWNLOAD_UNITREE_G1_ASSETS
+  "Download and patch the Unitree G1 URDF and meshes at configure time" ON)
 
 # The IndustReal peg meshes are the upstream IsaacGymEnvs simulator assets and
 # are not redistributed here either. Turn this off for offline builds; the Franka
@@ -24,7 +27,6 @@ option(DOWNLOAD_INDUSTREAL_PEG_ASSETS
 # then needs load_realsense:=false.
 option(DOWNLOAD_FRANKA_CAMERA_MOUNT_ASSET
   "Download the Franka printable D435 camera mount at configure time" ON)
-
 ###########
 # INSTALL #
 ###########
@@ -173,6 +175,112 @@ if(DOWNLOAD_UNITREE_H1_ASSETS)
           FILES_MATCHING PATTERN "*.STL")
 endif()
 
+##############################
+# UNITREE G1: GET AND PATCH  #
+##############################
+# The upstream G1 29-DOF URDF already carries the d435 (depth camera), mid360
+# (LiDAR) and IMU mount frames, so no patch is needed to add sensors. We only
+# strip its embedded <mujoco> block (this package adds its own) and rewrite the
+# relative mesh paths to resolve against this package's install space.
+if(DOWNLOAD_UNITREE_G1_ASSETS)
+  set(G1_ORIGINAL_URDF_NAME "g1_29dof_rev_1_0.urdf")
+  set(G1_PATCHED_URDF_NAME "unitree_g1.urdf")
+  set(G1_ORIGINAL_URDF_PATH "${CMAKE_CURRENT_BINARY_DIR}/${G1_ORIGINAL_URDF_NAME}")
+  set(G1_PATCHED_URDF_PATH "${CMAKE_CURRENT_BINARY_DIR}/${G1_PATCHED_URDF_NAME}")
+  set(G1_URDF_URL "https://raw.githubusercontent.com/unitreerobotics/unitree_ros/a3b70cae6fd4a82c0e1ece633d5c6f97e88c9d76/robots/g1_description/${G1_ORIGINAL_URDF_NAME}")
+
+  file(DOWNLOAD ${G1_URDF_URL} ${G1_ORIGINAL_URDF_PATH}
+       SHOW_PROGRESS
+       STATUS G1_DOWNLOAD_STATUS
+       TLS_VERIFY ON)
+
+  list(GET G1_DOWNLOAD_STATUS 0 G1_STATUS_CODE)
+  if(NOT G1_STATUS_CODE EQUAL 0)
+    message(FATAL_ERROR "Failed to download G1 URDF file")
+  endif()
+
+  file(COPY ${G1_ORIGINAL_URDF_PATH} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+  file(RENAME "${CMAKE_CURRENT_BINARY_DIR}/${G1_ORIGINAL_URDF_NAME}" "${G1_PATCHED_URDF_PATH}")
+
+  # (1) drop the embedded <mujoco>...</mujoco> block, (2) point mesh paths at
+  # this package. Done with sed (range-delete + substitution) so it is robust to
+  # upstream line-number drift, unlike a line-based patch.
+  execute_process(
+      COMMAND sed -i -e "/<mujoco>/,/<\\/mujoco>/d"
+                     -e "s#filename=\"meshes/#filename=\"file://$(find mujoco_ros2_control_examples)/meshes/unitree_g1/#g"
+                     ${G1_PATCHED_URDF_PATH}
+      RESULT_VARIABLE G1_PATCH_RESULT
+  )
+  if(NOT G1_PATCH_RESULT EQUAL 0)
+      message(FATAL_ERROR "Failed to patch G1 URDF file")
+  endif()
+
+  ##############
+  # GET MESHES #
+  ##############
+  set(G1_MESH_BASE_URL "https://raw.githubusercontent.com/unitreerobotics/unitree_ros/a3b70cae6fd4a82c0e1ece633d5c6f97e88c9d76/robots/g1_description/meshes")
+  set(G1_MESH_DEST_DIR "${CMAKE_CURRENT_BINARY_DIR}/g1_description_meshes")
+
+  file(MAKE_DIRECTORY ${G1_MESH_DEST_DIR})
+
+  set(G1_MESH_FILES
+      pelvis.STL
+      pelvis_contour_link.STL
+      logo_link.STL
+      head_link.STL
+      waist_yaw_link_rev_1_0.STL
+      waist_roll_link_rev_1_0.STL
+      torso_link_rev_1_0.STL
+      left_hip_pitch_link.STL
+      left_hip_roll_link.STL
+      left_hip_yaw_link.STL
+      left_knee_link.STL
+      left_ankle_pitch_link.STL
+      left_ankle_roll_link.STL
+      right_hip_pitch_link.STL
+      right_hip_roll_link.STL
+      right_hip_yaw_link.STL
+      right_knee_link.STL
+      right_ankle_pitch_link.STL
+      right_ankle_roll_link.STL
+      left_shoulder_pitch_link.STL
+      left_shoulder_roll_link.STL
+      left_shoulder_yaw_link.STL
+      left_elbow_link.STL
+      left_wrist_roll_link.STL
+      left_wrist_pitch_link.STL
+      left_wrist_yaw_link.STL
+      left_rubber_hand.STL
+      right_shoulder_pitch_link.STL
+      right_shoulder_roll_link.STL
+      right_shoulder_yaw_link.STL
+      right_elbow_link.STL
+      right_wrist_roll_link.STL
+      right_wrist_pitch_link.STL
+      right_wrist_yaw_link.STL
+      right_rubber_hand.STL
+  )
+
+  foreach(MESH_FILE ${G1_MESH_FILES})
+      set(REMOTE_FILE "${G1_MESH_BASE_URL}/${MESH_FILE}")
+      set(LOCAL_FILE "${G1_MESH_DEST_DIR}/${MESH_FILE}")
+      file(DOWNLOAD ${REMOTE_FILE} ${LOCAL_FILE}
+           STATUS G1_MESH_DOWNLOAD_STATUS
+           TLS_VERIFY ON)
+      list(GET G1_MESH_DOWNLOAD_STATUS 0 G1_DL_STATUS)
+      if(NOT G1_DL_STATUS EQUAL 0)
+          message(FATAL_ERROR "Failed to download ${MESH_FILE}")
+      endif()
+  endforeach()
+
+  install(FILES ${G1_PATCHED_URDF_PATH}
+          DESTINATION share/${PROJECT_NAME}/urdf/unitree_g1
+  )
+
+  install(DIRECTORY ${G1_MESH_DEST_DIR}/
+          DESTINATION share/${PROJECT_NAME}/meshes/unitree_g1
+          FILES_MATCHING PATTERN "*.STL")
+endif()
 ###############################
 # INDUSTREAL PEGS: GET MESHES #
 ###############################
@@ -318,7 +426,9 @@ if(BUILD_TESTING)
 
   add_ros_isolated_launch_test(test/test_franka_example.test.py)
   add_ros_isolated_launch_test(test/test_ur_example.test.py)
+  add_ros_isolated_launch_test(test/test_ur_multi_example.test.py)
   add_ros_isolated_launch_test(test/test_unitree_h1_example.test.py)
+  add_ros_isolated_launch_test(test/test_unitree_g1_example.test.py)
 endif()
 
 ament_package()

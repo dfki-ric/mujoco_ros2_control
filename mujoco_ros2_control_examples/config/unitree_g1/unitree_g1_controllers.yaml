@@ -1,0 +1,119 @@
+controller_manager:
+  ros__parameters:
+    use_sim_time: true
+    update_rate: 1000  # Hz  (stiff PD hold: run fast so the finite-difference damping is clean)
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+    pelvis_imu_broadcaster:
+      type: imu_sensor_broadcaster/IMUSensorBroadcaster
+
+    pelvis_pose_broadcaster:
+      type: pose_broadcaster/PoseBroadcaster
+
+    left_leg_position_controller:
+      type: position_controllers/JointGroupPositionController
+    right_leg_position_controller:
+      type: position_controllers/JointGroupPositionController
+    waist_position_controller:
+      type: position_controllers/JointGroupPositionController
+    left_arm_position_controller:
+      type: position_controllers/JointGroupPositionController
+    right_arm_position_controller:
+      type: position_controllers/JointGroupPositionController
+
+left_leg_position_controller:
+  ros__parameters:
+    use_sim_time: true
+    joints:
+      - left_hip_pitch_joint
+      - left_hip_roll_joint
+      - left_hip_yaw_joint
+      - left_knee_joint
+      - left_ankle_pitch_joint
+      - left_ankle_roll_joint
+
+right_leg_position_controller:
+  ros__parameters:
+    use_sim_time: true
+    joints:
+      - right_hip_pitch_joint
+      - right_hip_roll_joint
+      - right_hip_yaw_joint
+      - right_knee_joint
+      - right_ankle_pitch_joint
+      - right_ankle_roll_joint
+
+waist_position_controller:
+  ros__parameters:
+    use_sim_time: true
+    joints:
+      - waist_yaw_joint
+      - waist_roll_joint
+      - waist_pitch_joint
+
+left_arm_position_controller:
+  ros__parameters:
+    use_sim_time: true
+    joints:
+      - left_shoulder_pitch_joint
+      - left_shoulder_roll_joint
+      - left_shoulder_yaw_joint
+      - left_elbow_joint
+      - left_wrist_roll_joint
+      - left_wrist_pitch_joint
+      - left_wrist_yaw_joint
+
+right_arm_position_controller:
+  ros__parameters:
+    use_sim_time: true
+    joints:
+      - right_shoulder_pitch_joint
+      - right_shoulder_roll_joint
+      - right_shoulder_yaw_joint
+      - right_elbow_joint
+      - right_wrist_roll_joint
+      - right_wrist_pitch_joint
+      - right_wrist_yaw_joint
+
+pelvis_imu_broadcaster:
+  ros__parameters:
+    use_sim_time: true
+    sensor_name: "imu_in_pelvis"
+    frame_id: "imu_in_pelvis"
+
+pelvis_pose_broadcaster:
+  ros__parameters:
+    use_sim_time: true
+    pose_name: "pelvis_pose"
+    frame_id: "world"
+    tf:
+      enable: true
+      child_frame_id: "pelvis"
+
+d435:
+  ros__parameters:
+    enabled: true
+    frequency: 90.0
+    width: 848
+    height: 480
+    fovx: 89.9
+    fovy: 58.9
+
+lidar_head:
+  ros__parameters:
+    enabled: true
+    output: cloud
+    frequency: 10.0
+    range_min: 0.1
+    range_max: 40.0
+    horizontal_min_angle: -3.14159
+    horizontal_max_angle:  3.14159
+    horizontal_samples: 720
+    vertical_samples: 64
+    vertical_min_angle: -0.907571
+    vertical_max_angle:  0.122173
+    noise_stddev: 0.0
+    exclude_parent_body: true
+    depth_threshold: 0.02

@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://wiki.ros.org/xacro">
+
+  <!-- The model-wide MuJoCo compiler and solver settings. These must appear
+       exactly once per model, so they live here rather than in ur_arm.urdf.xacro
+       - a description holding several arms includes this once and the arm macro
+       once per arm. -->
+  <xacro:macro name="ur_mujoco_options"
+               params="mujoco_model_path:=/tmp/mujoco
+                       autolimits:=true
+                       balanceinertia:=true
+                       integrator:=implicitfast
+                       gravity:='0 0 -9.81'
+                       impratio:=1
+                       cone:=elliptic
+                       solver:=Newton
+                       noslip_iterations:=3
+                       multiccd:=disable">
+    <!-- str(...).lower() on the boolean flags: xacro turns a true/false macro
+         argument into a Python bool, and stringifying that yields "True", which
+         MuJoCo rejects ("XML Error: invalid keyword: 'True'"). This keeps the
+         lowercase spelling for both a bool and an already-lowercase string. -->
+    <mujoco>
+      <compiler meshdir="${mujoco_model_path}/meshes"
+                discardvisual="false"
+                autolimits="${str(autolimits).lower()}"
+                balanceinertia="${str(balanceinertia).lower()}"/>
+      <option integrator="${integrator}"
+              gravity="${gravity}"
+              impratio="${impratio}"
+              cone="${cone}"
+              solver="${solver}"
+              noslip_iterations="${noslip_iterations}">
+        <flag multiccd="${multiccd}"/>
+      </option>
+    </mujoco>
+  </xacro:macro>
+</robot>

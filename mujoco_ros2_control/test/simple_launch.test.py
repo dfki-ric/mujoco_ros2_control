@@ -35,7 +35,7 @@ import xacro
 
 
 def opengl_enabled():
-    """Headless toggle. Set DISABLE_OPENGL=1 in the env to skip GL sensors."""
+    """GL toggle. Set DISABLE_OPENGL=1 to skip the GL sensors; CI runs with GL on."""
     return os.environ.get("DISABLE_OPENGL", "0") != "1"
 
 def create_nodes(context: LaunchContext):

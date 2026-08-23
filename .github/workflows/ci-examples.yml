@@ -52,8 +52,13 @@ jobs:
             libopengl0 \
             libgl1-mesa-dri \
             libglx-mesa0 \
-            mesa-utils
+            mesa-utils \
+            mesa-utils-extra
 
+      # Diagnostic only, never a gate. eglinfo ships in mesa-utils-extra and can
+      # still be missing or unhappy inside a container, so a non-zero exit here
+      # says nothing reliable about whether MuJoCo can get a context. What
+      # actually proves the job ran with GL is the skipped-test guard below.
       - name: Verify EGL software context
         run: |
           eglinfo -B || eglinfo || true
@@ -87,3 +92,26 @@ jobs:
           source install/setup.bash
           colcon test --packages-select mujoco_ros2_control_examples --event-handlers console_direct+
           colcon test-result --test-result-base build/mujoco_ros2_control_examples/test_results --verbose
+
+      # These jobs deliberately run with OpenGL on (DISABLE_OPENGL=0), so a GL
+      # test that reports "skipped" means the environment quietly lost EGL and
+      # the run proved less than it claims. Treat that as a failure.
+      #
+      # `if: always()` means this also runs when an earlier step failed, so it
+      # must cope with a workspace that was never created. No `working-directory`
+      # for the same reason: pointing one at a missing /ros2_ws makes the runner
+      # fail the step with a chdir error that buries the real failure.
+      - name: Fail if any test was skipped for lack of OpenGL
+        if: always()
+        run: |
+          results=/ros2_ws/build/*/test_results
+          if ! ls -d $results >/dev/null 2>&1; then
+            echo "No test results to check - the run did not get that far."
+            exit 0
+          fi
+          if grep -rl "OpenGL disabled" $results 2>/dev/null | grep -q .; then
+            echo "::error::GL tests were skipped, but this job runs with OpenGL enabled"
+            grep -rn "OpenGL disabled" $results || true
+            exit 1
+          fi
+          echo "No GL test was skipped."

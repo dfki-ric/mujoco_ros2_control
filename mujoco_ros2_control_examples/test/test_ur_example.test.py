@@ -1,5 +1,5 @@
 #!/bin/env python3
-"""Launch smoke test for the ur example (headless when DISABLE_OPENGL=1).
+"""Launch smoke test for the ur example (no viewer; GL sensors off with DISABLE_OPENGL=1).
 
 See example_smoke.py for what is exercised and when the test self-skips.
 """
@@ -9,8 +9,6 @@ import sys
 import time
 import unittest
 
-import launch
-import launch_testing.actions
 import pytest
 import rclpy
 import rclpy.node
@@ -18,7 +16,11 @@ import rclpy.node
 # example_smoke.py lives next to this test; make sure it is importable regardless
 # of how the launch_test runner sets up sys.path.
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from example_smoke import availability, make_test_description  # noqa: E402
+from example_smoke import (  # noqa: E402
+    availability,
+    make_skipped_description,
+    make_test_description,
+)
 
 ROBOT = "ur"
 _AVAILABLE, _SKIP_REASON = availability(ROBOT)
@@ -27,8 +29,7 @@ _AVAILABLE, _SKIP_REASON = availability(ROBOT)
 @pytest.mark.launch_test
 def generate_test_description():
     if not _AVAILABLE:
-        # Nothing to launch; the single test below is skipped.
-        return launch.LaunchDescription([launch_testing.actions.ReadyToTest()])
+        return make_skipped_description()
     return make_test_description(ROBOT)
 
 

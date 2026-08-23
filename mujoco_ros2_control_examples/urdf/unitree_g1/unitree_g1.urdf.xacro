@@ -1,0 +1,121 @@
+<?xml version="1.0"?>
+<!--
+  Unitree G1 (29-DOF) MuJoCo example.
+
+  The base URDF (links, joints, meshes and the d435 / mid360 / imu mount frames) is
+  downloaded from unitreerobotics/unitree_ros at configure time and patched so the
+  mesh paths resolve against this package (see CMakeLists.txt,
+  DOWNLOAD_UNITREE_G1_ASSETS). This wrapper adds:
+    * the ros2_control block with the PD "hold start pose" gains (ros2_control.urdf.xacro),
+    * the depth camera (d435) and LiDAR (mid360) sites + IMU / pose sensors,
+    * the MuJoCo compiler / solver options.
+-->
+<robot xmlns:xacro="http://wiki.ros.org/xacro" name="$(arg name)">
+
+  <xacro:arg name="name" default="unitree_g1"/>
+  <xacro:arg name="mujoco_model_path" default="/tmp/mujoco"/>
+  <xacro:arg name="mujoco" default="true"/>
+
+  <!-- Base robot (downloaded + patched) -->
+  <xacro:include filename="$(find mujoco_ros2_control_examples)/urdf/unitree_g1/unitree_g1.urdf"/>
+
+  <!-- ros2_control: PD hold of the default pose -->
+  <xacro:include filename="$(find mujoco_ros2_control_examples)/urdf/unitree_g1/ros2_control.urdf.xacro"/>
+  <xacro:unitree_g1_ros2_control mujoco="$(arg mujoco)"/>
+
+  <!-- ROS optical frame for the d435 depth camera (REP-103: x-right, y-down, z-forward) -->
+  <link name="d435_depth_optical_frame"/>
+  <joint name="d435_depth_optical_joint" type="fixed">
+    <origin xyz="0 -0.01796 0" rpy="-1.5707963267948966 0 -1.5707963267948966"/>
+    <parent link="d435_link"/>
+    <child link="d435_depth_optical_frame"/>
+  </joint>
+
+  <!-- ======================== MuJoCo config ======================== -->
+  <xacro:if value="$(arg mujoco)">
+    <mujoco>
+      <compiler meshdir="$(arg mujoco_model_path)/meshes"
+                discardvisual="false"
+                autolimits="true"
+                balanceinertia="true"/>
+
+      <option integrator="implicitfast"
+              gravity="0 0 -9.81"
+              impratio="1"
+              cone="elliptic"
+              solver="Newton"
+              noslip_iterations="3">
+        <flag multiccd="disable"/>
+      </option>
+      <!-- Per-joint dynamics: armature (reflected rotor inertia), joint damping and frictionloss. -->
+      <reference name="left_hip_pitch_link"><joint name="left_hip_pitch_joint" armature="0.0398" damping="0.05" frictionloss="1.0"/></reference>
+      <reference name="left_hip_roll_link"><joint name="left_hip_roll_joint" armature="0.0994" damping="0.05" frictionloss="1.0"/></reference>
+      <reference name="left_hip_yaw_link"><joint name="left_hip_yaw_joint" armature="0.2408" damping="0.05" frictionloss="1.0"/></reference>
+      <reference name="left_knee_link"><joint name="left_knee_joint" armature="0.3681" damping="0.05" frictionloss="1.0"/></reference>
+      <reference name="left_ankle_pitch_link"><joint name="left_ankle_pitch_joint" armature="0.1039" damping="0.05" frictionloss="0.5"/></reference>
+      <reference name="left_ankle_roll_link"><joint name="left_ankle_roll_joint" armature="0.0037" damping="0.05" frictionloss="0.5"/></reference>
+      <reference name="right_hip_pitch_link"><joint name="right_hip_pitch_joint" armature="0.0398" damping="0.05" frictionloss="1.0"/></reference>
+      <reference name="right_hip_roll_link"><joint name="right_hip_roll_joint" armature="0.0994" damping="0.05" frictionloss="1.0"/></reference>
+      <reference name="right_hip_yaw_link"><joint name="right_hip_yaw_joint" armature="0.2408" damping="0.05" frictionloss="1.0"/></reference>
+      <reference name="right_knee_link"><joint name="right_knee_joint" armature="0.3681" damping="0.05" frictionloss="1.0"/></reference>
+      <reference name="right_ankle_pitch_link"><joint name="right_ankle_pitch_joint" armature="0.1039" damping="0.05" frictionloss="0.5"/></reference>
+      <reference name="right_ankle_roll_link"><joint name="right_ankle_roll_joint" armature="0.0037" damping="0.05" frictionloss="0.5"/></reference>
+      <reference name="waist_yaw_link"><joint name="waist_yaw_joint" armature="0.0443" damping="0.05" frictionloss="1.0"/></reference>
+      <reference name="waist_roll_link"><joint name="waist_roll_joint" armature="0.0863" damping="0.05" frictionloss="0.5"/></reference>
+      <reference name="torso_link"><joint name="waist_pitch_joint" armature="0.0844" damping="0.05" frictionloss="0.5"/></reference>
+      <reference name="left_shoulder_pitch_link"><joint name="left_shoulder_pitch_joint" armature="0.2103" damping="0.05" frictionloss="0.5"/></reference>
+      <reference name="left_shoulder_roll_link"><joint name="left_shoulder_roll_joint" armature="0.1607" damping="0.05" frictionloss="0.5"/></reference>
+      <reference name="left_shoulder_yaw_link"><joint name="left_shoulder_yaw_joint" armature="0.1463" damping="0.05" frictionloss="0.5"/></reference>
+      <reference name="left_elbow_link"><joint name="left_elbow_joint" armature="0.0702" damping="0.05" frictionloss="0.5"/></reference>
+      <reference name="left_wrist_roll_link"><joint name="left_wrist_roll_joint" armature="0.0436" damping="0.05" frictionloss="0.5"/></reference>
+      <reference name="left_wrist_pitch_link"><joint name="left_wrist_pitch_joint" armature="0.0126" damping="0.05" frictionloss="0.2"/></reference>
+      <reference name="left_wrist_yaw_link"><joint name="left_wrist_yaw_joint" armature="0.0058" damping="0.05" frictionloss="0.2"/></reference>
+      <reference name="right_shoulder_pitch_link"><joint name="right_shoulder_pitch_joint" armature="0.2103" damping="0.05" frictionloss="0.5"/></reference>
+      <reference name="right_shoulder_roll_link"><joint name="right_shoulder_roll_joint" armature="0.1607" damping="0.05" frictionloss="0.5"/></reference>
+      <reference name="right_shoulder_yaw_link"><joint name="right_shoulder_yaw_joint" armature="0.1463" damping="0.05" frictionloss="0.5"/></reference>
+      <reference name="right_elbow_link"><joint name="right_elbow_joint" armature="0.0702" damping="0.05" frictionloss="0.5"/></reference>
+      <reference name="right_wrist_roll_link"><joint name="right_wrist_roll_joint" armature="0.0436" damping="0.05" frictionloss="0.5"/></reference>
+      <reference name="right_wrist_pitch_link"><joint name="right_wrist_pitch_joint" armature="0.0126" damping="0.05" frictionloss="0.2"/></reference>
+      <reference name="right_wrist_yaw_link"><joint name="right_wrist_yaw_joint" armature="0.0058" damping="0.05" frictionloss="0.2"/></reference>
+
+      <!-- Knee/ankle self-collision excludes -->
+      <contact>
+        <exclude body1="left_knee_link" body2="left_ankle_roll_link"/>
+        <exclude body1="right_knee_link" body2="right_ankle_roll_link"/>
+      </contact>
+
+      <!-- Pelvis pose site + sensor (floating-base odometry) -->
+      <reference name="pelvis">
+        <site name="pelvis" size="0.01" pos="0 0 0"/>
+      </reference>
+      <sensor>
+        <framepos name="pelvis_pose" objtype="site" objname="pelvis" reftype="body" refname="world"/>
+        <framequat name="pelvis_orientation" objtype="site" objname="pelvis" reftype="body" refname="world"/>
+      </sensor>
+
+      <!-- Pelvis IMU site + sensor -->
+      <reference name="pelvis">
+        <site name="imu_in_pelvis" size="0.01" pos="0 0 0"/>
+      </reference>
+      <sensor>
+        <gyro name="imu_in_pelvis-angular-velocity" site="imu_in_pelvis"/>
+        <accelerometer name="imu_in_pelvis-linear-acceleration" site="imu_in_pelvis"/>
+        <framequat name="imu_in_pelvis-orientation" objtype="site" objname="imu_in_pelvis"/>
+      </sensor>
+
+      <!-- Depth camera on a site in the d435 optical frame. The mujoco_ros2_control
+           plugin spawns a depth camera for any site named "mjCam_<name>" whose
+           per-site config sets enabled=true (see unitree_g1_controllers.yaml, key
+           "d435"). The optical->GL convention conversion is handled by the plugin. -->
+      <reference name="d435_depth_optical_frame">
+        <site name="mjCam_d435" pos="0 0 0" euler="0 0 0"/>
+      </reference>
+
+      <!-- LiDAR on a site at the mid360 mount. Plugin spawns a LiDAR for any site
+           named "mjLidar_<name>" (config key "lidar_head"). -->
+      <reference name="mid360_link">
+        <site name="mjLidar_lidar_head" pos="0 0 0" euler="0 0 0"/>
+      </reference>
+    </mujoco>
+  </xacro:if>
+</robot>
