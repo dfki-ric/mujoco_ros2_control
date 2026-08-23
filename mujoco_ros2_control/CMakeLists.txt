@@ -232,6 +232,7 @@ install(PROGRAMS
     scripts/xacro2mjcf.py
     scripts/urdf2mjcf.py
     scripts/dae2stl.py
+    scripts/prepare_terrain.py
     DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -273,6 +274,11 @@ if(BUILD_TESTING)
     ament_add_pytest_test(test_sensors_unit
         test/test_sensors_unit.py
         TIMEOUT 60
+    )
+
+    ament_add_pytest_test(test_prepare_terrain
+        test/test_prepare_terrain.py
+        TIMEOUT 120
     )
 endif()
 

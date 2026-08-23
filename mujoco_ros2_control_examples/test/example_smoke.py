@@ -12,18 +12,25 @@ OpenGL is optional: with ``DISABLE_OPENGL=1`` the simulation runs fully headless
 (``show_gui=False``); otherwise the GUI is shown, matching the other launch tests in
 this repository. CI is expected to export ``DISABLE_OPENGL=1``.
 
+An example whose spec carries a ``terrain`` entry is brought up on a generated
+stepping-stones scene instead of the flat ``mjcf/scene.xml``, matching what its
+launch file does by default - so the shipped default is the configuration under
+test.
+
 An example is skipped (not failed) when its robot description package is not
-installed, or - for Unitree H1 - when the upstream assets were not downloaded
-(``-DDOWNLOAD_UNITREE_H1_ASSETS=OFF``).
+installed, or - for the Unitree robots - when the upstream assets were not
+downloaded (``-DDOWNLOAD_UNITREE_H1_ASSETS=OFF``).
 """
 
 import os
+import subprocess
 
 import launch
 import launch_testing.actions
 import xacro
 from ament_index_python.packages import (
     PackageNotFoundError,
+    get_package_prefix,
     get_package_share_directory,
 )
 from launch.actions import RegisterEventHandler, TimerAction
@@ -92,7 +99,47 @@ ROBOTS = {
             "initial_orientation": "0 0 0",
         },
     },
+    "unitree_g1": {
+        "requires": [],
+        # The upstream URDF is downloaded and patched at build time.
+        "requires_files": ("urdf", "unitree_g1", "unitree_g1.urdf"),
+        "xacro": ("urdf", "unitree_g1", "unitree_g1.urdf.xacro"),
+        "controllers": ("config", "unitree_g1", "unitree_g1_controllers.yaml"),
+        "mappings": {
+            "name": "unitree_g1",
+            "mujoco": "true",
+        },
+        "xacro2mjcf": {
+            "base_link": "pelvis",
+            "floating": True,
+            "initial_position": "0 0 0.78",
+            "initial_orientation": "0 0 0",
+        },
+        # unitree_g1.launch.py spawns on stepping stones by default; keep the
+        # arguments here in step with the launch file's defaults.
+        "terrain": ["--difficulty", "0.5", "--seed", "42", "--collider", "mesh",
+                    "--field-half", "15.0", "--max-height-var", "0.10",
+                    "--max-tilt-deg", "8.0", "--max-drop-frac", "0.15"],
+    },
 }
+
+
+def _generate_terrain(robot, args):
+    """Write a stepping-stones scene and return its path.
+
+    Run synchronously while the launch description is being built, so the scene
+    exists before xacro2mjcf starts and a generator failure surfaces here rather
+    than as a MuJoCo load error. The output goes beside the model directory, not
+    inside it - xacro2mjcf wipes its own working directory on startup.
+    """
+    out_dir = f"/tmp/mujoco_example_{robot}_terrain"
+    subprocess.run(
+        [os.path.join(get_package_prefix("mujoco_ros2_control"),
+                      "lib", "mujoco_ros2_control", "prepare_terrain.py"),
+         "--out-dir", out_dir, *args],
+        check=True,
+    )
+    return os.path.join(out_dir, "terrain_scene.xml")
 
 
 def availability(robot):
@@ -136,9 +183,12 @@ def make_test_description(robot):
     config_files = [os.path.join(share, *spec["controllers"])]
     for extra in spec.get("extra_configs", ()):
         config_files.append(os.path.join(share, *extra))
-    scene_file = os.path.join(
-        get_package_share_directory("mujoco_ros2_control"), "mjcf", "scene.xml"
-    )
+    if spec.get("terrain"):
+        scene_file = _generate_terrain(robot, spec["terrain"])
+    else:
+        scene_file = os.path.join(
+            get_package_share_directory("mujoco_ros2_control"), "mjcf", "scene.xml"
+        )
 
     xacro2mjcf_params = [
         {"robot_descriptions": [robot_description["robot_description"]]},
