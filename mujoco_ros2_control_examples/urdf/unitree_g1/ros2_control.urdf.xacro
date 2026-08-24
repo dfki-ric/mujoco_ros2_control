@@ -64,6 +64,7 @@
 
       <!-- IMU on the pelvis (matches the mujoco <sensor> block in the main xacro) -->
       <sensor name="imu_in_pelvis">
+        <param name="plugin">mujoco_ros2_control/ImuSensor</param>
         <param name="site">imu_in_pelvis</param>
         <state_interface name="orientation.x"/>
         <state_interface name="orientation.y"/>
@@ -79,6 +80,7 @@
 
       <!-- Floating-base pose of the pelvis (for odom / tf) -->
       <sensor name="pelvis_pose">
+        <param name="plugin">mujoco_ros2_control/PoseSensor</param>
         <param name="site">pelvis</param>
         <state_interface name="position.x"/>
         <state_interface name="position.y"/>

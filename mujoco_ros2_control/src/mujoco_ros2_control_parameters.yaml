@@ -65,3 +65,17 @@ mujoco_ros2_control:
       gt: [0]
     }
   }
+
+  mujoco_plugin_directories: {
+    type: string_array,
+    default_value: [],
+    read_only: true,
+    description: "Directories scanned for MuJoCo engine plugin libraries before the model is compiled. Every shared library in each directory is loaded. When left empty the package's own lib/mujoco_plugin directory is scanned, which provides the plugins shipped with MuJoCo (mujoco.sensor.touch_grid, mujoco.elasticity.cable, mujoco.pid and the mujoco.sdf.* set)."
+  }
+
+  mujoco_plugin_libraries: {
+    type: string_array,
+    default_value: [],
+    read_only: true,
+    description: "Explicit paths to MuJoCo engine plugin libraries, loaded after the directory scan. Startup fails if one of these paths does not exist."
+  }

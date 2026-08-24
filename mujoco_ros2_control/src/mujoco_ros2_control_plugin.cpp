@@ -48,6 +48,12 @@
 
 #include "mujoco_ros2_control/mujoco_ros2_control_plugin.hpp"
 
+#include <sys/stat.h>
+
+#include <optional>
+
+#include "ament_index_cpp/get_package_prefix.hpp"
+
 // Reference: https://man7.org/linux/man-pages/man2/sched_setparam.2.html
 // This value is used when configuring the main loop to use SCHED_FIFO scheduling
 // We use a midpoint RT priority to allow maximum flexibility to users
@@ -332,8 +338,113 @@ void MujocoRos2Control::publish_sim_time(bool force) {
   }
 }
 
+namespace {
+
+// mj_loadAllPluginLibraries() takes a plain C callback with no user-data
+// argument, so the logger it reports through has to live at file scope. The scan
+// runs once, from the constructor, before any other thread exists.
+std::optional<rclcpp::Logger> plugin_scan_logger;
+
+// Reports what a single library contributed to MuJoCo's global plugin table.
+// `first` is the slot of its first plugin, or -1 when it registered none.
+void on_plugin_library_loaded(const char *filename, int first, int count) {
+  if (!plugin_scan_logger) return;
+
+  if (count <= 0) {
+    // Every shared library in the directory is dlopen'ed, so hitting one that
+    // registers nothing is expected rather than an error.
+    RCLCPP_DEBUG(*plugin_scan_logger, "  %s: registered no plugins", filename);
+    return;
+  }
+
+  for (int slot = first; slot < first + count; slot++) {
+    const mjpPlugin *plugin = mjp_getPluginAtSlot(slot);
+    RCLCPP_INFO(*plugin_scan_logger, "  %s: registered '%s'", filename,
+                (plugin && plugin->name) ? plugin->name : "<unnamed>");
+  }
+}
+
+bool is_regular_file(const std::string &path) {
+  struct stat info{};
+  return stat(path.c_str(), &info) == 0 && S_ISREG(info.st_mode);
+}
+
+bool is_directory(const std::string &path) {
+  struct stat info{};
+  return stat(path.c_str(), &info) == 0 && S_ISDIR(info.st_mode);
+}
+
+}  // namespace
+
+bool MujocoRos2Control::load_mujoco_plugins() {
+  // Unlike simulate's main(), libmujoco never scans for plugin libraries itself,
+  // so anything referenced from an <extension> block has to be dlopen'ed before
+  // the model is compiled.
+  std::vector<std::string> directories = params_.mujoco_plugin_directories;
+  const bool using_default_directory = directories.empty();
+
+  if (using_default_directory) {
+    try {
+      directories.push_back(
+        ament_index_cpp::get_package_prefix("mujoco_ros2_control") + "/lib/mujoco_plugin");
+    } catch (const ament_index_cpp::PackageNotFoundError &e) {
+      RCLCPP_WARN(nh_->get_logger(),
+        "Could not resolve the mujoco_ros2_control prefix, skipping the default plugin "
+        "directory: %s", e.what());
+    }
+  }
+
+  const int plugins_before = mjp_pluginCount();
+  plugin_scan_logger = nh_->get_logger();
+
+  for (const auto &directory : directories) {
+    if (!is_directory(directory)) {
+      // A missing default directory just means no plugins were installed, while
+      // a configured one that is missing is almost certainly a typo.
+      if (using_default_directory) {
+        RCLCPP_DEBUG(nh_->get_logger(),
+          "No MuJoCo plugin directory at '%s'.", directory.c_str());
+      } else {
+        RCLCPP_WARN(nh_->get_logger(),
+          "MuJoCo plugin directory '%s' does not exist, skipping it.", directory.c_str());
+      }
+      continue;
+    }
+    RCLCPP_INFO(nh_->get_logger(), "Scanning '%s' for MuJoCo plugins", directory.c_str());
+    mj_loadAllPluginLibraries(directory.c_str(), &on_plugin_library_loaded);
+  }
+
+  for (const auto &library : params_.mujoco_plugin_libraries) {
+    if (!is_regular_file(library)) {
+      // mj_loadPluginLibrary() reports a failed dlopen through mju_error, which
+      // terminates the process, so bad paths are caught here instead.
+      RCLCPP_FATAL(nh_->get_logger(),
+        "MuJoCo plugin library '%s' does not exist.", library.c_str());
+      plugin_scan_logger.reset();
+      return false;
+    }
+    const int before_library = mjp_pluginCount();
+    mj_loadPluginLibrary(library.c_str());
+    on_plugin_library_loaded(
+      library.c_str(), before_library, mjp_pluginCount() - before_library);
+  }
+
+  plugin_scan_logger.reset();
+
+  const int registered = mjp_pluginCount() - plugins_before;
+  if (registered > 0) {
+    RCLCPP_INFO(nh_->get_logger(), "Registered %d MuJoCo plugin(s)", registered);
+  }
+  return true;
+}
+
 bool MujocoRos2Control::init_mujoco() {
   char error[1000];
+
+  // Plugins have to be registered before the compiler resolves <extension>.
+  if (!load_mujoco_plugins()) {
+    return false;
+  }
 
   // create mjModel
   mujoco_model_ = mj_loadXML(params_.robot_model_path.c_str(), NULL, error, 1000);

@@ -1,0 +1,94 @@
+<?xml version="1.0"?>
+<!--
+  Tactile example: a pad resting on the ground plane with a MuJoCo touch_grid
+  sensor, read out by the TouchGridSensor plugin this package ships.
+
+  The point of the example is the plugin, not the robot. A touch_grid emits
+  nchannel * width * height values per step, which does not fit ros2_control's
+  scalar state interfaces, so the plugin exports none and publishes a
+  std_msgs/Float64MultiArray instead.
+
+  Two things are easy to get wrong when copying this:
+
+  * The touch_grid site must sit ABOVE the contact face, looking down through the
+    body. The sensor images along the site's NEGATIVE z, so a site placed flush
+    with the contact face - or flipped with zaxis="0 0 -1" - sees nothing and
+    publishes a correctly shaped block of zeros.
+  * The pad has to be free to move. A body welded to the world joins the world's
+    weld group, and MuJoCo generates no contacts within a weld group, so a welded
+    pad reports no touch at all.
+
+  Running the touch_grid also needs MuJoCo's sensor engine plugin to be loaded,
+  which mujoco_ros2_control does by default from its lib/mujoco_plugin directory.
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="tactile_pad">
+
+  <link name="world"/>
+
+  <link name="pad">
+    <inertial>
+      <mass value="0.1"/>
+      <origin xyz="0 0 0"/>
+      <inertia ixx="1e-4" ixy="0" ixz="0" iyy="1e-4" iyz="0" izz="1e-4"/>
+    </inertial>
+    <collision>
+      <origin xyz="0 0 0"/>
+      <geometry><box size="0.06 0.06 0.04"/></geometry>
+    </collision>
+    <visual>
+      <origin xyz="0 0 0"/>
+      <geometry><box size="0.06 0.06 0.04"/></geometry>
+      <material name="pad_grey"><color rgba="0.6 0.6 0.65 1"/></material>
+    </visual>
+  </link>
+
+  <joint name="slide" type="prismatic">
+    <parent link="world"/>
+    <child link="pad"/>
+    <origin xyz="0 0 0.05"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="100" velocity="10" lower="-0.5" upper="0.5"/>
+  </joint>
+
+  <mujoco>
+    <extension>
+      <plugin plugin="mujoco.sensor.touch_grid"/>
+    </extension>
+
+    <reference name="pad">
+      <!-- top of the pad, imaging downwards (-z) at the contact face -->
+      <site name="pad_touch_site" size="0.005" pos="0 0 0.02"/>
+    </reference>
+
+    <sensor>
+      <plugin name="pad_touch_grid" plugin="mujoco.sensor.touch_grid"
+              objtype="site" objname="pad_touch_site">
+        <!-- normal + two tangential force channels -->
+        <config key="nchannel" value="3"/>
+        <config key="size"     value="7 7"/>
+        <config key="fov"      value="45 45"/>
+        <config key="gamma"    value="0"/>
+      </plugin>
+    </sensor>
+  </mujoco>
+
+  <ros2_control name="TactilePadHW" type="system">
+    <hardware>
+      <plugin>mujoco_ros2_control/MujocoSystem</plugin>
+    </hardware>
+
+    <joint name="slide">
+      <command_interface name="effort"/>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+      <state_interface name="effort"/>
+    </joint>
+
+    <!-- No state interfaces: the grid is published on /pad_touch/touch_grid. -->
+    <sensor name="pad_touch">
+      <param name="plugin">mujoco_ros2_control_examples/TouchGridSensor</param>
+      <param name="site">pad_touch_site</param>
+    </sensor>
+  </ros2_control>
+
+</robot>

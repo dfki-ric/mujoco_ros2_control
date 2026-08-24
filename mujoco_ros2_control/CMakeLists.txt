@@ -32,6 +32,7 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
     hardware_interface
     urdf
     ament_lint_auto
+    ament_index_cpp
     realtime_tools
     OpenCV
     PCL
@@ -140,9 +141,14 @@ rosidl_get_typesupport_target(cpp_typesupport_target
 )
 
 # Add system plugin
-add_library(mujoco_system_plugins SHARED src/mujoco_system.cpp src/mujoco_sensors.cpp)
+add_library(mujoco_system_plugins SHARED
+    src/mujoco_system.cpp
+    src/mujoco_sensors.cpp
+    src/mujoco_sensor_plugins.cpp
+)
 ament_target_dependencies(mujoco_system_plugins
     hardware_interface
+    pluginlib
     rclcpp
     urdf
 )
@@ -151,6 +157,27 @@ ament_target_dependencies(mujoco_system_plugins
 # mj_forward(), so this plugin library has to carry libmujoco itself rather
 # than relying on whichever process happens to dlopen it.
 target_link_libraries(mujoco_system_plugins
+    mujoco::mujoco
+)
+
+# The MujocoSensorInterface implementations shipped with this package, one file
+# per plugin under include/ and src/mujoco_ros2_control_plugins.
+# Nothing may link this library: pluginlib has to be the one that dlopens it, or
+# class_loader registers its factories outside its own bookkeeping and then
+# reports "no factory exists for it" when the class is requested.
+add_library(mujoco_ros2_control_plugins SHARED
+    src/mujoco_ros2_control_plugins/imu_sensor.cpp
+    src/mujoco_ros2_control_plugins/force_torque_sensor.cpp
+    src/mujoco_ros2_control_plugins/pose_sensor.cpp
+)
+ament_target_dependencies(mujoco_ros2_control_plugins
+    hardware_interface
+    pluginlib
+    rclcpp
+    realtime_tools
+    std_msgs
+)
+target_link_libraries(mujoco_ros2_control_plugins
     mujoco::mujoco
 )
 
@@ -174,6 +201,7 @@ ament_target_dependencies(${MUJOCO_ROS2_CONTROL_NODE_TARGET}
     hardware_interface
     rclcpp
     urdf
+    ament_index_cpp
     realtime_tools
     cv_bridge
     PCL
@@ -222,10 +250,30 @@ install(TARGETS
 
 install(TARGETS
     mujoco_system_plugins
+    mujoco_ros2_control_plugins
     ARCHIVE DESTINATION lib
     LIBRARY DESTINATION lib
     RUNTIME DESTINATION bin
 )
+
+# MuJoCo builds its engine plugins but has no install rules for them, so they
+# never leave the build tree on their own. Install them into a directory of
+# their own: the node dlopen's every shared library it finds there, so it must
+# hold nothing else. $ORIGIN/.. lets them resolve libmujoco.so in lib/.
+set(MUJOCO_ENGINE_PLUGIN_TARGETS sensor elasticity actuator sdf_plugin)
+foreach(_plugin IN LISTS MUJOCO_ENGINE_PLUGIN_TARGETS)
+    if(TARGET ${_plugin})
+        set_target_properties(${_plugin} PROPERTIES INSTALL_RPATH "$ORIGIN/..")
+        install(TARGETS ${_plugin} LIBRARY DESTINATION lib/mujoco_plugin)
+    else()
+        message(WARNING "MuJoCo engine plugin target '${_plugin}' not found; it will be unavailable at runtime.")
+    endif()
+endforeach()
+
+# Install the public headers. Needed by out-of-tree packages implementing
+# MujocoSensorInterface; without this only the rosidl-generated srv headers
+# land in the include prefix that ament_export_include_directories advertises.
+install(DIRECTORY include/ DESTINATION include)
 
 # Install MJCF models
 install(DIRECTORY mjcf DESTINATION share/${PROJECT_NAME}/)
@@ -245,11 +293,19 @@ ament_export_include_directories(include)
 ament_export_dependencies(ament_cmake)
 ament_export_dependencies(rclcpp)
 ament_export_dependencies(rosidl_default_runtime)
+# MuJoCo installs its own package config into this prefix (lib/cmake/mujoco), so
+# re-exporting it lets downstream packages -- engine plugins in particular -- get
+# mujoco::mujoco for exactly the version fetched here, instead of fetching a
+# second copy that would not share libmujoco.so at runtime.
+ament_export_dependencies(mujoco)
+ament_export_dependencies(hardware_interface)
+ament_export_dependencies(pluginlib)
 ament_export_libraries(
     mujoco_system_plugins
 )
 
 pluginlib_export_plugin_description_file(mujoco_ros2_control mujoco_system_plugins.xml)
+pluginlib_export_plugin_description_file(mujoco_ros2_control mujoco_sensor_plugins.xml)
 
 # Finalize package
 ament_package()
@@ -274,6 +330,7 @@ if(BUILD_TESTING)
     add_ros_isolated_launch_test(test/test_pose_rigid.test.py)
     add_ros_isolated_launch_test(test/test_multi_urdf.test.py)
     add_ros_isolated_launch_test(test/test_synchronous_rl.test.py TIMEOUT 90)
+    add_ros_isolated_launch_test(test/test_sensor_plugins.test.py TIMEOUT 120)
 
     ament_add_pytest_test(test_sensors_unit
         test/test_sensors_unit.py

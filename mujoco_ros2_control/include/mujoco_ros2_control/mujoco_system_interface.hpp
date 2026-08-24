@@ -97,6 +97,25 @@ namespace mujoco_ros2_control
                 mjModel* mujoco_model, mjData *mujoco_data,
                 const hardware_interface::HardwareInfo & hardware_info,
                 const urdf::Model *urdf_model_ptr) = 0;
+
+        /**
+         * @brief Provides the simulation node, for components that need to publish.
+         *
+         * Called by MujocoResourceManager before initSim(). The hardware
+         * component's own node cannot be used for this: get_node() returns
+         * nullptr until well after initSim(), so the node running the simulation
+         * is handed down instead. It is already spinning.
+         *
+         * Non-virtual on purpose, so adding it does not change the vtable of
+         * this pluginlib base class.
+         *
+         * @param node The simulation node; outlives every hardware component.
+         */
+        void setSimNode(const rclcpp::Node::SharedPtr & node) { sim_node_ = node; }
+
+    protected:
+        /// The simulation node, or nullptr if setSimNode() was never called.
+        rclcpp::Node::SharedPtr sim_node_;
     };
 
 }  // namespace mujoco_ros2_control

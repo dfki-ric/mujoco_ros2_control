@@ -45,6 +45,7 @@
       <!-- Force/torque sensor at the wrist (MuJoCo only). -->
       <xacro:if value="${mujoco}">
         <sensor name="${tf_prefix}tcp_ft_sensor">
+          <param name="plugin">mujoco_ros2_control/ForceTorqueSensor</param>
           <param name="site">${tf_prefix}tcp_ft_site</param>
           <state_interface name="force.x"/>
           <state_interface name="force.y"/>

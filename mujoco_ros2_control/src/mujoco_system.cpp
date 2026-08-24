@@ -60,6 +60,16 @@ namespace mujoco_ros2_control {
 
         registerJoints(hardware_info, urdf_model_ptr->joints_);
         sensors_.registerSensors(mujoco_model, hardware_info, state_interfaces_);
+        // Additive: only <sensor> elements naming a "plugin" parameter are taken
+        // here, everything else stays with the built-in classifier above.
+        if (sim_node_) {
+            sensor_plugins_.registerSensors(
+                sim_node_, mujoco_model, hardware_info, state_interfaces_, get_logger());
+        } else {
+            RCLCPP_ERROR(get_logger(),
+                "No simulation node was provided, so <sensor> plugins cannot be loaded. "
+                "MujocoResourceManager::setSimNode() was not called.");
+        }
 
         std::vector<std::string> joints_to_remove = {};
         for (const auto &joint : joints_) {
@@ -337,10 +347,12 @@ namespace mujoco_ros2_control {
     }
 
     CallbackReturn MujocoSystem::on_activate(const rclcpp_lifecycle::State &previous_state) {
+        sensor_plugins_.activate();
         return CallbackReturn::SUCCESS;
     }
 
     CallbackReturn MujocoSystem::on_deactivate(const rclcpp_lifecycle::State &previous_state) {
+        sensor_plugins_.deactivate();
         return CallbackReturn::SUCCESS;
     }
 
@@ -407,6 +419,7 @@ namespace mujoco_ros2_control {
         }
 
         sensors_.readSensors(mujoco_data_);
+        sensor_plugins_.readSensors(mujoco_data_);
 
         return hardware_interface::return_type::OK;
     }

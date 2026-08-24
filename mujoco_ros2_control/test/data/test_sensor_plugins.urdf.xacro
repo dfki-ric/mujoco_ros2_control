@@ -1,0 +1,153 @@
+<?xml version="1.0"?>
+<!--
+  Model for test_sensor_plugins.test.py.
+
+  Two probes, because contact sensing and wrench sensing need opposite setups:
+
+    pad     - free to slide, settles onto the ground plane.
+              pad_imu    -> mujoco_ros2_control/ImuSensor
+              pad_pose   -> mujoco_ros2_control/PoseSensor
+
+    hanger  - welded to the world, hanging clear of the floor.
+              pad_wrench -> mujoco_ros2_control/ForceTorqueSensor
+
+  Why they cannot be the same body:
+
+  * MuJoCo's force/torque sensors report "the interaction force between a child
+    and a parent body". A body free to settle reaches equilibrium, where its
+    weight and the contact force cancel and the sensor correctly reads zero. The
+    welded hanger instead carries its whole weight through the joint, giving a
+    known ground truth of mass * g.
+  * Welding the contact probe instead would be worse than useless: a welded body
+    joins the world's weld group, and MuJoCo generates no contacts within a weld
+    group, so the accelerometer goes silent while the wrench sensor still reads
+    the weight - a green wrench test measuring nothing.
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="sensor_plugins_test">
+
+  <link name="world"/>
+
+  <!-- Contact probe: slides freely and settles on the ground plane. -->
+  <link name="pad">
+    <inertial>
+      <mass value="0.1"/>
+      <origin xyz="0 0 0"/>
+      <inertia ixx="1e-4" ixy="0" ixz="0" iyy="1e-4" iyz="0" izz="1e-4"/>
+    </inertial>
+    <collision>
+      <origin xyz="0 0 0"/>
+      <geometry><box size="0.06 0.06 0.04"/></geometry>
+    </collision>
+    <visual>
+      <origin xyz="0 0 0"/>
+      <geometry><box size="0.06 0.06 0.04"/></geometry>
+    </visual>
+  </link>
+
+  <joint name="slide" type="prismatic">
+    <parent link="world"/>
+    <child link="pad"/>
+    <origin xyz="0 0 0.05"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="100" velocity="10" lower="-0.5" upper="0.5"/>
+  </joint>
+
+  <!-- Wrench probe: welded, hanging clear of the floor, so the joint carries
+       its full weight (0.2 kg * 9.81 = 1.962 N). -->
+  <link name="hanger">
+    <inertial>
+      <mass value="0.2"/>
+      <origin xyz="0 0 0"/>
+      <inertia ixx="1e-4" ixy="0" ixz="0" iyy="1e-4" iyz="0" izz="1e-4"/>
+    </inertial>
+    <collision>
+      <origin xyz="0 0 0"/>
+      <geometry><box size="0.04 0.04 0.04"/></geometry>
+    </collision>
+    <visual>
+      <origin xyz="0 0 0"/>
+      <geometry><box size="0.04 0.04 0.04"/></geometry>
+    </visual>
+  </link>
+
+  <joint name="world_to_hanger" type="fixed">
+    <parent link="world"/>
+    <child link="hanger"/>
+    <origin xyz="0.5 0 0.5"/>
+  </joint>
+
+  <mujoco>
+    <reference name="pad">
+      <!-- centre of the pad, for the IMU and pose sensors -->
+      <site name="pad_site" size="0.005" pos="0 0 0"/>
+    </reference>
+
+    <reference name="hanger">
+      <site name="hanger_site" size="0.005" pos="0 0 0"/>
+    </reference>
+
+    <sensor>
+      <accelerometer name="pad_accel" site="pad_site"/>
+      <gyro name="pad_gyro" site="pad_site"/>
+      <framepos name="pad_framepos" objtype="site" objname="pad_site"/>
+      <framequat name="pad_framequat" objtype="site" objname="pad_site"/>
+    </sensor>
+
+    <sensor>
+      <force name="hanger_force" site="hanger_site"/>
+      <torque name="hanger_torque" site="hanger_site"/>
+    </sensor>
+  </mujoco>
+
+  <ros2_control name="SensorPluginsHW" type="system">
+    <hardware>
+      <plugin>mujoco_ros2_control/MujocoSystem</plugin>
+    </hardware>
+
+    <joint name="slide">
+      <command_interface name="effort"/>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+      <state_interface name="effort"/>
+    </joint>
+
+    <sensor name="pad_imu">
+      <param name="plugin">mujoco_ros2_control/ImuSensor</param>
+      <param name="site">pad_site</param>
+      <state_interface name="orientation.x"/>
+      <state_interface name="orientation.y"/>
+      <state_interface name="orientation.z"/>
+      <state_interface name="orientation.w"/>
+      <state_interface name="angular_velocity.x"/>
+      <state_interface name="angular_velocity.y"/>
+      <state_interface name="angular_velocity.z"/>
+      <state_interface name="linear_acceleration.x"/>
+      <state_interface name="linear_acceleration.y"/>
+      <state_interface name="linear_acceleration.z"/>
+    </sensor>
+
+    <sensor name="pad_wrench">
+      <param name="plugin">mujoco_ros2_control/ForceTorqueSensor</param>
+      <param name="site">hanger_site</param>
+      <state_interface name="force.x"/>
+      <state_interface name="force.y"/>
+      <state_interface name="force.z"/>
+      <state_interface name="torque.x"/>
+      <state_interface name="torque.y"/>
+      <state_interface name="torque.z"/>
+    </sensor>
+
+    <sensor name="pad_pose">
+      <param name="plugin">mujoco_ros2_control/PoseSensor</param>
+      <param name="site">pad_site</param>
+      <state_interface name="position.x"/>
+      <state_interface name="position.y"/>
+      <state_interface name="position.z"/>
+      <state_interface name="orientation.x"/>
+      <state_interface name="orientation.y"/>
+      <state_interface name="orientation.z"/>
+      <state_interface name="orientation.w"/>
+    </sensor>
+  </ros2_control>
+
+</robot>

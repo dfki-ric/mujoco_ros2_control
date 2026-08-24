@@ -95,6 +95,9 @@ namespace mujoco_ros2_control
             for (const auto & hw_info : hardware_info) {
                 const std::string hardware_type = hw_info.hardware_plugin_name;
                 auto system = std::unique_ptr<mujoco_ros2_control::MujocoSystemInterface>(robot_hw_sim_loader_.createUnmanagedInstance(hardware_type));
+                // Has to precede initSim(): sensor plugins are constructed there
+                // and the component's own get_node() stays null until much later.
+                system->setSimNode(node_);
                 if(system->initSim(mujoco_model_, mujoco_data_, hw_info, &urdf_model)) {
                     // initialize hardware
                     hardware_interface::HardwareComponentParams params;

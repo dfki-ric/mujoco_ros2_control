@@ -1,0 +1,29 @@
+controller_manager:
+  ros__parameters:
+    update_rate: 200
+
+    pad_imu_broadcaster:
+      type: imu_sensor_broadcaster/IMUSensorBroadcaster
+
+    pad_wrench_broadcaster:
+      type: force_torque_sensor_broadcaster/ForceTorqueSensorBroadcaster
+
+    pad_pose_broadcaster:
+      type: pose_broadcaster/PoseBroadcaster
+
+pad_imu_broadcaster:
+  ros__parameters:
+    sensor_name: pad_imu
+    frame_id: pad
+
+pad_wrench_broadcaster:
+  ros__parameters:
+    sensor_name: pad_wrench
+    frame_id: pad
+
+pad_pose_broadcaster:
+  ros__parameters:
+    pose_name: pad_pose
+    frame_id: world
+    tf:
+      child_frame_id: pad_measured

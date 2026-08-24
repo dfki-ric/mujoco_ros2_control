@@ -232,6 +232,26 @@ namespace mujoco_ros2_control
         bool init_mujoco();
 
         /**
+         * Registers MuJoCo engine plugins so the compiler can resolve <extension>
+         * blocks in the MJCF.
+         *
+         * Unlike the `simulate` application, libmujoco never scans for plugin
+         * libraries on its own, so a model declaring e.g.
+         * `<plugin plugin="mujoco.sensor.touch_grid"/>` fails to compile unless the
+         * providing library has been dlopen'ed first. This scans every directory in
+         * the `mujoco_plugin_directories` parameter (defaulting to the package's own
+         * lib/mujoco_plugin) and then loads the explicit `mujoco_plugin_libraries`
+         * paths.
+         *
+         * Must be called before mj_loadXML().
+         *
+         * @return True when every explicitly requested library was loaded. Returns
+         *         false only for a missing entry of `mujoco_plugin_libraries`;
+         *         directories that do not exist are reported but tolerated.
+         */
+        bool load_mujoco_plugins();
+
+        /**
          * Initializes and configures camera objects based on the mujoco_model.
          * If the mujoco_model contains cameras, it creates and configures the required number of camera objects.
          *

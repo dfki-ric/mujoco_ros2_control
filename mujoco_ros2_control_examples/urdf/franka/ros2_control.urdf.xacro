@@ -64,6 +64,7 @@
       <!-- Force/Torque sensor at the end-effector -->
       <xacro:if value="${mujoco}">
         <sensor name="${arm_id}_ft_sensor">
+            <param name="plugin">mujoco_ros2_control/ForceTorqueSensor</param>
             <param name="site">${arm_id}_link7</param>
             <state_interface name="force.x"/>
             <state_interface name="force.y"/>

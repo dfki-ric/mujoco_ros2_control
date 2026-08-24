@@ -89,6 +89,19 @@ namespace mujoco_ros2_control {
         int framequat_sensor_adr{-1};
     };
 
+    /**
+     * @brief Built-in handling for IMU, force/torque and pose sensors.
+     *
+     * @deprecated Superseded by MujocoSensorInterface plugins, loaded through
+     *             pluginlib by MujocoSensorPlugins. This class still runs for
+     *             every `<sensor>` that does not name a `plugin` parameter, its
+     *             behaviour is unchanged, and it is not scheduled for removal.
+     *             Prefer a plugin for new sensor types: dispatch here is a
+     *             substring match on state interface names, so it can only ever
+     *             express these three kinds, and anything whose interface names
+     *             happen to contain "force", "position" or "orientation" is
+     *             misclassified into one of them.
+     */
     class MujocoSensors {
     public:
         /**

@@ -91,6 +91,7 @@
 
       <!-- IMU sensor on torso -->
       <sensor name="imu_in_torso">
+          <param name="plugin">mujoco_ros2_control/ImuSensor</param>
           <param name="site">imu_in_torso</param>
           <state_interface name="orientation.x"/>
           <state_interface name="orientation.y"/>
@@ -106,6 +107,7 @@
 
       <!-- Pose sensor for floating base odometry -->
       <sensor name="pelvis_pose">
+          <param name="plugin">mujoco_ros2_control/PoseSensor</param>
           <param name="body">pelvis</param>
           <state_interface name="position.x"/>
           <state_interface name="position.y"/>

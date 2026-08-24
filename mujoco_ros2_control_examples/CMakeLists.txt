@@ -5,6 +5,21 @@ find_package(ament_cmake REQUIRED)
 # Interpreter only, for the configure-time mesh conversion below.
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
+foreach(Dependency IN ITEMS
+    mujoco_ros2_control
+    hardware_interface
+    pluginlib
+    rclcpp
+    realtime_tools
+    std_msgs
+)
+    find_package(${Dependency} REQUIRED)
+endforeach()
+
+# mujoco_ros2_control re-exports the MuJoCo it fetched, so this package links the
+# very same libmujoco rather than resolving a second, possibly different one.
+find_package(mujoco REQUIRED)
+
 # The Unitree H1/G1 URDF and meshes are not redistributed here; they are fetched and
 # patched from upstream at configure time. Turn this off (e.g. for offline or
 # network-restricted builds) to build only the Franka and UR examples.
@@ -27,6 +42,50 @@ option(DOWNLOAD_INDUSTREAL_PEG_ASSETS
 # then needs load_realsense:=false.
 option(DOWNLOAD_FRANKA_CAMERA_MOUNT_ASSET
   "Download the Franka printable D435 camera mount at configure time" ON)
+##########################
+# EXAMPLE SENSOR PLUGINS #
+##########################
+# A MujocoSensorInterface implementation living outside mujoco_ros2_control, to
+# show what writing your own sensor plugin looks like. The tactile grid is a
+# natural fit: its nchannel*width*height output does not map onto ros2_control's
+# scalar state interfaces, so it publishes a topic instead.
+#
+# Nothing may link this library: pluginlib has to be the one that dlopens it, or
+# class_loader registers its factories outside its own bookkeeping and then
+# reports "no factory exists for it" when the class is requested.
+add_library(${PROJECT_NAME}_plugins SHARED
+    src/touch_grid_sensor.cpp
+)
+
+target_include_directories(${PROJECT_NAME}_plugins PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
+
+ament_target_dependencies(${PROJECT_NAME}_plugins
+    mujoco_ros2_control
+    hardware_interface
+    pluginlib
+    rclcpp
+    realtime_tools
+    std_msgs
+)
+
+target_link_libraries(${PROJECT_NAME}_plugins
+    mujoco::mujoco
+)
+
+install(DIRECTORY include/ DESTINATION include)
+
+install(TARGETS ${PROJECT_NAME}_plugins
+    ARCHIVE DESTINATION lib
+    LIBRARY DESTINATION lib
+    RUNTIME DESTINATION bin
+)
+
+pluginlib_export_plugin_description_file(
+    mujoco_ros2_control ${PROJECT_NAME}_plugins.xml)
+
 ###########
 # INSTALL #
 ###########
@@ -429,6 +488,7 @@ if(BUILD_TESTING)
   add_ros_isolated_launch_test(test/test_ur_multi_example.test.py)
   add_ros_isolated_launch_test(test/test_unitree_h1_example.test.py)
   add_ros_isolated_launch_test(test/test_unitree_g1_example.test.py)
+  add_ros_isolated_launch_test(test/test_tactile_example.test.py TIMEOUT 120)
 endif()
 
 ament_package()
