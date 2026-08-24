@@ -59,15 +59,19 @@ include(FetchContent)
 FetchContent_Declare(
   mujoco
   GIT_REPOSITORY https://github.com/google-deepmind/mujoco.git
-  GIT_TAG 3.9.0  # MuJoCo version
+  GIT_TAG 3.12.0  # MuJoCo version
 )
 
-# Optionally set MuJoCo build options
+# Optionally set MuJoCo build options.
+# These have to use MuJoCo's own MUJOCO_BUILD_* spellings: its CMakeLists never
+# reads the generic BUILD_EXAMPLES/BUILD_SIMULATE names, so samples, tests and
+# benchmarks were built regardless (pulling in abseil, googletest and benchmark).
 set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
-set(MUJOCO_TEST_PYTHON_UTIL OFF CACHE BOOL "" FORCE)
-set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(BUILD_SHARED_LIBS ON CACHE BOOL "" FORCE)
-set(BUILD_SIMULATE ON CACHE BOOL "" FORCE)
+set(MUJOCO_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(MUJOCO_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(MUJOCO_BUILD_SIMULATE ON CACHE BOOL "" FORCE)
+set(MUJOCO_TEST_PYTHON_UTIL OFF CACHE BOOL "" FORCE)
 set(MUJOCO_SIMULATE_USE_SYSTEM_GLFW ON CACHE BOOL "" FORCE)
 
 FetchContent_MakeAvailable(mujoco)
