@@ -45,7 +45,7 @@ option(DOWNLOAD_FRANKA_CAMERA_MOUNT_ASSET
 ##########################
 # EXAMPLE SENSOR PLUGINS #
 ##########################
-# A MujocoSensorInterface implementation living outside mujoco_ros2_control, to
+# A MujocoRos2ControlSensorInterface implementation living outside mujoco_ros2_control, to
 # show what writing your own sensor plugin looks like. The tactile grid is a
 # natural fit: its nchannel*width*height output does not map onto ros2_control's
 # scalar state interfaces, so it publishes a topic instead.

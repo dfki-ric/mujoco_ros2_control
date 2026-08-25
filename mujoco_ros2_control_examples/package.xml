@@ -17,7 +17,7 @@
   <exec_depend>launch_ros</exec_depend>
   <depend>mujoco_ros2_control</depend>
 
-  <!-- For the example MujocoSensorInterface plugin in src/. -->
+  <!-- For the example MujocoRos2ControlSensorInterface plugin in src/. -->
   <depend>hardware_interface</depend>
   <depend>pluginlib</depend>
   <depend>rclcpp</depend>

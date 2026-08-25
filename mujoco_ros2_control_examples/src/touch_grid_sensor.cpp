@@ -46,20 +46,20 @@ namespace mujoco_ros2_control_examples {
 using mujoco_ros2_control_plugins::get_bool_param;
 using mujoco_ros2_control_plugins::get_param;
 
-bool TouchGridSensor::registerSensor(
-        const rclcpp::Node::SharedPtr &node,
-        const mjModel *mujoco_model,
-        const hardware_interface::ComponentInfo &sensor_info,
-        std::vector<hardware_interface::StateInterface> &state_interfaces) {
-    // Deliberately unused: the grid is published, not exported as interfaces.
-    (void)state_interfaces;
+bool TouchGridSensor::configure(
+        const Context &context,
+        const mujoco_ros2_control::MujocoRos2PluginInfo &info) {
+    const mjModel *mujoco_model = context.mujoco_model;
 
-    logger_ = node->get_logger().get_child(name_);
+    logger_ = context.node->get_logger();
 
-    site_name_ = get_param(sensor_info, "site", sensor_info.name);
-    topic_ = get_param(sensor_info, "topic", sensor_info.name + "/touch_grid");
-    frame_id_ = get_param(sensor_info, "frame_id", site_name_);
-    publish_ = get_bool_param(sensor_info, "publish", true);
+    site_name_ = get_param(info, "site", info.name);
+    // Left relative to the node's namespace rather than made private to the
+    // node: a node name does not prefix topics, so "<name>/touch_grid" is what
+    // keeps the grid on /<name>/touch_grid.
+    topic_ = get_param(info, "topic", info.name + "/touch_grid");
+    frame_id_ = get_param(info, "frame_id", site_name_);
+    publish_ = get_bool_param(info, "publish", true);
 
     int plugin_instance = -1;
     for (int id = 0; id < mujoco_model->nsensor; id++) {
@@ -107,7 +107,7 @@ bool TouchGridSensor::registerSensor(
         return true;
     }
 
-    auto publisher = node->create_publisher<std_msgs::msg::Float64MultiArray>(
+    auto publisher = context.node->create_publisher<std_msgs::msg::Float64MultiArray>(
         topic_, rclcpp::SensorDataQoS());
     realtime_publisher_ =
         std::make_shared<realtime_tools::RealtimePublisher<std_msgs::msg::Float64MultiArray>>(
@@ -129,32 +129,33 @@ bool TouchGridSensor::registerSensor(
     msg.data.assign(static_cast<size_t>(sensor_dim_), 0.0);
 
     RCLCPP_INFO(logger_,
-        "Publishing a %d x %d x %d touch_grid from site '%s' on '%s' (frame '%s')",
-        nchannel_, height_, width_, site_name_.c_str(), topic_.c_str(), frame_id_.c_str());
+        "Publishing a %d x %d x %d touch_grid from site '%s' on '%s' (frame '%s') at %.1f Hz",
+        nchannel_, height_, width_, site_name_.c_str(), topic_.c_str(), frame_id_.c_str(),
+        rate());
     return true;
 }
 
-void TouchGridSensor::read(const mjData *mujoco_data) {
+void TouchGridSensor::update(const mjData *mujoco_data, const rclcpp::Time &stamp) {
+    // Float64MultiArray carries no header, so there is nowhere to put the
+    // simulation time this sample was taken at.
+    (void)stamp;
+
     // MuJoCo lays the grid out channel-major: [k*width*height + j*width + i].
     const mjtNum *source = mujoco_data->sensordata + sensor_adr_;
     for (int i = 0; i < sensor_dim_; i++) {
         data_[static_cast<size_t>(i)] = static_cast<double>(source[i]);
     }
 
-    if (!active_.load(std::memory_order_acquire) || !realtime_publisher_) {
+    if (!realtime_publisher_) {
         return;
     }
-    // trylock() keeps the control cycle non-blocking: a cycle that loses the
-    // lock drops its sample rather than waiting on the publishing thread.
+    // trylock() keeps this non-blocking: update() runs with the simulation mutex
+    // held, so waiting on the publishing thread here would stall mj_step.
     if (realtime_publisher_->trylock()) {
         realtime_publisher_->msg_.data = data_;
         realtime_publisher_->unlockAndPublish();
     }
 }
-
-void TouchGridSensor::activate() { active_.store(true, std::memory_order_release); }
-
-void TouchGridSensor::deactivate() { active_.store(false, std::memory_order_release); }
 
 bool TouchGridSensor::read_int_config(
         const mjModel *mujoco_model, int plugin_instance,
@@ -195,4 +196,4 @@ bool TouchGridSensor::read_size_config(const mjModel *mujoco_model, int plugin_i
 }  // namespace mujoco_ros2_control_examples
 
 PLUGINLIB_EXPORT_CLASS(
-    mujoco_ros2_control_examples::TouchGridSensor, mujoco_ros2_control::MujocoSensorInterface)
+    mujoco_ros2_control_examples::TouchGridSensor, mujoco_ros2_control::MujocoRos2PluginInterface)

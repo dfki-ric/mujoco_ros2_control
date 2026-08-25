@@ -2,12 +2,13 @@
     <class
             name="mujoco_ros2_control_examples/TouchGridSensor"
             type="mujoco_ros2_control_examples::TouchGridSensor"
-            base_class_type="mujoco_ros2_control::MujocoSensorInterface">
+            base_class_type="mujoco_ros2_control::MujocoRos2PluginInterface">
         <description>
             Publishes a mujoco.sensor.touch_grid tactile array as a
             std_msgs/Float64MultiArray instead of exporting state interfaces.
-            Example of a MujocoSensorInterface plugin living outside
-            mujoco_ros2_control.
+            Example of a MujocoRos2PluginInterface plugin living outside
+            mujoco_ros2_control, declared as a top-level
+            &lt;mujoco_ros2_plugin&gt; element.
         </description>
     </class>
 </library>

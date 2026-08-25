@@ -1,5 +1,5 @@
 /**
- * @file mujoco_sensor_interface.hpp
+ * @file mujoco_ros2_control_sensor_interface.hpp
  * @brief Base class for pluginlib-loaded MuJoCo sensor handlers.
  *
  * @author Adrian Danzglock
@@ -30,8 +30,8 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef MUJOCO_ROS2_CONTROL__MUJOCO_SENSOR_INTERFACE_HPP_
-#define MUJOCO_ROS2_CONTROL__MUJOCO_SENSOR_INTERFACE_HPP_
+#ifndef MUJOCO_ROS2_CONTROL__MUJOCO_ROS2_CONTROL_SENSOR_INTERFACE_HPP_
+#define MUJOCO_ROS2_CONTROL__MUJOCO_ROS2_CONTROL_SENSOR_INTERFACE_HPP_
 
 #include <string>
 #include <vector>
@@ -46,20 +46,33 @@
 namespace mujoco_ros2_control {
 
 /**
+ * @brief The `<param>` on a `<sensor>` that names a MujocoRos2ControlSensorInterface plugin.
+ *
+ * An XML attribute cannot be used: ros2_control's parser drops unknown
+ * attributes on `<sensor>` without error.
+ *
+ * Its presence is also what makes the two sensor paths exclusive -- it opts the
+ * `<sensor>` in to MujocoRos2ControlSensorLoader and, by the same token, out of the
+ * built-in classifier in MujocoRos2ControlSensors. Both consult this one name, so a sensor
+ * is never registered twice.
+ */
+constexpr const char *kSensorPluginParam = "plugin";
+
+/**
  * @brief Base class for sensor handlers loaded through pluginlib.
  *
- * This is the extensible counterpart to MujocoSensors, which classifies IMU,
+ * This is the extensible counterpart to MujocoRos2ControlSensors, which classifies IMU,
  * force/torque and pose sensors by inspecting their state interface names. That
  * built-in path is unchanged and still runs for every `<sensor>` that does not
  * name a plugin; this one is additive.
  *
- * A `<sensor>` opts in through a `plugin` parameter. This has to be a `<param>`:
- * ros2_control's URDF parser silently discards unknown attributes on the
- * `<sensor>` element, and ComponentInfo::type is always "sensor".
+ * A `<sensor>` opts in through the @ref kSensorPluginParam parameter, which also
+ * opts it out of that classifier. It has to be a `<param>` rather than an
+ * attribute, and ComponentInfo::type is always "sensor".
  *
  * @code{.xml}
  * <sensor name="fingertip_touch">
- *   <param name="plugin">mujoco_ros2_control/TouchGridSensor</param>
+ *   <param name="plugin">mujoco_ros2_control_examples/TouchGridSensor</param>
  *   <param name="site">touch_site</param>
  * </sensor>
  * @endcode
@@ -75,14 +88,14 @@ namespace mujoco_ros2_control {
  *   handed to registerSensor() and the activate()/deactivate() hooks.
  *
  * @par Lifetime
- * Instances are owned by MujocoSensorPlugins for as long as the hardware
+ * Instances are owned by MujocoRos2ControlSensorLoader for as long as the hardware
  * component lives, and the class loader that created them outlives the
  * instances. Any `double` registered as a StateInterface must live in the plugin
  * object itself, never in a container that can reallocate.
  */
-class MujocoSensorInterface {
+class MujocoRos2ControlSensorInterface {
 public:
-    virtual ~MujocoSensorInterface() = default;
+    virtual ~MujocoRos2ControlSensorInterface() = default;
 
     /**
      * @brief Bind the plugin to one `<sensor>` element, read its parameters and
@@ -127,15 +140,15 @@ public:
     /** @brief The `<sensor>` name this instance was bound to; set by the loader. */
     const std::string &name() const { return name_; }
 
-    /** @brief Set by MujocoSensorPlugins immediately after construction. */
+    /** @brief Set by MujocoRos2ControlSensorLoader immediately after construction. */
     void set_name(const std::string &name) { name_ = name; }
 
 protected:
-    MujocoSensorInterface() = default;
+    MujocoRos2ControlSensorInterface() = default;
 
     std::string name_;
 };
 
 }  // namespace mujoco_ros2_control
 
-#endif  // MUJOCO_ROS2_CONTROL__MUJOCO_SENSOR_INTERFACE_HPP_
+#endif  // MUJOCO_ROS2_CONTROL__MUJOCO_ROS2_CONTROL_SENSOR_INTERFACE_HPP_

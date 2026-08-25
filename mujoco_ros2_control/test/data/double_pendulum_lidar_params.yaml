@@ -1,5 +1,7 @@
 # Node names are the site names with the "mjLidar_" prefix stripped
-# (mjLidar_scan -> scan, mjLidar_cloud -> cloud).
+# (mjLidar_scan -> scan, mjLidar_cloud -> cloud). For a lidar declared as a
+# <mujoco_ros2_plugin> the node name is the declaration's name instead, so the
+# same params apply either way (declared_lidar, claimed).
 scan:
   ros__parameters:
     enabled: true
@@ -23,6 +25,34 @@ cloud:
     vertical_min_angle: -0.2618
     vertical_max_angle:  0.2618
     vertical_samples: 8
+    range_min: 0.05
+    range_max: 30.0
+    render_height: 64
+
+# Reached through <mujoco_ros2_plugin name="declared_lidar"> on an unprefixed
+# site. Proves the plugin path drives the same implementation, and that these
+# params still land because the node is named after the declaration.
+declared_lidar:
+  ros__parameters:
+    output: "scan"
+    frequency: 10.0
+    horizontal_min_angle: -1.5708
+    horizontal_max_angle:  1.5708
+    horizontal_samples: 180
+    range_min: 0.05
+    range_max: 30.0
+    render_height: 64
+
+# enabled=true on purpose: the site is prefixed, so without the declaration
+# claiming it the discovery would build a second lidar with this same node name.
+claimed:
+  ros__parameters:
+    enabled: true
+    output: "scan"
+    frequency: 10.0
+    horizontal_min_angle: -1.5708
+    horizontal_max_angle:  1.5708
+    horizontal_samples: 180
     range_min: 0.05
     range_max: 30.0
     render_height: 64

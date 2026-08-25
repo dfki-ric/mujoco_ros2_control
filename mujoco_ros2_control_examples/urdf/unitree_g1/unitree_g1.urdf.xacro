@@ -103,19 +103,28 @@
         <framequat name="imu_in_pelvis-orientation" objtype="site" objname="imu_in_pelvis"/>
       </sensor>
 
-      <!-- Depth camera on a site in the d435 optical frame. The mujoco_ros2_control
-           plugin spawns a depth camera for any site named "mjCam_<name>" whose
-           per-site config sets enabled=true (see unitree_g1_controllers.yaml, key
-           "d435"). The optical->GL convention conversion is handled by the plugin. -->
+      <!-- Sites the RGB-D camera and the LiDAR are mounted on. Plain names: the
+           sensors are named explicitly in the <mujoco_ros2_plugin> declarations
+           below, so no "mjCam_"/"mjLidar_" discovery prefix is needed. The
+           optical->GL convention conversion is handled by the plugin. -->
       <reference name="d435_depth_optical_frame">
-        <site name="mjCam_d435" pos="0 0 0" euler="0 0 0"/>
+        <site name="d435_optical" pos="0 0 0" euler="0 0 0"/>
       </reference>
-
-      <!-- LiDAR on a site at the mid360 mount. Plugin spawns a LiDAR for any site
-           named "mjLidar_<name>" (config key "lidar_head"). -->
       <reference name="mid360_link">
-        <site name="mjLidar_lidar_head" pos="0 0 0" euler="0 0 0"/>
+        <site name="lidar_head_mount" pos="0 0 0" euler="0 0 0"/>
       </reference>
     </mujoco>
+
+    <!-- Declared here rather than found by a site-name convention. The
+         declaration name becomes the sensor's node name, so its parameters stay
+         where they were: the "d435" and "lidar_head" blocks in
+         unitree_g1_controllers.yaml. Declaring it is what enables it, so those
+         blocks no longer need an "enabled" flag. -->
+    <mujoco_ros2_plugin name="d435" plugin="mujoco_ros2_control/DepthCameraSensor">
+      <param name="site">d435_optical</param>
+    </mujoco_ros2_plugin>
+    <mujoco_ros2_plugin name="lidar_head" plugin="mujoco_ros2_control/LidarSensor">
+      <param name="site">lidar_head_mount</param>
+    </mujoco_ros2_plugin>
   </xacro:if>
 </robot>

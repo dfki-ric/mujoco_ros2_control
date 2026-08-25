@@ -83,12 +83,15 @@
       <state_interface name="velocity"/>
       <state_interface name="effort"/>
     </joint>
-
-    <!-- No state interfaces: the grid is published on /pad_touch/touch_grid. -->
-    <sensor name="pad_touch">
-      <param name="plugin">mujoco_ros2_control_examples/TouchGridSensor</param>
-      <param name="site">pad_touch_site</param>
-    </sensor>
   </ros2_control>
+
+  <!-- Declared outside <ros2_control>: the sensor exports nothing to
+       ros2_control, so no hardware component owns it. It gets its own node
+       named pad_touch and its own thread, and publishes the grid on
+       /pad_touch/touch_grid. -->
+  <mujoco_ros2_plugin name="pad_touch"
+                      plugin="mujoco_ros2_control_examples/TouchGridSensor">
+    <param name="site">pad_touch_site</param>
+  </mujoco_ros2_plugin>
 
 </robot>

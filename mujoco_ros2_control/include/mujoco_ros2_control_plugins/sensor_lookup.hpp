@@ -44,10 +44,16 @@
 namespace mujoco_ros2_control_plugins {
 
 /**
- * @brief Value of a `<param>` on the `<sensor>`, or @p fallback when unset.
+ * @brief Value of a `<param>` on the declaration, or @p fallback when unset.
+ *
+ * Templated on the declaration type so the same reader serves both kinds of
+ * sensor plugin: hardware_interface::ComponentInfo for a `<sensor>` inside
+ * `<ros2_control>`, and mujoco_ros2_control::MujocoRos2PluginInfo for a
+ * top-level `<mujoco_ros2_plugin>`. Both carry the params in a `parameters` map.
  */
+template <typename SensorInfoT>
 inline std::string get_param(
-        const hardware_interface::ComponentInfo &sensor_info,
+        const SensorInfoT &sensor_info,
         const char *key,
         const std::string &fallback = "") {
     const auto it = sensor_info.parameters.find(key);
@@ -60,8 +66,9 @@ inline std::string get_param(
 /**
  * @brief Value of a boolean `<param>`, or @p fallback when unset or unparsable.
  */
+template <typename SensorInfoT>
 inline bool get_bool_param(
-        const hardware_interface::ComponentInfo &sensor_info,
+        const SensorInfoT &sensor_info,
         const char *key,
         bool fallback) {
     const std::string value = get_param(sensor_info, key);
@@ -78,7 +85,8 @@ inline bool get_bool_param(
  * understands, then the sensor's own name. Those keys are reused so a model
  * written for the built-in path keeps working once a `plugin` param is added.
  */
-inline std::string resolve_object_name(const hardware_interface::ComponentInfo &sensor_info) {
+template <typename SensorInfoT>
+inline std::string resolve_object_name(const SensorInfoT &sensor_info) {
     for (const char *key : {"site", "body", "geom", "camera", "light", "frame"}) {
         const auto it = sensor_info.parameters.find(key);
         if (it != sensor_info.parameters.end() && !it->second.empty()) {

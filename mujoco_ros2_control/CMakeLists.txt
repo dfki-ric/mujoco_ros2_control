@@ -45,6 +45,8 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
     sensor_msgs
     std_srvs
     rosidl_default_generators
+    tinyxml2_vendor
+    TinyXML2
 )
 
 foreach(Dependency IN ITEMS ${THIS_PACKAGE_INCLUDE_DEPENDS})
@@ -143,8 +145,8 @@ rosidl_get_typesupport_target(cpp_typesupport_target
 # Add system plugin
 add_library(mujoco_system_plugins SHARED
     src/mujoco_system.cpp
-    src/mujoco_sensors.cpp
-    src/mujoco_sensor_plugins.cpp
+    src/mujoco_ros2_control_sensors.cpp
+    src/mujoco_ros2_control_sensor_loader.cpp
 )
 ament_target_dependencies(mujoco_system_plugins
     hardware_interface
@@ -153,14 +155,14 @@ ament_target_dependencies(mujoco_system_plugins
     urdf
 )
 
-# mujoco_system.cpp and mujoco_sensors.cpp call mj_name2id(), mj_id2name() and
+# mujoco_system.cpp and mujoco_ros2_control_sensors.cpp call mj_name2id(), mj_id2name() and
 # mj_forward(), so this plugin library has to carry libmujoco itself rather
 # than relying on whichever process happens to dlopen it.
 target_link_libraries(mujoco_system_plugins
     mujoco::mujoco
 )
 
-# The MujocoSensorInterface implementations shipped with this package, one file
+# The MujocoRos2ControlSensorInterface implementations shipped with this package, one file
 # per plugin under include/ and src/mujoco_ros2_control_plugins.
 # Nothing may link this library: pluginlib has to be the one that dlopens it, or
 # class_loader registers its factories outside its own bookkeeping and then
@@ -186,10 +188,55 @@ set(MUJOCO_ROS2_CONTROL_NODE_TARGET ${PROJECT_NAME}_node)
 # Add executable for the main ROS2 control node.
 # The CMake target name must differ from PROJECT_NAME because rosidl creates a
 # generated interface target with the package name.
-add_executable(${MUJOCO_ROS2_CONTROL_NODE_TARGET}
-    src/mujoco_ros2_control_plugin.cpp
+# The camera and lidar implementations. A library of their own because two
+# things need them: the node, whose site-prefix discovery still creates them
+# directly, and the <mujoco_ros2_plugin> plugins that wrap them. Compiling them
+# into the executable would leave the plugin .so with undefined symbols.
+add_library(mujoco_sensor_implementations SHARED
     src/mujoco_depth_camera.cpp
     src/mujoco_gl_lidar.cpp
+)
+ament_target_dependencies(mujoco_sensor_implementations
+    rclcpp
+    cv_bridge
+    PCL
+    pcl_conversions
+    sensor_msgs
+)
+target_link_libraries(mujoco_sensor_implementations
+    mujoco::mujoco
+    OpenGL::EGL
+    ${PCL_LIBRARIES}
+    ${OpenCV_LIBS}
+    mujoco_rgbd_camera_parameters
+    mujoco_gl_lidar_parameters
+)
+
+# The MujocoRos2PluginInterface implementations shipped with this package: thin
+# adapters that let the camera and lidar above be declared as
+# <mujoco_ros2_plugin> instead of found by a site prefix.
+# Nothing may link this library: pluginlib has to be the one that dlopens it.
+add_library(mujoco_ros2_plugins SHARED
+    src/mujoco_ros2_plugins/body_services.cpp
+    src/mujoco_ros2_plugins/depth_camera_sensor.cpp
+    src/mujoco_ros2_plugins/lidar_sensor.cpp
+)
+ament_target_dependencies(mujoco_ros2_plugins
+    hardware_interface  # sensor_lookup.hpp, for the shared <param> readers
+    pluginlib
+    rclcpp
+    sensor_msgs
+)
+target_link_libraries(mujoco_ros2_plugins
+    mujoco::mujoco
+    mujoco_sensor_implementations
+    # BodyServices serves this package's own srv types.
+    "${cpp_typesupport_target}"
+)
+
+add_executable(${MUJOCO_ROS2_CONTROL_NODE_TARGET}
+    src/mujoco_ros2_control_plugin.cpp
+    src/mujoco_ros2_plugin_loader.cpp
 )
 
 set_target_properties(${MUJOCO_ROS2_CONTROL_NODE_TARGET}
@@ -214,6 +261,8 @@ ament_target_dependencies(${MUJOCO_ROS2_CONTROL_NODE_TARGET}
 # Link libraries to the main executable
 target_link_libraries(${MUJOCO_ROS2_CONTROL_NODE_TARGET}
     mujoco::mujoco
+    mujoco_sensor_implementations
+    tinyxml2::tinyxml2
     glfw
     OpenGL::EGL
     ${PCL_LIBRARIES}
@@ -251,6 +300,8 @@ install(TARGETS
 install(TARGETS
     mujoco_system_plugins
     mujoco_ros2_control_plugins
+    mujoco_sensor_implementations
+    mujoco_ros2_plugins
     ARCHIVE DESTINATION lib
     LIBRARY DESTINATION lib
     RUNTIME DESTINATION bin
@@ -271,7 +322,7 @@ foreach(_plugin IN LISTS MUJOCO_ENGINE_PLUGIN_TARGETS)
 endforeach()
 
 # Install the public headers. Needed by out-of-tree packages implementing
-# MujocoSensorInterface; without this only the rosidl-generated srv headers
+# MujocoRos2ControlSensorInterface; without this only the rosidl-generated srv headers
 # land in the include prefix that ament_export_include_directories advertises.
 install(DIRECTORY include/ DESTINATION include)
 
@@ -302,10 +353,12 @@ ament_export_dependencies(hardware_interface)
 ament_export_dependencies(pluginlib)
 ament_export_libraries(
     mujoco_system_plugins
+    mujoco_sensor_implementations
 )
 
 pluginlib_export_plugin_description_file(mujoco_ros2_control mujoco_system_plugins.xml)
-pluginlib_export_plugin_description_file(mujoco_ros2_control mujoco_sensor_plugins.xml)
+pluginlib_export_plugin_description_file(mujoco_ros2_control mujoco_ros2_control_sensor_plugins.xml)
+pluginlib_export_plugin_description_file(mujoco_ros2_control mujoco_ros2_plugins.xml)
 
 # Finalize package
 ament_package()

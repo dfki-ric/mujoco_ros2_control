@@ -36,7 +36,7 @@
 #include <string>
 #include <vector>
 
-#include "mujoco_ros2_control/mujoco_sensor_interface.hpp"
+#include "mujoco_ros2_control/mujoco_ros2_control_sensor_interface.hpp"
 
 namespace mujoco_ros2_control_plugins {
 
@@ -44,7 +44,7 @@ namespace mujoco_ros2_control_plugins {
  * @brief Exports a MuJoCo force/torque sensor pair as wrench state interfaces.
  *
  * The plugin equivalent of the force/torque branch of the deprecated
- * MujocoSensors classifier, and interface-compatible with it, so
+ * MujocoRos2ControlSensors classifier, and interface-compatible with it, so
  * force_torque_sensor_broadcaster works unchanged. Either sensor may be absent.
  *
  * @code{.xml}
@@ -56,7 +56,7 @@ namespace mujoco_ros2_control_plugins {
  * </sensor>
  * @endcode
  */
-class ForceTorqueSensor : public mujoco_ros2_control::MujocoSensorInterface {
+class ForceTorqueSensor : public mujoco_ros2_control::MujocoRos2ControlSensorInterface {
 public:
     bool registerSensor(
             const rclcpp::Node::SharedPtr &node,

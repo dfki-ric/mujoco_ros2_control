@@ -1,0 +1,104 @@
+/**
+ * @file body_services.hpp
+ * @brief <mujoco_ros2_plugin> exposing per-body read and teleport services.
+ *
+ * @author Vamsi Origanti
+ * @date 2026
+ *
+ * @license BSD 3-Clause License
+ * @copyright Copyright (c) 2026, DFKI GmbH
+ *
+ * Redistribution and use in source and binary forms, with or without modification, are permitted
+ * provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, this list of conditions
+ *    and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions
+ *    and the following disclaimer in the documentation and/or other materials provided with the distribution.
+ *
+ * 3. Neither the name of DFKI GmbH nor the names of its contributors may be used to endorse or promote
+ *    products derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+ * FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+ * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
+ * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+#ifndef MUJOCO_ROS2_PLUGINS__BODY_SERVICES_HPP_
+#define MUJOCO_ROS2_PLUGINS__BODY_SERVICES_HPP_
+
+#include <string>
+
+#include "mujoco_ros2_control/mujoco_ros2_plugin_interface.hpp"
+#include "mujoco_ros2_control/srv/get_body_state.hpp"
+#include "mujoco_ros2_control/srv/set_body_pose.hpp"
+
+namespace mujoco_ros2_plugins {
+
+/**
+ * @brief Reads a body's pose and twist, and teleports a free body.
+ *
+ * Both services used to be built into the simulation node unconditionally. As a
+ * plugin they are opt-in, so a model that does not need them does not advertise
+ * them, and a description can declare them under whatever names suit it.
+ *
+ * Parameters, both optional:
+ * - `get_body_state_service` : service name (default `mujoco_get_body_state`)
+ * - `set_body_pose_service`  : service name (default `mujoco_set_body_pose`)
+ *
+ * The defaults are the names the built-in services used. A node's name does not
+ * prefix service names -- only its namespace does -- so declaring this plugin in
+ * the root namespace serves exactly `/mujoco_get_body_state` and
+ * `/mujoco_set_body_pose` as before, whatever the declaration is called.
+ *
+ * @code{.xml}
+ * <mujoco_ros2_plugin name="body_services" plugin="mujoco_ros2_control/BodyServices"/>
+ * @endcode
+ *
+ * @par Why Execution::Step
+ * Not for the step hooks -- it implements neither. It has no periodic work at
+ * all, so it wants no thread of its own: everything happens in service
+ * callbacks on the executor. Execution::Step is what says "do not start a
+ * thread for me".
+ *
+ * @par Why the write is not deferred to beforeStep()
+ * Queueing the pose and applying it in beforeStep() would be the tidier use of
+ * the step hooks, but it breaks the case these services exist for. Under
+ * `synchronous_mode` nothing advances the simulation except a StepSimulation
+ * request, so a queued pose would not land until the client asked for a step --
+ * while a client that sets a pose and then reads it back, with no step in
+ * between, expects to see the pose it just set. So the write happens in the
+ * callback, under both locks, and mj_forward() makes the derived state
+ * (`xpos`/`xquat`, which the read service returns) consistent immediately.
+ */
+class BodyServices : public mujoco_ros2_control::MujocoRos2PluginInterface {
+public:
+    bool configure(
+            const Context &context,
+            const mujoco_ros2_control::MujocoRos2PluginInfo &info) override;
+
+    /// No thread: this plugin only ever works inside its service callbacks.
+    Execution execution() const override { return Execution::Step; }
+
+private:
+    void getBodyState(
+            const std::shared_ptr<mujoco_ros2_control::srv::GetBodyState::Request> request,
+            std::shared_ptr<mujoco_ros2_control::srv::GetBodyState::Response> response);
+
+    void setBodyPose(
+            const std::shared_ptr<mujoco_ros2_control::srv::SetBodyPose::Request> request,
+            std::shared_ptr<mujoco_ros2_control::srv::SetBodyPose::Response> response);
+
+    rclcpp::Service<mujoco_ros2_control::srv::GetBodyState>::SharedPtr get_body_state_;
+    rclcpp::Service<mujoco_ros2_control::srv::SetBodyPose>::SharedPtr set_body_pose_;
+};
+
+}  // namespace mujoco_ros2_plugins
+
+#endif  // MUJOCO_ROS2_PLUGINS__BODY_SERVICES_HPP_

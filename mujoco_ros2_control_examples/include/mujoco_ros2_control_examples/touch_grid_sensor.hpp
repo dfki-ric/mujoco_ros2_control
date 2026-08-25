@@ -33,7 +33,6 @@
 #ifndef MUJOCO_ROS2_CONTROL_EXAMPLES__TOUCH_GRID_SENSOR_HPP_
 #define MUJOCO_ROS2_CONTROL_EXAMPLES__TOUCH_GRID_SENSOR_HPP_
 
-#include <atomic>
 #include <memory>
 #include <string>
 #include <vector>
@@ -41,7 +40,7 @@
 #include "realtime_tools/realtime_publisher.hpp"
 #include "std_msgs/msg/float64_multi_array.hpp"
 
-#include "mujoco_ros2_control/mujoco_sensor_interface.hpp"
+#include "mujoco_ros2_control/mujoco_ros2_plugin_interface.hpp"
 
 namespace mujoco_ros2_control_examples {
 
@@ -49,8 +48,11 @@ namespace mujoco_ros2_control_examples {
  * @brief Publishes a `mujoco.sensor.touch_grid` array as Float64MultiArray.
  *
  * A touch_grid produces `nchannel * width * height` values per step, which does
- * not fit ros2_control's scalar StateInterface model, so this exports no state
- * interfaces at all and publishes instead. Channels are, in order, the force
+ * not fit ros2_control's scalar StateInterface model. It therefore exports
+ * nothing to ros2_control and is declared as a top-level `<mujoco_ros2_plugin>`
+ * rather than as a `<sensor>` inside a `<ros2_control>` block: it gets its own
+ * node and its own thread instead of being read by a hardware component in the
+ * control loop. Channels are, in order, the force
  * components [normal, tangent, tangent] followed by the torque components
  * [torsional, rolling, rolling], truncated to the model's `nchannel`.
  *
@@ -70,33 +72,28 @@ namespace mujoco_ros2_control_examples {
  * </sensor>
  * @endcode
  *
- * Everything is configured from `<param>` entries on the `<sensor>`:
+ * Everything is configured from `<param>` entries on the declaration:
  *
  * - `site`     : the site the touch_grid is attached to (default: the sensor name)
  * - `topic`    : topic to publish on (default: `<sensor name>/touch_grid`)
  * - `frame_id` : frame the taxel values are expressed in (default: the site name)
  * - `publish`  : set "false" to step the sensor without producing topic traffic
+ * - `rate`     : sampling rate in simulated Hz (default: the base class's 100)
  *
  * @code{.xml}
- * <sensor name="fingertip_touch">
- *   <param name="plugin">mujoco_ros2_control/TouchGridSensor</param>
+ * <mujoco_ros2_plugin name="fingertip_touch"
+ *                     plugin="mujoco_ros2_control_examples/TouchGridSensor">
  *   <param name="site">touch_site</param>
- * </sensor>
+ * </mujoco_ros2_plugin>
  * @endcode
  */
-class TouchGridSensor : public mujoco_ros2_control::MujocoSensorInterface {
+class TouchGridSensor : public mujoco_ros2_control::MujocoRos2PluginInterface {
 public:
-    bool registerSensor(
-            const rclcpp::Node::SharedPtr &node,
-            const mjModel *mujoco_model,
-            const hardware_interface::ComponentInfo &sensor_info,
-            std::vector<hardware_interface::StateInterface> &state_interfaces) override;
+    bool configure(
+            const Context &context,
+            const mujoco_ros2_control::MujocoRos2PluginInfo &info) override;
 
-    void read(const mjData *mujoco_data) override;
-
-    void activate() override;
-
-    void deactivate() override;
+    void update(const mjData *mujoco_data, const rclcpp::Time &stamp) override;
 
 private:
     /// Reads a single integer from the engine plugin's config block.
@@ -121,9 +118,8 @@ private:
     std::shared_ptr<realtime_tools::RealtimePublisher<std_msgs::msg::Float64MultiArray>>
         realtime_publisher_;
     bool publish_{true};
-    std::atomic<bool> active_{false};
 
-    /// Replaced with a per-sensor child logger once the node is known.
+    /// Replaced with this sensor's own node logger in configure().
     rclcpp::Logger logger_ = rclcpp::get_logger("touch_grid_sensor");
 };
 

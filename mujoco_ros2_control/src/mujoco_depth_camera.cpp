@@ -46,7 +46,7 @@
 
 namespace mujoco_rgbd_camera {
     MujocoDepthCamera::MujocoDepthCamera(rclcpp::Node::SharedPtr &node, mjModel_ *model, mjData_ *data,
-                                         std::mutex* data_mutex, const std::string& name, std::atomic<bool>* stop, Mount mount,
+                                         std::mutex* data_mutex, const std::string& name, const std::atomic<bool>* stop, Mount mount,
                                          int optical_id, int depth_id) {
         nh_ = node;
 

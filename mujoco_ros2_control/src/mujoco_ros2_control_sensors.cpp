@@ -1,5 +1,5 @@
 /**
- * @file mujoco_sensors.cpp
+ * @file mujoco_ros2_control_sensors.cpp
  * @brief Sensor handling for the MuJoCo ros2_control hardware interface.
  *
  * @author Adrian Danzglock
@@ -30,11 +30,13 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <mujoco_ros2_control/mujoco_sensors.hpp>
+#include <mujoco_ros2_control/mujoco_ros2_control_sensors.hpp>
+
+#include "mujoco_ros2_control/mujoco_ros2_control_sensor_interface.hpp"
 
 namespace mujoco_ros2_control {
 
-    void MujocoSensors::registerSensors(
+    void MujocoRos2ControlSensors::registerSensors(
             mjModel *mujoco_model,
             const hardware_interface::HardwareInfo &hardware_info,
             std::vector<hardware_interface::StateInterface> &state_interfaces) {
@@ -46,6 +48,15 @@ namespace mujoco_ros2_control {
         pose_sensors_.reserve(hardware_info.sensors.size());
 
         for (const auto &sensor_info : hardware_info.sensors) {
+            // A sensor naming a plugin is handled by MujocoRos2ControlSensorLoader. Without
+            // this the two paths both register it whenever its interface names
+            // also match one of the classes below, and the second registration
+            // fails with "Tried to insert StateInterface with already existing
+            // key" -- once per interface, at load time.
+            if (sensor_info.parameters.count(kSensorPluginParam) != 0) {
+                continue;
+            }
+
             // Classify sensor type by inspecting state interface names
             bool has_imu_interfaces = false;
             bool has_ft_interfaces = false;
@@ -212,7 +223,7 @@ namespace mujoco_ros2_control {
         }
     }
 
-    void MujocoSensors::readSensors(mjData *mujoco_data) {
+    void MujocoRos2ControlSensors::readSensors(mjData *mujoco_data) {
         // read IMU sensor data
         for (auto &imu : imus_) {
             if (imu.gyro_sensor_adr >= 0) {

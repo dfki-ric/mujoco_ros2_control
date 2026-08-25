@@ -95,6 +95,20 @@
     </sensor>
   </ros2_control>
 
+  <!-- The body read/teleport services. Built into the simulation node before,
+       a declared plugin now, so a model that wants them has to say so. -->
+  <mujoco_ros2_plugin name="body_services" plugin="mujoco_ros2_control/BodyServices"/>
+
+  <!-- A second instance under different service names, which is what the
+       parameters are for: several models in one simulation each want their own
+       pair rather than fighting over the default names. -->
+  <mujoco_ros2_plugin name="body_services_alt" plugin="mujoco_ros2_control/BodyServices">
+    <param name="get_body_state_service">alt/get_body_state</param>
+    <param name="set_body_pose_service">alt/set_body_pose</param>
+  </mujoco_ros2_plugin>
+
+  <xacro:arg name="with_camera" default="false"/>
+
   <!-- ====================== MuJoCo block ====================== -->
   <mujoco>
     <option gravity="0 0 0"/>
@@ -118,4 +132,20 @@
       <framequat objtype="site" objname="probe_float_site" reftype="body" refname="world" name="site_probe_float_orientation"/>
     </sensor>
   </mujoco>
+
+  <!-- A declared RGB-D camera, used only by test_synchronous_rl to check that
+       deterministic stepping waits for a <mujoco_ros2_plugin> camera the same
+       way it waits for a prefix-discovered one. Off by default so the tests that
+       do not need a GL context are unaffected. -->
+  <xacro:if value="$(arg with_camera)">
+    <mujoco>
+      <reference name="probe_fixed">
+        <site name="sync_camera_optical" size="0.01" pos="0 0 0"/>
+      </reference>
+    </mujoco>
+
+    <mujoco_ros2_plugin name="sync_camera" plugin="mujoco_ros2_control/DepthCameraSensor">
+      <param name="site">sync_camera_optical</param>
+    </mujoco_ros2_plugin>
+  </xacro:if>
 </robot>

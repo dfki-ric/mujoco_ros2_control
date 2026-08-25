@@ -132,7 +132,7 @@ public:
      *       Creates ROS 2 publishers for camera information, color image, depth image, and point cloud data.
      */
     MujocoDepthCamera(rclcpp::Node::SharedPtr &node, mjModel_ *model, mjData_ *data,
-                      std::mutex* data_mutex, const std::string& name, std::atomic<bool>* stop,
+                      std::mutex* data_mutex, const std::string& name, const std::atomic<bool>* stop,
                       Mount mount, int optical_id, int depth_id);
 
     /**
@@ -182,7 +182,7 @@ private:
     std::shared_ptr<ParamListener> param_listener_;
     mujoco_rgbd_camera::Params params_;
 
-    std::atomic<bool>* stop_; ///< Pointer to an atomic boolean flag indicating whether the camera should stop or continue.
+    const std::atomic<bool>* stop_; ///< Pointer to an atomic boolean flag indicating whether the camera should stop or continue.
 
     rclcpp::Node::SharedPtr nh_; ///< Shared pointer to the ROS 2 Node object used for communication and coordination.
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr color_image_publisher_; ///< Shared pointer to the ROS 2 publisher for color images.

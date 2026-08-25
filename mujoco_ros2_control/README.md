@@ -143,13 +143,30 @@ Below is an example of how to declare a ROS 2 Control system using PID and torqu
 
 ## ROS 2 Control Sensor Interfaces
 
-Sensors are declared inside the `<ros2_control>` block and are automatically matched to MuJoCo sensors via a `<param>` that specifies the MuJoCo object (site, xbody, geom, etc.) the sensor is attached to. Three sensor types are supported: **IMU**, **Force/Torque**, and **Pose**.
+Sensors are declared inside the `<ros2_control>` block and are matched to MuJoCo sensors via a `<param>` that specifies the MuJoCo object (site, xbody, geom, etc.) the sensor is attached to.
 
-The sensor type is determined automatically from the state interface names you declare.
+Each `<sensor>` is handled in one of two ways:
+
+| Path | Selected by | Can do |
+|---|---|---|
+| **Sensor plugin** (recommended) | a `<param name="plugin">` naming a class | whatever the plugin implements: state interfaces, topics, or both |
+| **Built-in classifier** (deprecated) | no `plugin` param | **IMU**, **Force/Torque** and **Pose** only, inferred from the declared state interface names |
+
+The three built-in types also ship as plugins, exporting exactly the same state interfaces, so the standard broadcasters work either way:
+
+| Plugin class | Sensor type | Broadcaster |
+|---|---|---|
+| `mujoco_ros2_control/ImuSensor` | IMU | `imu_sensor_broadcaster` |
+| `mujoco_ros2_control/ForceTorqueSensor` | Force/Torque | `force_torque_sensor_broadcaster` |
+| `mujoco_ros2_control/PoseSensor` | Pose | `pose_broadcaster` |
+
+The classifier still runs for every `<sensor>` that names no plugin, its behaviour is unchanged, and it is not scheduled for removal - existing models keep working untouched. Prefer a plugin for new sensors: the classifier dispatches on a substring match over state interface names, so it can never grow past those three types, and it cannot express a sensor whose output does not fit ros2_control's scalar state interfaces. A plugin needs no change to this package - see [Writing a Sensor Plugin](#writing-a-sensor-plugin).
+
+The plugin has to be named by a `<param>` rather than an attribute on `<sensor>`: ros2_control's URDF parser silently discards unknown attributes there.
 
 ### IMU Sensor
 
-Reads orientation (framequat), angular velocity (gyro), and linear acceleration (accelerometer) from a MuJoCo site. Use with the standard [imu_sensor_broadcaster](https://control.ros.org/rolling/doc/ros2_controllers/imu_sensor_broadcaster/doc/userdoc.html).
+Reads orientation (framequat), angular velocity (gyro), and linear acceleration (accelerometer) from a MuJoCo site. Use with the standard [imu_sensor_broadcaster](https://control.ros.org/rolling/doc/ros2_controllers/imu_sensor_broadcaster/doc/userdoc.html). Each of the three MuJoCo sensors is optional: whichever the model declares against the named object is picked up, the rest stay at their defaults.
 
 ```xml
 <ros2_control name="MySystem" type="system">
@@ -160,6 +177,7 @@ Reads orientation (framequat), angular velocity (gyro), and linear acceleration 
     <!-- ... joints ... -->
 
     <sensor name="imu_in_pelvis">
+        <param name="plugin">mujoco_ros2_control/ImuSensor</param>
         <param name="site">imu_in_pelvis</param>
         <state_interface name="orientation.x"/>
         <state_interface name="orientation.y"/>
@@ -206,10 +224,11 @@ imu_broadcaster:
 
 ### Force/Torque Sensor
 
-Reads force and torque from a MuJoCo site. Use with the standard [force_torque_sensor_broadcaster](https://control.ros.org/rolling/doc/ros2_controllers/force_torque_sensor_broadcaster/doc/userdoc.html).
+Reads force and torque from a MuJoCo site. Use with the standard [force_torque_sensor_broadcaster](https://control.ros.org/rolling/doc/ros2_controllers/force_torque_sensor_broadcaster/doc/userdoc.html). Either MuJoCo sensor may be absent.
 
 ```xml
 <sensor name="ft_sensor">
+    <param name="plugin">mujoco_ros2_control/ForceTorqueSensor</param>
     <param name="site">ft_site</param>
     <state_interface name="force.x"/>
     <state_interface name="force.y"/>
@@ -248,10 +267,11 @@ ft_sensor_broadcaster:
 
 ### Pose Sensor
 
-Reads position (framepos) and orientation (framequat) of a MuJoCo body. Use with the standard [pose_broadcaster](https://control.ros.org/rolling/doc/ros2_controllers/pose_broadcaster/doc/userdoc.html). This is useful for floating-base robots to get the base link pose.
+Reads position (framepos) and orientation (framequat) of a MuJoCo body. Use with the standard [pose_broadcaster](https://control.ros.org/rolling/doc/ros2_controllers/pose_broadcaster/doc/userdoc.html). This is useful for floating-base robots to get the base link pose. Either MuJoCo sensor may be absent.
 
 ```xml
 <sensor name="pelvis_pose">
+    <param name="plugin">mujoco_ros2_control/PoseSensor</param>
     <param name="body">pelvis</param>
     <state_interface name="position.x"/>
     <state_interface name="position.y"/>
@@ -291,9 +311,182 @@ pelvis_pose_broadcaster:
 
 ### Sensor Matching
 
-The `<param>` inside a `<sensor>` block tells the plugin which MuJoCo object to look for. Supported keys are: `site`, `body`, `geom`, `camera`, `light`, `frame`. If no param is provided, the sensor `name` is used as the match key.
+The `<param>` inside a `<sensor>` block tells the plugin which MuJoCo object to look for. Supported keys are, in the order they are checked: `site`, `body`, `geom`, `camera`, `light`, `frame`. If none of them is given, the sensor `name` is used as the match key.
 
 For example, `<param name="site">imu_in_pelvis</param>` will match all MuJoCo sensors whose object name is `imu_in_pelvis`.
+
+The three shipped plugins reuse exactly these keys, so a model written for the built-in classifier keeps matching once a `plugin` param is added to it.
+
+### Writing a Sensor Plugin
+
+A sensor plugin implements
+[`mujoco_ros2_control::MujocoRos2ControlSensorInterface`](include/mujoco_ros2_control/mujoco_ros2_control_sensor_interface.hpp)
+and is loaded by name through `pluginlib`. This is the way to add a sensor type
+the built-in classifier cannot express, and the only way to expose an output
+that does not fit ros2_control's scalar `StateInterface` model - a MuJoCo
+`touch_grid`, for instance, yields `nchannel * width * height` values per step,
+which belongs on a topic rather than in several hundred interfaces.
+
+The interface has four methods, of which only the first two have to be
+implemented:
+
+| Method | Called | Purpose |
+|---|---|---|
+| `registerSensor(node, mujoco_model, sensor_info, state_interfaces)` | once, while the hardware component initialises | read the `<param>` entries, resolve MuJoCo sensor addresses, append state interfaces. Return `false` to reject the declaration (after logging why); the sensor is then skipped and the rest keep loading. |
+| `read(mujoco_data)` | every `read()` cycle, in the control loop | copy this step's values out of `mjData::sensordata` |
+| `activate()` / `deactivate()` | from the component's `on_activate()` / `on_deactivate()` | start and stop publishing |
+
+Four rules matter for a plugin that behaves itself in the control loop:
+
+- **Storage must not move.** Every `double` exported as a `StateInterface` is
+  handed out as a pointer, so it has to live in the plugin object itself, never
+  in a container that can reallocate.
+- **`read()` runs in the control loop.** Keep it allocation-free. Publishing
+  from it is fine, but only through
+  `realtime_tools::RealtimePublisher` - never a plain publisher, which can
+  block.
+- **The `node` passed to `registerSensor()` is the simulation node**, already
+  spinning, so declaring parameters and creating publishers there is allowed. It
+  is deliberately not the hardware component's own node: `get_node()` on the
+  component still returns `nullptr` at that point.
+- **Nothing may link the plugin library.** `pluginlib` has to be the one that
+  `dlopen`s it, or `class_loader` registers the factories outside its own
+  bookkeeping and then reports *"no factory exists for it"* when the class is
+  requested.
+
+Helpers for reading params and resolving MuJoCo sensor addresses are in
+[`sensor_lookup.hpp`](include/mujoco_ros2_control_plugins/sensor_lookup.hpp):
+`get_param()`, `get_bool_param()`, `resolve_object_name()`, `find_sensor_adr()`
+and `export_state_interfaces()`.
+
+#### Out-of-tree packages
+
+`mujoco_ros2_control` installs its public headers and re-exports the MuJoCo it
+fetched, so a plugin can live in any package. The header
+[`touch_grid_sensor.hpp`](../mujoco_ros2_control_examples/include/mujoco_ros2_control_examples/touch_grid_sensor.hpp)
+and its
+[implementation](../mujoco_ros2_control_examples/src/touch_grid_sensor.cpp) in
+`mujoco_ros2_control_examples` are a complete worked example of one.
+
+`package.xml`:
+
+```xml
+<depend>mujoco_ros2_control</depend>
+<depend>hardware_interface</depend>
+<depend>pluginlib</depend>
+<depend>rclcpp</depend>
+<depend>realtime_tools</depend>
+```
+
+Register the class at the bottom of the `.cpp`:
+
+```cpp
+#include "pluginlib/class_list_macros.hpp"
+
+PLUGINLIB_EXPORT_CLASS(
+    my_package::MySensor, mujoco_ros2_control::MujocoRos2ControlSensorInterface)
+```
+
+Describe it in `my_package_plugins.xml`, where `path` is the library name
+without the `lib` prefix or the `.so` suffix:
+
+```xml
+<library path="my_package_plugins">
+    <class
+            name="my_package/MySensor"
+            type="my_package::MySensor"
+            base_class_type="mujoco_ros2_control::MujocoRos2ControlSensorInterface">
+        <description>What this sensor reads and how it reports it.</description>
+    </class>
+</library>
+```
+
+`CMakeLists.txt` - `find_package(mujoco REQUIRED)` resolves to the very same
+`libmujoco.so` the simulator uses, because `mujoco_ros2_control` re-exports it:
+
+```cmake
+find_package(mujoco_ros2_control REQUIRED)
+find_package(mujoco REQUIRED)
+find_package(hardware_interface REQUIRED)
+find_package(pluginlib REQUIRED)
+
+add_library(my_package_plugins SHARED src/my_sensor.cpp)
+ament_target_dependencies(my_package_plugins
+    mujoco_ros2_control hardware_interface pluginlib rclcpp realtime_tools)
+target_link_libraries(my_package_plugins mujoco::mujoco)
+
+install(TARGETS my_package_plugins LIBRARY DESTINATION lib)
+
+pluginlib_export_plugin_description_file(
+    mujoco_ros2_control my_package_plugins.xml)
+```
+
+The description file is exported **against `mujoco_ros2_control`**, not against
+the package that owns the plugin - that is what puts the class on the list the
+simulator's class loader searches. Then name the class from the URDF:
+
+```xml
+<sensor name="fingertip_touch">
+    <param name="plugin">my_package/MySensor</param>
+    <param name="site">touch_site</param>
+</sensor>
+```
+
+A plugin that fails to load, or whose `registerSensor()` returns `false`, is
+logged as an error and skipped; the simulation comes up without it rather than
+refusing to start. Check the node's output for `loaded plugin` lines to confirm
+what was picked up.
+
+## MuJoCo Engine Plugins
+
+MuJoCo's own [engine plugins](https://mujoco.readthedocs.io/en/stable/programming/extension.html)
+are a separate mechanism from the sensor plugins above: they extend the physics
+engine itself and are referenced from an `<extension>` block in the MJCF, which
+`xacro2mjcf.py` copies out of the `<mujoco>` section of your description.
+
+```xml
+<mujoco>
+    <extension>
+        <plugin plugin="mujoco.sensor.touch_grid"/>
+    </extension>
+
+    <sensor>
+        <plugin name="pad_touch_grid" plugin="mujoco.sensor.touch_grid"
+                objtype="site" objname="pad_touch_site">
+            <config key="nchannel" value="3"/>
+            <config key="size"     value="7 7"/>
+            <config key="fov"      value="45 45"/>
+            <config key="gamma"    value="0"/>
+        </plugin>
+    </sensor>
+</mujoco>
+```
+
+`libmujoco` never scans for plugin libraries itself, so they have to be
+`dlopen`ed before the model is compiled or the compiler cannot resolve
+`<extension>`. The node does that on startup, controlled by two parameters:
+
+| Parameter | Default | Description |
+|---|---|---|
+| `mujoco_plugin_directories` | *(empty)* | Directories scanned before the model is compiled; every shared library in each one is loaded. Left empty, the package's own `lib/mujoco_plugin` directory is scanned, which holds the plugins shipped with MuJoCo: `mujoco.sensor.touch_grid`, `mujoco.elasticity.cable`, `mujoco.pid` and the `mujoco.sdf.*` set. |
+| `mujoco_plugin_libraries` | *(empty)* | Explicit library paths, loaded after the directory scan. |
+
+Both are read-only, so they have to be set at launch. Setting
+`mujoco_plugin_directories` **replaces** the default directory rather than
+adding to it - include the package's own path if you still want MuJoCo's
+plugins:
+
+```python
+{"mujoco_plugin_directories": [
+    os.path.join(get_package_prefix("mujoco_ros2_control"), "lib", "mujoco_plugin"),
+    "/opt/my_plugins",
+]}
+```
+
+A configured directory that does not exist is warned about and skipped; a path
+in `mujoco_plugin_libraries` that does not exist is fatal, because
+`mj_loadPluginLibrary()` reports a failed `dlopen` through `mju_error`, which
+would terminate the process.
 
 ## Side-Channel Sensors (cameras and lidars)
 

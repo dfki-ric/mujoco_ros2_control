@@ -1,6 +1,5 @@
 d435:
   ros__parameters:
-    enabled: true
     topic_namespace: d435
     frequency: 30.0
     width: 640

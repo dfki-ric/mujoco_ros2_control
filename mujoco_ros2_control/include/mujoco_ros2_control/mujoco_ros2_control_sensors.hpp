@@ -1,5 +1,5 @@
 /**
- * @file mujoco_sensors.hpp
+ * @file mujoco_ros2_control_sensors.hpp
  * @brief Sensor handling for the MuJoCo ros2_control hardware interface.
  *
  * Provides registration and reading of IMU, ForceTorque, and Pose sensors
@@ -92,8 +92,8 @@ namespace mujoco_ros2_control {
     /**
      * @brief Built-in handling for IMU, force/torque and pose sensors.
      *
-     * @deprecated Superseded by MujocoSensorInterface plugins, loaded through
-     *             pluginlib by MujocoSensorPlugins. This class still runs for
+     * @deprecated Superseded by MujocoRos2ControlSensorInterface plugins, loaded through
+     *             pluginlib by MujocoRos2ControlSensorLoader. This class still runs for
      *             every `<sensor>` that does not name a `plugin` parameter, its
      *             behaviour is unchanged, and it is not scheduled for removal.
      *             Prefer a plugin for new sensor types: dispatch here is a
@@ -102,7 +102,7 @@ namespace mujoco_ros2_control {
      *             happen to contain "force", "position" or "orientation" is
      *             misclassified into one of them.
      */
-    class MujocoSensors {
+    class MujocoRos2ControlSensors {
     public:
         /**
          * @brief Register all sensors from the hardware info.

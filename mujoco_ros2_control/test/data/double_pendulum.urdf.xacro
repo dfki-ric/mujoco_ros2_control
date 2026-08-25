@@ -169,10 +169,23 @@
       <reference name="base_link">
         <site name="mjLidar_scan"  size="0.01" pos="0 0 0.6"/>
         <site name="mjLidar_cloud" size="0.01" pos="0 0  0.2"/>
+        <!-- No "mjLidar_" prefix, so the discovery cannot see it: this one only
+             exists through the <mujoco_ros2_plugin name="declared_lidar">
+             declaration below. -->
+        <site name="declared_lidar" size="0.01" pos="0 0 0.4"/>
+        <!-- Prefixed AND declared, with "claimed" enabled in the params file.
+             Both paths would name the node "claimed" and publish on the same
+             topic; the declaration claims the site so only one does. -->
+        <site name="mjLidar_claimed" size="0.01" pos="0 0 0.8"/>
       </reference>
       <!-- Site camera "d435": optical site -> color, depth site -> depth. -->
       <reference name="d435_color_optical_frame">
         <site name="mjCamOpt_d435" size="0.01" pos="0 0 0"/>
+        <!-- No camera site prefix, so only the <mujoco_ros2_plugin
+             name="declared_camera"> declaration below can find it. Sharing the
+             d435's optical frame keeps it a valid REP-103 optical frame without
+             needing an orientation of its own. -->
+        <site name="declared_camera" size="0.01" pos="0 0 0"/>
       </reference>
       <reference name="d435_depth_optical_frame">
         <site name="mjCamDepth_d435" size="0.01" pos="0 0 0"/>
@@ -187,6 +200,21 @@
         </body>
       </worldbody>
     </mujoco>
+
+    <!-- The same camera and lidar implementations, reached through the plugin
+         path instead of the site-prefix discovery. -->
+    <mujoco_ros2_plugin name="declared_camera"
+                        plugin="mujoco_ros2_control/DepthCameraSensor">
+      <param name="site">declared_camera</param>
+    </mujoco_ros2_plugin>
+    <mujoco_ros2_plugin name="declared_lidar"
+                        plugin="mujoco_ros2_control/LidarSensor">
+      <param name="site">declared_lidar</param>
+    </mujoco_ros2_plugin>
+    <mujoco_ros2_plugin name="claimed"
+                        plugin="mujoco_ros2_control/LidarSensor">
+      <param name="site">mjLidar_claimed</param>
+    </mujoco_ros2_plugin>
   </xacro:if>
 
     <ros2_control name="Unitree_H1_HardwareInterface" type="system">

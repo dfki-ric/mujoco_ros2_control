@@ -63,14 +63,26 @@
     </xacro:sensor_d435>
 
     <xacro:if value="${render_sensors}">
+      <!-- Two-frame camera: colour is rendered from the colour optical frame and
+           depth from the depth optical frame, so the two streams carry the real
+           parallax. Plain site names: the camera is named in the declaration
+           below instead of being found by a "mjCamOpt_"/"mjCamDepth_" prefix. -->
       <mujoco>
         <reference name="${name}_color_optical_frame">
-          <site name="mjCamOpt_${name}" size="0.003" pos="0 0 0"/>
+          <site name="${name}_color_site" size="0.003" pos="0 0 0"/>
         </reference>
         <reference name="${name}_depth_optical_frame">
-          <site name="mjCamDepth_${name}" size="0.003" pos="0 0 0"/>
+          <site name="${name}_depth_site" size="0.003" pos="0 0 0"/>
         </reference>
       </mujoco>
+
+      <!-- The declaration name becomes the node name, so the camera keeps
+           reading the "${name}" block in realsense_d435.yaml. Declaring it is
+           what enables it; that block needs no "enabled" flag. -->
+      <mujoco_ros2_plugin name="${name}" plugin="mujoco_ros2_control/DepthCameraSensor">
+        <param name="optical_site">${name}_color_site</param>
+        <param name="depth_site">${name}_depth_site</param>
+      </mujoco_ros2_plugin>
     </xacro:if>
   </xacro:macro>
 </robot>

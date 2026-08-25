@@ -10,13 +10,15 @@ and `task_table_mujoco` packages. Assets are split per robot:
 
 ```
 launch/   <robot>.launch.py
-urdf/     franka/  ur/  unitree_h1/  industreal/
-config/   franka/  ur/  unitree_h1/
+urdf/     franka/  ur/  unitree_h1/  unitree_g1/  industreal/  tactile/
+config/   franka/  ur/  unitree_h1/  unitree_g1/  tactile/
 meshes/   industreal/         (gear assets; pegs/ downloaded at build time)
           unitree_h1/         (downloaded at build time)
+          unitree_g1/         (downloaded at build time)
           franka/             (D435 wrist mount, downloaded at build time)
-patches/  unitree_h1.urdf.patch
+patches/  unitree_h1.urdf.patch (the G1 URDF is rewritten in place instead)
 scripts/  stl_to_obj.py       (build-time mesh conversion)
+include/  src/                (the TouchGridSensor example plugin)
 test/     per-robot launch smoke tests
 ```
 
@@ -250,6 +252,92 @@ The scene it writes stands in for `mujoco_ros2_control`'s `mjcf/scene.xml` -
 pass one or the other to `xacro2mjcf`, never both, since they define the same
 skybox, groundplane material and floor geom.
 
+### Tactile pad (touch_grid)
+
+A 6 cm pad on a prismatic joint, resting on the ground plane, with a MuJoCo
+`touch_grid` sensor imaging its contact face. Unlike the other examples this one
+is about the sensor rather than the robot: it is the worked example of a
+`MujocoRos2ControlSensorInterface` plugin living **outside** `mujoco_ros2_control`.
+
+```bash
+ros2 launch mujoco_ros2_control_examples tactile.launch.py
+ros2 launch mujoco_ros2_control_examples tactile.launch.py headless:=true
+ros2 topic echo /pad_touch/touch_grid
+```
+
+A `touch_grid` emits `nchannel * width * height` values per step, which does not
+fit ros2_control's scalar state interfaces, so
+[`TouchGridSensor`](src/touch_grid_sensor.cpp) exports none at all and publishes a
+`std_msgs/Float64MultiArray` instead. The array is channel-major and its
+`layout.dim` is labelled `channel`, `height`, `width`, so a consumer can index it
+as an image: `data[k * width * height + j * width + i]`. Channels are the force
+components `[normal, tangent, tangent]` followed by the torque components
+`[torsional, rolling, rolling]`, truncated to the model's `nchannel` - the example
+declares 3, so it publishes forces only.
+
+The MJCF side needs the engine plugin declared in an `<extension>` block, and the
+ros2_control side names the sensor plugin
+([`urdf/tactile/tactile_pad.urdf.xacro`](urdf/tactile/tactile_pad.urdf.xacro)):
+
+```xml
+<mujoco>
+    <extension>
+        <plugin plugin="mujoco.sensor.touch_grid"/>
+    </extension>
+
+    <reference name="pad">
+        <!-- top of the pad, imaging downwards (-z) at the contact face -->
+        <site name="pad_touch_site" size="0.005" pos="0 0 0.02"/>
+    </reference>
+
+    <sensor>
+        <plugin name="pad_touch_grid" plugin="mujoco.sensor.touch_grid"
+                objtype="site" objname="pad_touch_site">
+            <config key="nchannel" value="3"/>
+            <config key="size"     value="7 7"/>
+            <config key="fov"      value="45 45"/>
+            <config key="gamma"    value="0"/>
+        </plugin>
+    </sensor>
+</mujoco>
+
+<!-- inside <ros2_control>: no state interfaces, it publishes a topic -->
+<sensor name="pad_touch">
+    <param name="plugin">mujoco_ros2_control_examples/TouchGridSensor</param>
+    <param name="site">pad_touch_site</param>
+</sensor>
+```
+
+Everything else the plugin needs comes from `<param>` entries on the `<sensor>`:
+
+| `<param>` | Default | Meaning |
+|-----------|---------|---------|
+| `site` | the sensor name | The site the `touch_grid` is attached to. |
+| `topic` | `<sensor name>/touch_grid` | Topic to publish on. |
+| `frame_id` | the site name | Frame the taxel values are expressed in. Informational only - `Float64MultiArray` carries no header, so this is just logged at startup. |
+| `publish` | `true` | Set `false` to step the sensor without producing topic traffic. |
+
+Three things are easy to get wrong when copying this:
+
+- **The site images along its negative z.** It must sit *above* the contact face
+  looking down through the body. Placed flush with the face - or flipped with
+  `zaxis="0 0 -1"` - it sees nothing and publishes a correctly shaped block of
+  zeros.
+- **The pad has to be free to move.** A body welded to the world joins the
+  world's weld group, and MuJoCo generates no contacts within a weld group, so a
+  welded pad reports no touch at all.
+- **`mujoco.sensor.touch_grid` is a MuJoCo engine plugin** and has to be loaded
+  before the model is compiled. `mujoco_ros2_control` does that by default from
+  its own `lib/mujoco_plugin` directory; see
+  [MuJoCo Engine Plugins](../mujoco_ros2_control/README.md#mujoco-engine-plugins).
+
+For what writing such a plugin involves - the interface, the CMake and
+`package.xml` wiring, and the control-loop rules - see
+[Writing a Sensor Plugin](../mujoco_ros2_control/README.md#writing-a-sensor-plugin).
+The other examples use the plugins that ship with `mujoco_ros2_control`:
+`ImuSensor` and `PoseSensor` on the Unitree robots, `ForceTorqueSensor` on Franka
+and UR.
+
 ## Offline builds
 
 Four asset groups are fetched at configure time and can each be turned off:
@@ -282,12 +370,16 @@ starts the `mujoco_ros2_control` node headless, and asserts the node comes up
 description package is not installed, or - for the Unitree robots - when the
 upstream assets were not downloaded.
 
-Two tests check more than that the node starts. The Unitree G1 test brings the
+Three tests check more than that the node starts. The Unitree G1 test brings the
 robot up on its default generated stepping-stones terrain, and the `ur_multi`
 test asserts every arm reached the merged model, that the bases really are evenly
 spaced in a row, that the arm behind each prefix really is the type that prefix
 names, and that the controller manager instantiated one hardware component per
-arm.
+arm. The `tactile` test covers the plugin path end to end: that `pluginlib`
+resolved this package's out-of-tree `TouchGridSensor`, that the published array
+has the taxel count and labelled channel-major layout the MJCF asks for, and that
+the resting pad's weight actually registers on a taxel - which is what fails if
+the touch_grid site ends up facing the wrong way.
 
 These run in CI in their own workflow, `.github/workflows/ci-examples.yml`, which
 builds the package and clones `franka_description` from source — it has no jazzy

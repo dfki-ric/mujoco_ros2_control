@@ -37,7 +37,10 @@
     <xacro:arg name="fake_sensor_commands" default="false" />
     <xacro:arg name="mujoco" default="true" />
     <xacro:arg name="mujoco_effort" default="false" />
-    <!-- Skip GL camera rendering when headless (no OpenGL context available) -->
+    <!-- Accepted so the launch file can pass it uniformly, but nothing here
+         reads it: the GUI window is a simulator setting, and camera rendering no
+         longer depends on it. Cameras render offscreen through EGL, which needs
+         neither a window nor a display, so a headless run still produces images. -->
     <xacro:arg name="headless" default="false" />
 
 
@@ -58,7 +61,7 @@
             name="d435"
             origin_xyz="$(arg realsense_xyz)"
             origin_rpy="$(arg realsense_rpy)"
-            render_sensors="${'$(arg render_realsense)'.lower() == 'true' and '$(arg headless)'.lower() != 'true'}" />
+            render_sensors="$(arg render_realsense)" />
     </xacro:if>
 
     <!-- Import franka ros2_control -->

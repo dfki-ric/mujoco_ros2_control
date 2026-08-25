@@ -90,17 +90,9 @@ MujocoRos2Control::MujocoRos2Control(rclcpp::Node::SharedPtr &node) : nh_(node) 
       "mujoco_reset",
       std::bind(&MujocoRos2Control::mujocoResetCallback, this, std::placeholders::_1, std::placeholders::_2)
   );
-  mujoco_set_body_pose_service_ = nh_->create_service<mujoco_ros2_control::srv::SetBodyPose>(
-      "mujoco_set_body_pose",
-      std::bind(&MujocoRos2Control::mujocoSetBodyPoseCallback, this, std::placeholders::_1, std::placeholders::_2)
-  );
   mujoco_step_simulation_service_ = nh_->create_service<mujoco_ros2_control::srv::StepSimulation>(
       "mujoco_step_simulation",
       std::bind(&MujocoRos2Control::mujocoStepSimulationCallback, this, std::placeholders::_1, std::placeholders::_2)
-  );
-  mujoco_get_body_state_service_ = nh_->create_service<mujoco_ros2_control::srv::GetBodyState>(
-      "mujoco_get_body_state",
-      std::bind(&MujocoRos2Control::mujocoGetBodyStateCallback, this, std::placeholders::_1, std::placeholders::_2)
   );
 
   // mujoco related parameters
@@ -159,6 +151,9 @@ MujocoRos2Control::~MujocoRos2Control()
   for (auto &thread : lidar_threads_) {
     thread.join();
   }
+  // Joins the sensor threads and stops spinning their nodes. Has to complete
+  // before mj_deleteModel/mj_deleteData below: those threads read both.
+  ros2_plugins_.shutdown();
   if (thread_sim_.joinable()) {
     thread_sim_.join();
   }
@@ -287,7 +282,16 @@ void MujocoRos2Control::advanceSimulationStep() {
   {
     std::lock_guard<std::mutex> sim_lock(sim_mutex_);
     updateControllersAtCurrentTime();
+    // The <mujoco_ros2_plugin> plugins that asked to run per physics step. Both
+    // stepping paths -- the autonomous loop and the StepSimulation service --
+    // come through here, and both hold step_mutex_ around it, so these hooks see
+    // the simulation exclusively and need no locking of their own. Inputs go in
+    // before the step, observations after it.
+    ros2_plugins_.beforeStep(mujoco_data_);
     mj_step(mujoco_model_, mujoco_data_);
+    ros2_plugins_.afterStep(
+      mujoco_data_,
+      rclcpp::Time(static_cast<int64_t>(mujoco_data_->time * 1e9), RCL_ROS_TIME));
   }
   publish_sim_time();
 }
@@ -570,6 +574,24 @@ bool MujocoRos2Control::init_mujoco() {
 }
 
 void MujocoRos2Control::registerSensors() {
+  // Parsed up front, ahead of the prefix-based discovery below: a MuJoCo site
+  // claimed by a <mujoco_ros2_plugin> is skipped there, so declaring a camera or
+  // a lidar on a site that also matches a discovery prefix creates one instance
+  // rather than two.
+  const auto ros2_plugin_declarations =
+    MujocoRos2PluginLoader::parse(params_.robot_description, nh_->get_logger());
+  std::set<std::string> claimed_sites;
+  for (const auto &declaration : ros2_plugin_declarations) {
+    // The name is claimed too: a declaration naming no site falls back to it.
+    claimed_sites.insert(declaration.name);
+    for (const char *key : {"site", "optical_site", "depth_site"}) {
+      const auto parameter = declaration.parameters.find(key);
+      if (parameter != declaration.parameters.end() && !parameter->second.empty()) {
+        claimed_sites.insert(parameter->second);
+      }
+    }
+  }
+
   // Add cameras declared as MuJoCo <camera> elements. These are always created;
   // their pose and vertical FOV come from the model camera (mjCAMERA_FIXED).
   for (int id = 0; id < mujoco_model_->ncam; id++) {
@@ -610,6 +632,7 @@ void MujocoRos2Control::registerSensors() {
       const char *site_name_c = mj_id2name(mujoco_model_, mjOBJ_SITE, id);
       if (!site_name_c) continue;
       const std::string site_name(site_name_c);
+      if (claimed_sites.count(site_name)) continue;
 
       // Match the most specific prefix first (mjCamOpt_/mjCamDepth_ also start with
       // "mjCam" but not with "mjCam_", so they never collide with both_prefix).
@@ -660,6 +683,7 @@ void MujocoRos2Control::registerSensors() {
       const char *site_name_c = mj_id2name(mujoco_model_, mjOBJ_SITE, id);
       if (!site_name_c) continue;
       std::string site_name(site_name_c);
+      if (claimed_sites.count(site_name)) continue;
       if (prefix.empty() || site_name.rfind(prefix, 0) != 0) continue;
 
       // The node (and therefore its params block and topics) is named without the
@@ -685,6 +709,14 @@ void MujocoRos2Control::registerSensors() {
       lidar_threads_.emplace_back([ObjectPtr = lidar] { ObjectPtr->update(); });
     }
   }
+
+  // Sensors declared as <mujoco_ros2_plugin> in the robot description. These are
+  // read straight out of the raw URDF: they sit outside every <ros2_control>
+  // block, so ros2_control's parser never reports them and no hardware
+  // component owns them.
+  ros2_plugins_.registerPlugins(
+    ros2_plugin_declarations, mujoco_model_, mujoco_data_, &sim_mutex_, &step_mutex_,
+    &stop_, nh_->get_logger());
 }
 
 void mujoco_ros2_control::MujocoRos2Control::mujocoPlayPauseCallback(const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
@@ -711,45 +743,6 @@ void mujoco_ros2_control::MujocoRos2Control::mujocoResetCallback(const std::shar
   response->message = "Simulation reset completed.";
 }
 
-void mujoco_ros2_control::MujocoRos2Control::mujocoSetBodyPoseCallback(
-    const std::shared_ptr<mujoco_ros2_control::srv::SetBodyPose::Request> request,
-    std::shared_ptr<mujoco_ros2_control::srv::SetBodyPose::Response> response) {
-  int body_id = mj_name2id(mujoco_model_, mjOBJ_BODY, request->body_name.c_str());
-  if (body_id < 0) {
-    response->success = false;
-    response->message = "Unknown body name: " + request->body_name;
-    return;
-  }
-
-  int jnt_adr = mujoco_model_->body_jntadr[body_id];
-  if (mujoco_model_->body_jntnum[body_id] != 1 || mujoco_model_->jnt_type[jnt_adr] != mjJNT_FREE) {
-    response->success = false;
-    response->message = "Body '" + request->body_name + "' does not have a single free joint.";
-    return;
-  }
-
-  int qpos_adr = mujoco_model_->jnt_qposadr[jnt_adr];
-  int dof_adr = mujoco_model_->jnt_dofadr[jnt_adr];
-
-  std::lock_guard<std::mutex> step_lock(step_mutex_);
-  {
-    std::lock_guard<std::mutex> sim_lock(sim_mutex_);
-    mujoco_data_->qpos[qpos_adr + 0] = request->x;
-    mujoco_data_->qpos[qpos_adr + 1] = request->y;
-    mujoco_data_->qpos[qpos_adr + 2] = request->z;
-    mujoco_data_->qpos[qpos_adr + 3] = request->qw;
-    mujoco_data_->qpos[qpos_adr + 4] = request->qx;
-    mujoco_data_->qpos[qpos_adr + 5] = request->qy;
-    mujoco_data_->qpos[qpos_adr + 6] = request->qz;
-    for (int i = 0; i < 6; ++i) {
-      mujoco_data_->qvel[dof_adr + i] = 0.0;
-    }
-    mj_forward(mujoco_model_, mujoco_data_);
-  }
-
-  response->success = true;
-  response->message = "Body '" + request->body_name + "' repositioned.";
-}
 
 void mujoco_ros2_control::MujocoRos2Control::mujocoStepSimulationCallback(
     const std::shared_ptr<mujoco_ros2_control::srv::StepSimulation::Request> request,
@@ -780,6 +773,10 @@ void mujoco_ros2_control::MujocoRos2Control::mujocoStepSimulationCallback(
   // batch was advancing. Force one render after the final step and wait until
   // it has been published before returning the authoritative simulation time.
   // The outer step lock freezes reset/teleport/physics throughout this wait.
+  // Cameras reach the simulation two ways -- found by site prefix into cameras_,
+  // or declared as a <mujoco_ros2_plugin> and owned by the plugin -- and both
+  // have to be waited for. Everything is asked before anything is waited on, so
+  // the frames are rendered concurrently.
   std::vector<std::pair<
       std::shared_ptr<mujoco_rgbd_camera::MujocoDepthCamera>, std::uint64_t>>
       camera_requests;
@@ -787,6 +784,8 @@ void mujoco_ros2_control::MujocoRos2Control::mujocoStepSimulationCallback(
   for (const auto &camera : cameras_) {
     camera_requests.emplace_back(camera, camera->request_synchronous_frame());
   }
+  const auto plugin_requests = ros2_plugins_.requestSynchronousFrames();
+
   for (const auto &[camera, sequence] : camera_requests) {
     if (!camera->wait_for_synchronous_frame(
         sequence, std::chrono::seconds(5))) {
@@ -794,6 +793,14 @@ void mujoco_ros2_control::MujocoRos2Control::mujocoStepSimulationCallback(
       response->message = "Timed out waiting for post-step RGB-D frame.";
       return;
     }
+  }
+  std::string stalled_plugin;
+  if (!ros2_plugins_.waitForSynchronousFrames(
+      plugin_requests, std::chrono::seconds(5), &stalled_plugin)) {
+    response->success = false;
+    response->message =
+      "Timed out waiting for a post-step frame from plugin '" + stalled_plugin + "'.";
+    return;
   }
 
   const int64_t nanoseconds = static_cast<int64_t>(mujoco_data_->time * 1e9);
@@ -803,38 +810,6 @@ void mujoco_ros2_control::MujocoRos2Control::mujocoStepSimulationCallback(
   response->message = "Advanced " + std::to_string(request->steps) + " physics steps.";
 }
 
-void mujoco_ros2_control::MujocoRos2Control::mujocoGetBodyStateCallback(
-    const std::shared_ptr<mujoco_ros2_control::srv::GetBodyState::Request> request,
-    std::shared_ptr<mujoco_ros2_control::srv::GetBodyState::Response> response) {
-  const int body_id = mj_name2id(mujoco_model_, mjOBJ_BODY, request->body_name.c_str());
-  if (body_id < 0) {
-    response->success = false;
-    response->message = "Unknown body name: " + request->body_name;
-    return;
-  }
-
-  std::lock_guard<std::mutex> sim_lock(sim_mutex_);
-  const mjtNum *position = mujoco_data_->xpos + 3 * body_id;
-  const mjtNum *quaternion = mujoco_data_->xquat + 4 * body_id;
-  mjtNum velocity[6]{};
-  mj_objectVelocity(mujoco_model_, mujoco_data_, mjOBJ_BODY, body_id, velocity, 0);
-
-  response->pose.position.x = position[0];
-  response->pose.position.y = position[1];
-  response->pose.position.z = position[2];
-  response->pose.orientation.w = quaternion[0];
-  response->pose.orientation.x = quaternion[1];
-  response->pose.orientation.y = quaternion[2];
-  response->pose.orientation.z = quaternion[3];
-  response->twist.angular.x = velocity[0];
-  response->twist.angular.y = velocity[1];
-  response->twist.angular.z = velocity[2];
-  response->twist.linear.x = velocity[3];
-  response->twist.linear.y = velocity[4];
-  response->twist.linear.z = velocity[5];
-  response->success = true;
-  response->message = "Body state returned in the world frame.";
-}
 }  // namespace mujoco_ros2_control
 
 /**

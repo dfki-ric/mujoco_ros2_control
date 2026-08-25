@@ -394,3 +394,75 @@ class TestBringup(unittest.TestCase):
             assert node.wait_for_node('cloud'), 'cloud Node not found !'
             assert node.wait_for_topic('/cloud/points', ['sensor_msgs/msg/PointCloud2']), 'lidar cloud topic not found !'
             assert node.wait_for_message('/cloud/points', PointCloud2, 'base_link', timeout=15.0), 'lidar cloud message not found !'
+
+    # The four tests above reach MujocoGLLidar and MujocoDepthCamera through the
+    # site-prefix discovery in MujocoRos2Control. The three below reach the same
+    # two implementations through the <mujoco_ros2_plugin> plugin path, so a
+    # change that breaks one path and not the other cannot pass unnoticed.
+
+    @unittest.skipUnless(opengl_enabled(), "OpenGL disabled (DISABLE_OPENGL=1)")
+    def test_declared_lidar(self):
+        """LidarSensor drives MujocoGLLidar from a <mujoco_ros2_plugin>."""
+        node = self.node
+        assert node.wait_for_node('declared_lidar'), 'declared_lidar Node not found !'
+        assert node.wait_for_topic('/declared_lidar/scan', ['sensor_msgs/msg/LaserScan']), \
+            'declared lidar scan topic not found !'
+        assert node.wait_for_message('/declared_lidar/scan', LaserScan, 'base_link', timeout=15.0), \
+            'declared lidar scan message not found !'
+
+    @unittest.skipUnless(opengl_enabled(), "OpenGL disabled (DISABLE_OPENGL=1)")
+    def test_declared_camera(self):
+        """DepthCameraSensor drives MujocoDepthCamera from a <mujoco_ros2_plugin>."""
+        node = self.node
+        assert node.wait_for_node('declared_camera'), 'declared_camera Node not found !'
+        assert node.wait_for_topic('/declared_camera/color/image_raw', ['sensor_msgs/msg/Image']), \
+            'declared camera color image topic not found !'
+        assert node.wait_for_topic('/declared_camera/depth/points', ['sensor_msgs/msg/PointCloud2']), \
+            'declared camera depth points topic not found !'
+        assert node.wait_for_message('/declared_camera/color/image_raw', Image, timeout=15.0), \
+            'declared camera color image message not found !'
+        assert node.wait_for_message('/declared_camera/depth/points', PointCloud2, timeout=15.0), \
+            'declared camera depth points message not found !'
+
+    @unittest.skipUnless(opengl_enabled(), "OpenGL disabled (DISABLE_OPENGL=1)")
+    def test_declared_sensor_claims_its_site_from_discovery(self):
+        """A declared site is skipped by the discovery, so it is built once.
+
+        The site is named mjLidar_claimed and "claimed" is enabled in the params
+        file, so the discovery would build a lidar for it too -- under the same
+        node name, publishing the same topic. Counting publishers rather than
+        node names is what makes a duplicate visible: two lidars would each
+        bring their own.
+        """
+        node = self.node
+        assert node.wait_for_topic('/claimed/scan', ['sensor_msgs/msg/LaserScan']), \
+            'claimed lidar scan topic not found !'
+        assert node.wait_for_message('/claimed/scan', LaserScan, 'base_link', timeout=15.0), \
+            'claimed lidar scan message not found !'
+        self.assertEqual(
+            node.count_publishers('/claimed/scan'), 1,
+            'mjLidar_claimed was built by both the declaration and the prefix '
+            'discovery; the claimed-site skip in registerSensors() is not working')
+
+    def test_body_services_are_opt_in(self):
+        """No <mujoco_ros2_plugin> declaration, so no body services.
+
+        double_pendulum.urdf.xacro declares no BodyServices, and these names are
+        no longer created by the simulation node itself. If they turn up here,
+        something is advertising them unconditionally again.
+        """
+        # Absence is only meaningful once the graph is discovered, so wait for
+        # the services that are still built in to show up first. They double as
+        # the guard: this test cannot pass merely because the simulation is down.
+        deadline = time.time() + 20.0
+        advertised = []
+        while time.time() < deadline:
+            advertised = [name for name, _ in self.node.get_service_names_and_types()]
+            if "/mujoco_step_simulation" in advertised and "/mujoco_reset" in advertised:
+                break
+            rclpy.spin_once(self.node, timeout_sec=0.1)
+        self.assertIn("/mujoco_step_simulation", advertised)
+        self.assertIn("/mujoco_reset", advertised)
+
+        self.assertNotIn("/mujoco_get_body_state", advertised)
+        self.assertNotIn("/mujoco_set_body_pose", advertised)

@@ -55,7 +55,7 @@ public:
                   std::mutex *sim_mutex,
                   int site_id,
                   const std::string &name,
-                  std::atomic<bool> *stop);
+                  const std::atomic<bool> *stop);
 
     ~MujocoGLLidar();
 
@@ -79,7 +79,7 @@ private:
     mjData  *mujoco_data_  = nullptr;       // live data, copied from under sim_mutex_
     mjData  *snapshot_data_ = nullptr;      // per-scan deep copy used for rendering
     std::mutex *sim_mutex_ = nullptr;       // held by sim thread around mj_step
-    std::atomic<bool> *stop_ = nullptr;
+    const std::atomic<bool> *stop_ = nullptr;
 
     int site_id_;
     int parent_body_id_;

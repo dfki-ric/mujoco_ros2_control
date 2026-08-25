@@ -18,6 +18,7 @@
   <depend>hardware_interface</depend>
 
   <depend>urdf</depend>
+  <depend>tinyxml2_vendor</depend>
   <depend>ament_index_cpp</depend>
 
   <!-- Runtime deps of the xacro2mjcf.py / urdf2mjcf.py / prepare_terrain.py scripts -->

@@ -102,4 +102,4 @@ void ImuSensor::read(const mjData *mujoco_data) {
 }  // namespace mujoco_ros2_control_plugins
 
 PLUGINLIB_EXPORT_CLASS(
-    mujoco_ros2_control_plugins::ImuSensor, mujoco_ros2_control::MujocoSensorInterface)
+    mujoco_ros2_control_plugins::ImuSensor, mujoco_ros2_control::MujocoRos2ControlSensorInterface)

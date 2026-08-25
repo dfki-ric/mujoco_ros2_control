@@ -188,6 +188,15 @@ To use MuJoCo ROS2 control, you must create a launchfile (you can use the exampl
 | `robot_model_path`     | Path to the generated MJCF `.xml` file            |
 | ROS 2 control YAML     | Path to controller config (e.g., `*.yaml`)        |
 
+Everything else is optional; the full list, with defaults and descriptions, is
+[`mujoco_ros2_control_parameters.yaml`](./mujoco_ros2_control/src/mujoco_ros2_control_parameters.yaml).
+Two of them concern MuJoCo's own engine plugins - `mujoco_plugin_directories`
+and `mujoco_plugin_libraries`, which decide what gets loaded before the model is
+compiled, and so which `<extension>` blocks the MJCF may use. By default the
+plugins shipped with MuJoCo (`mujoco.sensor.touch_grid`, `mujoco.elasticity.cable`,
+`mujoco.pid`, `mujoco.sdf.*`) are available. See
+[MuJoCo Engine Plugins](./mujoco_ros2_control/README.md#mujoco-engine-plugins).
+
 
 ### Launch Flow (in [launch.py](https://github.com/dfki-ric/mujoco_ros2_control/blob/main/mujoco_ros2_control_examples/launch/franka.launch.py) file)
 ```python
@@ -289,12 +298,36 @@ def generate_launch_description():
 ```
 
 ### Sensor Interfaces
-MuJoCo ROS2 Control supports ros2_control sensor interfaces to expose simulated sensor data through standard ROS 2 broadcasters:
-- **IMU** (orientation, angular velocity, linear acceleration) — use with `imu_sensor_broadcaster`
-- **Force/Torque** (force, torque) — use with `force_torque_sensor_broadcaster`
-- **Pose** (position, orientation) — use with `pose_broadcaster`
+MuJoCo ROS2 Control exposes simulated sensor data through standard ROS 2 broadcasters. Three sensor types ship with it, as `pluginlib` plugins named from the URDF:
 
-Sensors are declared inside the `<ros2_control>` block in your URDF and are automatically matched to the corresponding MuJoCo sensors. See the [URDF Configuration](./mujoco_ros2_control/README.md) guide for detailed examples.
+| `<param name="plugin">` | Reads | Use with |
+|-------------------------|-------|----------|
+| `mujoco_ros2_control/ImuSensor` | orientation, angular velocity, linear acceleration | `imu_sensor_broadcaster` |
+| `mujoco_ros2_control/ForceTorqueSensor` | force, torque | `force_torque_sensor_broadcaster` |
+| `mujoco_ros2_control/PoseSensor` | position, orientation | `pose_broadcaster` |
+
+Sensors are declared inside the `<ros2_control>` block in your URDF and matched to the corresponding MuJoCo sensors by a `<param>` naming the MuJoCo object:
+
+```xml
+<sensor name="ft_sensor">
+    <param name="plugin">mujoco_ros2_control/ForceTorqueSensor</param>
+    <param name="site">ft_site</param>
+    <state_interface name="force.x"/>
+    <!-- ... -->
+</sensor>
+```
+
+A `<sensor>` that names no plugin is still handled by the built-in classifier, which infers the same three types from the declared state interface names. That path is deprecated but unchanged, so existing models keep working as they are.
+
+Sensor types beyond those three are added by implementing
+[`MujocoSensorInterface`](./mujoco_ros2_control/include/mujoco_ros2_control/mujoco_sensor_interface.hpp)
+in a package of your own - no change to `mujoco_ros2_control` needed. A plugin is
+not restricted to ros2_control's scalar state interfaces either: it may publish a
+topic instead, which is what the
+[tactile example](./mujoco_ros2_control_examples/README.md#tactile-pad-touch_grid)
+does with a MuJoCo `touch_grid`.
+
+See the [URDF Configuration](./mujoco_ros2_control/README.md#ros-2-control-sensor-interfaces) guide for detailed examples, and [Writing a Sensor Plugin](./mujoco_ros2_control/README.md#writing-a-sensor-plugin) for the plugin side.
 
 ### URDF Configuration
 For the urdf creation you can take a look at [URDF Configuration](./mujoco_ros2_control/README.md)

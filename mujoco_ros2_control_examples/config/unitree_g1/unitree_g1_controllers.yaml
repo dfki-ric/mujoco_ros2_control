@@ -94,7 +94,6 @@ pelvis_pose_broadcaster:
 
 d435:
   ros__parameters:
-    enabled: true
     frequency: 90.0
     width: 848
     height: 480
@@ -103,7 +102,6 @@ d435:
 
 lidar_head:
   ros__parameters:
-    enabled: true
     output: cloud
     frequency: 10.0
     range_min: 0.1

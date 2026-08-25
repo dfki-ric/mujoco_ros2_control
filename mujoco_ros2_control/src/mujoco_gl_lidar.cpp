@@ -27,7 +27,7 @@ MujocoGLLidar::MujocoGLLidar(rclcpp::Node::SharedPtr &node,
                              std::mutex *sim_mutex,
                              int site_id,
                              const std::string &name,
-                             std::atomic<bool> *stop)
+                             const std::atomic<bool> *stop)
     : nh_(node),
       mujoco_model_(model),
       mujoco_data_(data),

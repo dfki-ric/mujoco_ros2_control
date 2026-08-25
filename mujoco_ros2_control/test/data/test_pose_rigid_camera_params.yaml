@@ -1,0 +1,17 @@
+# Parameters for the declared camera in test_pose_rigid.urdf.xacro, keyed by the
+# <mujoco_ros2_plugin> name so they reach the node the plugin creates.
+#
+# The low frequency is the point of the test: 2 Hz of simulated time means the
+# camera's own periodic loop renders roughly every 0.5 s, so it will not have
+# produced a frame for the state a short StepSimulation batch lands on. Only the
+# post-step barrier can make one appear, which is exactly what is being checked.
+sync_camera:
+  ros__parameters:
+    frequency: 2.0
+    width: 64
+    height: 48
+    fovx: 60.0
+    fovy: 45.0
+    color_image: true
+    depth_image: false
+    point_cloud: false

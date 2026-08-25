@@ -59,6 +59,7 @@
 #include <vector>
 #include <map>
 #include <mutex>
+#include <set>
 #include <cmath>
 #include <ctime>
 
@@ -103,6 +104,7 @@
 #include "mujoco_gl_lidar/mujoco_gl_lidar.hpp"
 
 // Sensors
+#include "mujoco_ros2_control/mujoco_ros2_plugin_loader.hpp"
 // #include "mujoco_ros2_sensors/mujoco_ros2_sensors.hpp"
 
 // GUI
@@ -268,14 +270,9 @@ namespace mujoco_ros2_control
                                      std::shared_ptr<std_srvs::srv::Trigger::Response> response);
         void mujocoResetCallback(const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
                                  std::shared_ptr<std_srvs::srv::Trigger::Response> response);
-        void mujocoSetBodyPoseCallback(const std::shared_ptr<mujoco_ros2_control::srv::SetBodyPose::Request> request,
-                                        std::shared_ptr<mujoco_ros2_control::srv::SetBodyPose::Response> response);
         void mujocoStepSimulationCallback(
             const std::shared_ptr<mujoco_ros2_control::srv::StepSimulation::Request> request,
             std::shared_ptr<mujoco_ros2_control::srv::StepSimulation::Response> response);
-        void mujocoGetBodyStateCallback(
-            const std::shared_ptr<mujoco_ros2_control::srv::GetBodyState::Request> request,
-            std::shared_ptr<mujoco_ros2_control::srv::GetBodyState::Response> response);
 
         std::shared_ptr<rclcpp::Node> nh_; ///< ROS2 node handle
 
@@ -298,9 +295,7 @@ namespace mujoco_ros2_control
         // Mujoco ros services
         rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr mujoco_play_pause_service_; ///< Service to pause the Mujoco simulation
         rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr mujoco_reset_service_; ///< Service to reset the Mujoco simulation
-        rclcpp::Service<mujoco_ros2_control::srv::SetBodyPose>::SharedPtr mujoco_set_body_pose_service_; ///< Service to teleport a free body (e.g. the cube) to a new pose
         rclcpp::Service<mujoco_ros2_control::srv::StepSimulation>::SharedPtr mujoco_step_simulation_service_;
-        rclcpp::Service<mujoco_ros2_control::srv::GetBodyState>::SharedPtr mujoco_get_body_state_service_;
 
         // Mujoco-related variables
         mjModel* mujoco_model_{}; ///< Pointer to the Mujoco model
@@ -346,6 +341,12 @@ namespace mujoco_ros2_control
         std::vector<std::thread> lidar_threads_;
         std::vector<rclcpp::Node::SharedPtr> lidar_nodes_;
         std::vector<std::shared_ptr<mujoco_gl_lidar::MujocoGLLidar>> lidars_;
+
+        // Plugins declared as top-level <mujoco_ros2_plugin> elements: outside
+        // every <ros2_control> block, so owned here rather than by a hardware
+        // component. Owns their nodes, threads and executor; shutdown() has to
+        // run before mjModel/mjData are deleted.
+        MujocoRos2PluginLoader ros2_plugins_;
 
         // Held by the sim thread around mj_step. Sensors that need a
         // time-consistent snapshot of mjData (e.g. MujocoGLLidar) take it

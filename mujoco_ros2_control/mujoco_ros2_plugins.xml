@@ -1,0 +1,34 @@
+<library path="mujoco_ros2_plugins">
+    <class
+            name="mujoco_ros2_control/DepthCameraSensor"
+            type="mujoco_ros2_plugins::DepthCameraSensor"
+            base_class_type="mujoco_ros2_control::MujocoRos2PluginInterface">
+        <description>
+            Declares a mujoco_rgbd_camera::MujocoDepthCamera through a
+            &lt;mujoco_ros2_plugin&gt; element, mounted on a MuJoCo camera
+            element or on one or two sites, instead of being found by a site
+            prefix.
+        </description>
+    </class>
+    <class
+            name="mujoco_ros2_control/LidarSensor"
+            type="mujoco_ros2_plugins::LidarSensor"
+            base_class_type="mujoco_ros2_control::MujocoRos2PluginInterface">
+        <description>
+            Declares a mujoco_gl_lidar::MujocoGLLidar through a
+            &lt;mujoco_ros2_plugin&gt; element, mounted on a named site, instead
+            of being found by a site prefix.
+        </description>
+    </class>
+    <class
+            name="mujoco_ros2_control/BodyServices"
+            type="mujoco_ros2_plugins::BodyServices"
+            base_class_type="mujoco_ros2_control::MujocoRos2PluginInterface">
+        <description>
+            Serves mujoco_get_body_state and mujoco_set_body_pose: reads a body's
+            world pose and twist, and teleports a body with a single free joint.
+            Previously built into the simulation node; declaring this plugin is
+            now what advertises them.
+        </description>
+    </class>
+</library>

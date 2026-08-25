@@ -1,5 +1,5 @@
 /**
- * @file mujoco_sensor_plugins.hpp
+ * @file mujoco_ros2_control_sensor_loader.hpp
  * @brief Loads and drives the pluginlib-based MuJoCo sensor handlers.
  *
  * @author Adrian Danzglock
@@ -30,8 +30,8 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef MUJOCO_ROS2_CONTROL__MUJOCO_SENSOR_PLUGINS_HPP_
-#define MUJOCO_ROS2_CONTROL__MUJOCO_SENSOR_PLUGINS_HPP_
+#ifndef MUJOCO_ROS2_CONTROL__MUJOCO_ROS2_CONTROL_SENSOR_LOADER_HPP_
+#define MUJOCO_ROS2_CONTROL__MUJOCO_ROS2_CONTROL_SENSOR_LOADER_HPP_
 
 #include <memory>
 #include <string>
@@ -39,14 +39,14 @@
 
 #include "pluginlib/class_loader.hpp"
 
-#include "mujoco_ros2_control/mujoco_sensor_interface.hpp"
+#include "mujoco_ros2_control/mujoco_ros2_control_sensor_interface.hpp"
 
 namespace mujoco_ros2_control {
 
 /**
- * @brief Owns the MujocoSensorInterface instances declared in the URDF.
+ * @brief Owns the MujocoRos2ControlSensorInterface instances declared in the URDF.
  *
- * Runs alongside MujocoSensors rather than replacing it: only `<sensor>`
+ * Runs alongside MujocoRos2ControlSensors rather than replacing it: only `<sensor>`
  * elements carrying a `plugin` parameter are handled here, and everything else
  * is left to the built-in classifier.
  *
@@ -56,15 +56,15 @@ namespace mujoco_ros2_control {
  * the shared objects while live objects still point into them, which shows up as
  * a crash in the destructor rather than at the point of the mistake.
  */
-class MujocoSensorPlugins {
+class MujocoRos2ControlSensorLoader {
 public:
-    MujocoSensorPlugins();
+    MujocoRos2ControlSensorLoader();
 
     /**
      * @brief Instantiate a plugin for every `<sensor>` that names one.
      *
      * Sensors without a `plugin` parameter are skipped, leaving them to
-     * MujocoSensors. A sensor whose plugin fails to load or fails its own
+     * MujocoRos2ControlSensors. A sensor whose plugin fails to load or fails its own
      * registerSensor() is reported and skipped; the simulation still comes up
      * with the remaining sensors.
      *
@@ -91,10 +91,10 @@ public:
 
 private:
     /// Declared first: must outlive every instance created from it.
-    pluginlib::ClassLoader<MujocoSensorInterface> loader_;
-    std::vector<std::shared_ptr<MujocoSensorInterface>> sensors_;
+    pluginlib::ClassLoader<MujocoRos2ControlSensorInterface> loader_;
+    std::vector<std::shared_ptr<MujocoRos2ControlSensorInterface>> sensors_;
 };
 
 }  // namespace mujoco_ros2_control
 
-#endif  // MUJOCO_ROS2_CONTROL__MUJOCO_SENSOR_PLUGINS_HPP_
+#endif  // MUJOCO_ROS2_CONTROL__MUJOCO_ROS2_CONTROL_SENSOR_LOADER_HPP_

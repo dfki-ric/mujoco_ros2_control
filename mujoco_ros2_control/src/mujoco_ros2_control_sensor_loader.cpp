@@ -1,5 +1,5 @@
 /**
- * @file mujoco_sensor_plugins.cpp
+ * @file mujoco_ros2_control_sensor_loader.cpp
  * @brief Loads and drives the pluginlib-based MuJoCo sensor handlers.
  *
  * @author Adrian Danzglock
@@ -30,20 +30,14 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "mujoco_ros2_control/mujoco_sensor_plugins.hpp"
+#include "mujoco_ros2_control/mujoco_ros2_control_sensor_loader.hpp"
 
 namespace mujoco_ros2_control {
 
-namespace {
-/// The `<param>` naming the plugin class. An XML attribute cannot be used here:
-/// ros2_control's parser drops unknown attributes on `<sensor>` without error.
-constexpr const char *kPluginParam = "plugin";
-}  // namespace
+MujocoRos2ControlSensorLoader::MujocoRos2ControlSensorLoader()
+    : loader_("mujoco_ros2_control", "mujoco_ros2_control::MujocoRos2ControlSensorInterface") {}
 
-MujocoSensorPlugins::MujocoSensorPlugins()
-    : loader_("mujoco_ros2_control", "mujoco_ros2_control::MujocoSensorInterface") {}
-
-size_t MujocoSensorPlugins::registerSensors(
+size_t MujocoRos2ControlSensorLoader::registerSensors(
         const rclcpp::Node::SharedPtr &node,
         const mjModel *mujoco_model,
         const hardware_interface::HardwareInfo &hardware_info,
@@ -51,14 +45,14 @@ size_t MujocoSensorPlugins::registerSensors(
         const rclcpp::Logger &logger) {
 
     for (const auto &sensor_info : hardware_info.sensors) {
-        const auto plugin_param = sensor_info.parameters.find(kPluginParam);
+        const auto plugin_param = sensor_info.parameters.find(kSensorPluginParam);
         if (plugin_param == sensor_info.parameters.end()) {
-            // Handled by the built-in classifier in MujocoSensors.
+            // Handled by the built-in classifier in MujocoRos2ControlSensors.
             continue;
         }
         const std::string &plugin_class = plugin_param->second;
 
-        std::shared_ptr<MujocoSensorInterface> sensor;
+        std::shared_ptr<MujocoRos2ControlSensorInterface> sensor;
         try {
             sensor = loader_.createSharedInstance(plugin_class);
         } catch (const pluginlib::PluginlibException &e) {
@@ -89,19 +83,19 @@ size_t MujocoSensorPlugins::registerSensors(
     return sensors_.size();
 }
 
-void MujocoSensorPlugins::readSensors(const mjData *mujoco_data) {
+void MujocoRos2ControlSensorLoader::readSensors(const mjData *mujoco_data) {
     for (auto &sensor : sensors_) {
         sensor->read(mujoco_data);
     }
 }
 
-void MujocoSensorPlugins::activate() {
+void MujocoRos2ControlSensorLoader::activate() {
     for (auto &sensor : sensors_) {
         sensor->activate();
     }
 }
 
-void MujocoSensorPlugins::deactivate() {
+void MujocoRos2ControlSensorLoader::deactivate() {
     for (auto &sensor : sensors_) {
         sensor->deactivate();
     }
