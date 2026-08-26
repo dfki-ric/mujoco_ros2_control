@@ -40,11 +40,12 @@
 
 namespace mujoco_ros2_control_examples {
 
-// Shared <param> readers, exported by mujoco_ros2_control alongside the base
+// Shared parameter readers, exported by mujoco_ros2_control alongside the base
 // class. Reused rather than reimplemented so an out-of-tree plugin reads its
-// configuration exactly the way the built-in ones do.
-using mujoco_ros2_control_plugins::get_bool_param;
-using mujoco_ros2_control_plugins::get_param;
+// configuration exactly the way the built-in ones do: node parameter first, then
+// the <param> of the same name on the declaration, then the default given here.
+using mujoco_ros2_control_plugins::declare_bool_param;
+using mujoco_ros2_control_plugins::declare_param;
 
 bool TouchGridSensor::configure(
         const Context &context,
@@ -53,13 +54,15 @@ bool TouchGridSensor::configure(
 
     logger_ = context.node->get_logger();
 
-    site_name_ = get_param(info, "site", info.name);
+    site_name_ = declare_param(context.node, info, "site", info.name);
     // Left relative to the node's namespace rather than made private to the
     // node: a node name does not prefix topics, so "<name>/touch_grid" is what
     // keeps the grid on /<name>/touch_grid.
-    topic_ = get_param(info, "topic", info.name + "/touch_grid");
-    frame_id_ = get_param(info, "frame_id", site_name_);
-    publish_ = get_bool_param(info, "publish", true);
+    topic_ = declare_param(context.node, info, "topic", info.name + "/touch_grid");
+    // Resolved after the site, so that a site set from the YAML still names the
+    // frame the values are reported in.
+    frame_id_ = declare_param(context.node, info, "frame_id", site_name_);
+    publish_ = declare_bool_param(context.node, info, "publish", true);
 
     int plugin_instance = -1;
     for (int id = 0; id < mujoco_model->nsensor; id++) {

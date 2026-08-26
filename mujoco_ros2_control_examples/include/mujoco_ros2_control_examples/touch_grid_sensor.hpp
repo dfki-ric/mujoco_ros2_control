@@ -72,13 +72,18 @@ namespace mujoco_ros2_control_examples {
  * </sensor>
  * @endcode
  *
- * Everything is configured from `<param>` entries on the declaration:
+ * Every value below is read as a parameter of this plugin's own node (so it can
+ * be set from the same YAML as the controllers, keyed by the declaration name),
+ * defaulting to the `<param>` of the same name on the declaration, defaulting to
+ * the value given here:
  *
  * - `site`     : the site the touch_grid is attached to (default: the sensor name)
  * - `topic`    : topic to publish on (default: `<sensor name>/touch_grid`)
  * - `frame_id` : frame the taxel values are expressed in (default: the site name)
  * - `publish`  : set "false" to step the sensor without producing topic traffic
- * - `rate`     : sampling rate in simulated Hz (default: the base class's 100)
+ * - `rate`     : sampling rate in simulated Hz (default: the base class's 100).
+ *                The one exception: the base class reads it from the `<param>`
+ *                before configure() runs, so it is not a node parameter.
  *
  * @code{.xml}
  * <mujoco_ros2_plugin name="fingertip_touch"

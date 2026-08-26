@@ -1,7 +1,12 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
-  <xacro:macro name="unitree_g1_ros2_control" params="mujoco:=true">
+  <!-- low_level:=true hands the joints to the UnitreeHgLowLevel plugin, which
+       closes the motor PD loop into qfrc_applied itself. The command interfaces
+       then have to go: whatever claims them writes the same field, so leaving
+       them in would have two writers per step. The state interfaces stay, and
+       with them the start pose and every broadcaster. -->
+  <xacro:macro name="unitree_g1_ros2_control" params="mujoco:=true low_level:=false">
     <ros2_control name="Unitree_G1_HardwareInterface" type="system">
       <hardware>
         <plugin>mujoco_ros2_control/MujocoSystem</plugin>
@@ -10,11 +15,13 @@
       <!-- One actuated joint: PD hold via kp/kd, target = default pose. -->
       <xacro:macro name="g1_joint" params="name kp kd initial_position:=0.0">
         <joint name="${name}">
-          <command_interface name="position">
-            <param name="initial_value">${initial_position}</param>
-          </command_interface>
-          <param name="kp">${kp}</param>
-          <param name="kd">${kd}</param>
+          <xacro:unless value="${low_level}">
+            <command_interface name="position">
+              <param name="initial_value">${initial_position}</param>
+            </command_interface>
+            <param name="kp">${kp}</param>
+            <param name="kd">${kd}</param>
+          </xacro:unless>
           <state_interface name="position">
             <param name="initial_value">${initial_position}</param>
           </state_interface>

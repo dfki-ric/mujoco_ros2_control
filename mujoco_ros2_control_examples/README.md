@@ -20,7 +20,6 @@ meshes/   industreal/         (gear assets; pegs/ downloaded at build time)
           unitree_g1/         (downloaded at build time)
           franka/             (D435 wrist mount, downloaded at build time)
 patches/  unitree_h1.urdf.patch (the G1 URDF is rewritten in place instead)
-scripts/  stl_to_obj.py       (build-time mesh conversion)
 include/  src/                (the TouchGridSensor and BodyServices example plugins)
 test/     per-robot launch smoke tests
 ```
@@ -89,11 +88,12 @@ installs one file out of it, so the mesh only ever exists in the install tree.
 Two details are worth knowing if it ever needs re-checking:
 
 - **The mesh is converted to OBJ on the way in.** MuJoCo's STL decoder rejects
-  anything over 200000 faces and the mount is 295768, so `scripts/stl_to_obj.py`
-  rewrites the triangle soup rather than decimating it. The conversion is
-  lossless - STL carries no texture coordinates and its per-facet normals are
-  recomputed by every consumer - and it preserves the exact 48 x 60 x 49.95 mm
-  bounds that the visual origin and the box collision were measured against.
+  anything over 200000 faces and the mount is 295768, so
+  `mujoco_ros2_control/scripts/stl_to_obj.py` rewrites the triangle soup rather
+  than decimating it. The conversion is lossless - STL carries no texture
+  coordinates and its per-facet normals are recomputed by every consumer - and
+  it preserves the exact 48 x 60 x 49.95 mm bounds that the visual origin and
+  the box collision were measured against.
 - **The download URL carries no revision**, so it cannot be pinned the way the
   IndustReal peg commit is. CMake records the archive's SHA256 and *warns*
   instead of failing when it stops matching: a revised mount would move the
@@ -207,6 +207,108 @@ ros2 topic pub --once /left_arm_position_controller/commands \
   std_msgs/msg/Float64MultiArray '{data: [0.3, 0.25, 0.0, 1.5, 0.15, 0.0, 0.0]}'
 ```
 
+#### Low-level interface (`unitree_hg` LowCmd/LowState)
+
+`low_level:=true` drives the robot the way the real G1 is driven: a policy sends
+`unitree_hg/LowCmd` on `/lowcmd` with a per-motor position, velocity, torque and
+PD gain, and reads `unitree_hg/LowState` on `/lowstate`. No controller is
+involved -- the `UnitreeHgLowLevel` plugin
+(`src/unitree_hg_low_level.cpp`) runs inside the simulation, declared as a
+top-level `<mujoco_ros2_plugin>`, and closes the motor PD loop straight into
+`mjData::qfrc_applied`:
+
+```
+tau = kp * (q_des - q) + kd * (dq_des - dq) + tau_ff
+```
+
+It runs on the simulation thread, so that loop closes on **every physics step**
+rather than once per controller-manager period -- which is what the real motor
+drivers do, running their PD far faster than the policy that sends the targets.
+The joints then export no command interfaces at all
+(`urdf/unitree_g1/ros2_control.urdf.xacro` drops them when `low_level` is set),
+so nothing else writes their torque, while every state interface and every
+broadcaster stays exactly as it was.
+
+The messages have no binary release, and building them under a package name of
+our own would change the type name a policy publishes, so the one message
+package -- not the whole `unitree_ros2` workspace -- is cloned into the
+workspace:
+
+```bash
+ros2 run mujoco_ros2_control_examples fetch_unitree_hg.sh <workspace>/src
+# or, before this package is built:
+./src/mujoco_ros2_control_examples/scripts/fetch_unitree_hg.sh src
+colcon build --packages-up-to mujoco_ros2_control_examples
+```
+
+Without it the plugin is simply left out of the build (CMake says so) and the
+rest of the package is unaffected; `rosdep install` then needs
+`--skip-keys unitree_hg`. The upstream interface package also needs
+`ros-$ROS_DISTRO-rosidl-generator-dds-idl`, which it does not declare.
+
+```bash
+ros2 launch mujoco_ros2_control_examples unitree_g1.launch.py low_level:=true
+ros2 topic hz /lowstate
+```
+
+The joints are left **slack** -- zero torque, not held -- until the first `LowCmd`
+arrives, and again after `/mujoco_reset`, which the plugin notices from simulation
+time moving backwards. That is what a robot whose motors are not yet enabled does,
+and the plugin will not invent commands nobody sent.
+
+Holding a pose is therefore a publisher's job, and the example launches one:
+`config/unitree_g1/hold_start_message.yaml` is a `LowCmd` holding the start pose,
+published on `/lowcmd` at 50 Hz with `ros2 topic pub` so the robot stands there
+waiting instead of collapsing while a policy comes up, and stands back up after a
+`/mujoco_reset`. The pose and the gains both live in that one file, in `LowCmd`
+motor order -- `q` per joint is the `initial_value` its ros2_control block declares
+and `kp`/`kd` are that block's gains, so the robot stands the same way in both
+modes. `crc` is ignored by the plugin and computed by the real robot's SDK, so the
+message is a simulation-only one.
+
+It keeps publishing rather than sending one message and stopping, even though the
+plugin re-applies whatever arrived last on every step. The reason is *when* the
+first command lands: it is started before the simulation, so a message is already
+on the wire when the plugin subscribes, whereas `--wait-matching-subscriptions`
+polls the subscription count every 100 ms and publishes only after that. The few
+hundred milliseconds the joints spend slack in the meantime are enough for the
+robot to drop off its spawn height and topple past what the PD can recover -- a
+one-shot hold stood the robot up in 1 run out of 4, and this one in 4 out of 4.
+
+Nothing stands the hold down, so it is one of two publishers on `/lowcmd` once a
+policy starts. It loses: whoever publishes faster owns the topic, since the plugin
+applies the last command it received on every step, and a G1 policy runs at 500 Hz
+against this 50 Hz. If that is not good enough, drop the hold entirely with
+`hold_pose:=false` and command `/lowcmd` from the first message yourself:
+
+```bash
+ros2 launch mujoco_ros2_control_examples unitree_g1.launch.py \
+  low_level:=true hold_pose:=false
+```
+
+Parameters live in `config/unitree_g1/unitree_g1_controllers.yaml` under
+`unitree_g1_low_level`, and each one also accepts a `<param>` of the same name on
+the declaration:
+
+| Parameter                | Default              | Meaning                                                              |
+|--------------------------|----------------------|----------------------------------------------------------------------|
+| `joints`                 | -                    | Joints to drive, in LowCmd motor order. Required.                     |
+| `motor_indices`          | `0..N-1`             | `motor_cmd`/`motor_state` slot per joint.                            |
+| `effort_limits`          | empty                | Torque clamp per joint; one value applies to all, empty = unclamped.  |
+| `imu_sensor_name`        | `imu_in_pelvis`      | IMU site; names the three MuJoCo sensors. `""` leaves `imu_state` zero. |
+| `command_topic`          | `/lowcmd`            | LowCmd topic.                                                        |
+| `state_topic`            | `/lowstate`          | LowState topic.                                                      |
+| `mode_machine`           | `0`                  | Echoed in LowState; the SDK examples copy it back into LowCmd.        |
+| `rate`                   | `500.0`              | LowState publish rate, simulated Hz. The PD loop is unaffected.       |
+| `joy_topic`, `joy.*`     | `/joy`, unmapped     | Gamepad mapping packed into `LowState::wireless_remote`.              |
+
+Two things the ros2_control path did for free are now the plugin's business:
+nothing clamps the torque unless `effort_limits` is set (MuJoCo does not limit
+`qfrc_applied` on its own), and there is no controller lifecycle to deactivate --
+the plugin lives as long as the simulation. And it is simulation-only by nature:
+a `ControllerInterface` runs unchanged against the real robot, whereas this
+replaces the simulation half of that pair.
+
 #### Stepping-stones terrain
 
 By default this example spawns on a Voronoi stepping-stones field generated by
@@ -279,7 +381,7 @@ components `[normal, tangent, tangent]` followed by the torque components
 declares 3, so it publishes forces only.
 
 The MJCF side needs the engine plugin declared in an `<extension>` block, and the
-ros2_control side names the sensor plugin
+URDF names the sensor plugin
 ([`urdf/tactile/tactile_pad.urdf.xacro`](urdf/tactile/tactile_pad.urdf.xacro)):
 
 ```xml
@@ -304,21 +406,32 @@ ros2_control side names the sensor plugin
     </sensor>
 </mujoco>
 
-<!-- inside <ros2_control>: no state interfaces, it publishes a topic -->
-<sensor name="pad_touch">
-    <param name="plugin">mujoco_ros2_control_examples/TouchGridSensor</param>
+<!-- outside <ros2_control>: it exports no state interfaces, it publishes a
+     topic, so it gets its own node named pad_touch and its own thread -->
+<mujoco_ros2_plugin name="pad_touch"
+                    plugin="mujoco_ros2_control_examples/TouchGridSensor">
     <param name="site">pad_touch_site</param>
-</sensor>
+</mujoco_ros2_plugin>
 ```
 
-Everything else the plugin needs comes from `<param>` entries on the `<sensor>`:
+Everything else the plugin needs is a parameter of the `pad_touch` node,
+defaulting to the `<param>` of the same name on the declaration - so the shape of
+the robot stays in the URDF and anything retuned per run can go in a YAML instead:
 
-| `<param>` | Default | Meaning |
+| Parameter | Default | Meaning |
 |-----------|---------|---------|
-| `site` | the sensor name | The site the `touch_grid` is attached to. |
-| `topic` | `<sensor name>/touch_grid` | Topic to publish on. |
+| `site` | the declaration name | The site the `touch_grid` is attached to. |
+| `topic` | `<declaration name>/touch_grid` | Topic to publish on. |
 | `frame_id` | the site name | Frame the taxel values are expressed in. Informational only - `Float64MultiArray` carries no header, so this is just logged at startup. |
 | `publish` | `true` | Set `false` to step the sensor without producing topic traffic. |
+| `rate` | `100.0` | Sampling rate in simulated Hz. `<param>` only: the base class reads it before the plugin is configured. |
+
+```yaml
+pad_touch:
+  ros__parameters:
+    topic: fingertip/touch
+    publish: true
+```
 
 Three things are easy to get wrong when copying this:
 
@@ -384,10 +497,14 @@ twice - which is the point of the parameters:
 </mujoco_ros2_plugin>
 ```
 
-| `<param>` | Default | Meaning |
+| Parameter | Default | Meaning |
 |-----------|---------|---------|
 | `get_body_state_service` | `mujoco_get_body_state` | Name of the read service. |
 | `set_body_pose_service` | `mujoco_set_body_pose` | Name of the teleport service. |
+
+Both are read from the plugin's own node first - keyed by the declaration name,
+so the pair above can equally be renamed from a YAML - and default to the
+`<param>` of the same name on the declaration.
 
 A node's name does not prefix service names - only its namespace does - so the
 declaration's `name` does not affect where the services land. That is what the

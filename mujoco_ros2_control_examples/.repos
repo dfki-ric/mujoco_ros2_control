@@ -1,0 +1,9 @@
+repositories:
+  unitree_ros2:
+    type: git
+    url: https://github.com/unitreerobotics/unitree_ros2.git
+    version: master
+  franka_description:
+    type: git
+    url: https://github.com/frankarobotics/franka_description.git
+    version: jazzy

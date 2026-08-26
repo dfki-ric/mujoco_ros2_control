@@ -149,6 +149,37 @@ ROBOTS = {
                     "--field-half", "15.0", "--max-height-var", "0.10",
                     "--max-tilt-deg", "8.0", "--max-drop-frac", "0.15"],
     },
+    # The same G1, driven over unitree_hg/LowCmd by the UnitreeHgLowLevel plugin
+    # instead of by the position controllers: ros2_control exports state only, so
+    # this is the one example whose joints nothing in ros2_control commands. Flat
+    # ground rather than stepping stones, because the test holds a pose and reads
+    # it back, and unitree_hg is a source dependency, so the whole example skips
+    # when it is not in the workspace (scripts/fetch_unitree_hg.sh).
+    "unitree_g1_low_level": {
+        "requires": ["unitree_hg"],
+        "requires_files": ("urdf", "unitree_g1", "unitree_g1.urdf"),
+        "assets_option": "DOWNLOAD_UNITREE_G1_ASSETS",
+        "xacro": ("urdf", "unitree_g1", "unitree_g1.urdf.xacro"),
+        "controllers": ("config", "unitree_g1", "unitree_g1_controllers.yaml"),
+        "mappings": {
+            "name": "unitree_g1",
+            "mujoco": "true",
+            "low_level": "true",
+        },
+        "xacro2mjcf": {
+            "base_link": "pelvis",
+            "floating": True,
+            "initial_position": "0 0 0.78",
+            "initial_orientation": "0 0 0",
+        },
+        # What unitree_g1.launch.py runs the low-level path at.
+        "simulation_frequency": 1000.0,
+        # Nothing in ros2_control commands these joints and the plugin leaves them
+        # slack, so the example publishes one LowCmd holding the start pose to keep
+        # the robot standing; the test needs the same one. A path under this
+        # package's share dir, like the entries above.
+        "hold_pose_message": ("config", "unitree_g1", "hold_start_message.yaml"),
+    },
 }
 
 
@@ -259,13 +290,40 @@ def make_test_description(robot):
         parameters=[robot_description, {"use_sim_time": True}],
     )
 
+    # The same hold the launch file publishes, and for the same reason it streams
+    # rather than waiting for the plugin: see the comment there. A test that
+    # commands the joints itself publishes far faster than this 50 Hz, so the hold
+    # does not get in its way.
+    hold_pose = []
+    if spec.get("hold_pose_message"):
+        hold_start_path = os.path.join(share, *spec["hold_pose_message"])
+        # `ros2 topic pub` takes the message as a literal argument, not a file
+        # path, so the file still has to be read somewhere - but not by this
+        # launch description: read here, its contents become part of the `cmd`
+        # this ExecuteProcess action stores, and launch logs `cmd` verbatim if
+        # the process ever exits non-zero (e.g. the SIGINT that stops it),
+        # dumping the whole YAML to the terminal. Deferring the read into the
+        # shell keeps `cmd` itself just this fixed string and a path.
+        hold_pose.append(ExecuteProcess(
+            cmd=[
+                "bash", "-c",
+                'exec ros2 topic pub --rate 50 /lowcmd unitree_hg/msg/LowCmd '
+                '"$(cat "$1")"',
+                "_", hold_start_path,
+            ],
+            output="screen",
+        ))
+
     mujoco = Node(
         package="mujoco_ros2_control",
         executable="mujoco_ros2_control",
         parameters=[
             robot_description,
             *config_files,
-            {"simulation_frequency": 200.0},
+            # 200 Hz is enough to prove a model loads, which is all most of
+            # these tests do. A spec can ask for more: the low-level G1 holds a
+            # stiff PD pose, and kp=750 with a 5 ms step is not stable.
+            {"simulation_frequency": spec.get("simulation_frequency", 200.0)},
             {"realtime_factor": 1.0},
             {"robot_model_path": model_file},
             {"show_gui": False},
@@ -276,6 +334,7 @@ def make_test_description(robot):
     return launch.LaunchDescription(
         [
             robot_state_publisher,
+            *hold_pose,
             xacro2mjcf,
             RegisterEventHandler(
                 OnProcessExit(

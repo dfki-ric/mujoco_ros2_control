@@ -66,11 +66,12 @@ RUN echo "source /ros2_ws/install/setup.bash" > /root/.bashrc
 
 FROM base AS demo
 
-# franka_description has no binary package on jazzy, so rosdep cannot resolve
-# it -> build it from source.
-RUN git clone -b jazzy https://github.com/frankarobotics/franka_description.git \
-    /ros2_ws/src/franka_description
 COPY mujoco_ros2_control_examples /ros2_ws/src/mujoco_ros2_control_examples
+
+RUN vcs import --input src/mujoco_ros2_control_examples/.repos src/ \
+    && mv src/unitree_ros2/cyclonedds_ws/src/unitree/unitree_hg src/unitree_hg \
+    && rm -rf src/unitree_ros2
+
 
 RUN rosdep update && \
     rosdep install --from-paths src --ignore-src --rosdistro $ROS_DISTRO -y

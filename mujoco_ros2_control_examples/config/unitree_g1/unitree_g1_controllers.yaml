@@ -115,3 +115,43 @@ lidar_head:
     noise_stddev: 0.0
     exclude_parent_body: true
     depth_threshold: 0.02
+
+# UnitreeHgLowLevel, declared in the description as
+# <mujoco_ros2_plugin name="unitree_g1_low_level"> when low_level:=true. The
+# joint list and the IMU site are part of the robot and stay in the xacro; what
+# is tuned per run lives here.
+unitree_g1_low_level:
+  ros__parameters:
+    # LowState publish rate in simulated Hz. The PD loop itself runs at the
+    # physics rate regardless -- this only paces the topic.
+    rate: 500.0
+    command_topic: /lowcmd
+    state_topic: /lowstate
+    # Echoed in LowState::mode_machine, which the Unitree SDK examples read and
+    # copy back into LowCmd. 0 keeps the field unset.
+    mode_machine: 0
+    # Per-joint torque clamp, in the order the joints are declared. Left out
+    # here, which means unclamped: a single value applies to every joint, and
+    # nothing in MuJoCo limits qfrc_applied on its own.
+    # effort_limits: [88.0]
+
+    # Gamepad -> LowState::wireless_remote. Indices are into sensor_msgs/Joy,
+    # and -1 (the default) packs a channel as zero, so this is only needed for a
+    # policy that steers from the remote. The values below are an Xbox-layout
+    # pad as the joy node reports it.
+    joy_topic: /joy
+    # joy:
+    #   axis_lx: 0
+    #   axis_ly: 1
+    #   axis_rx: 3
+    #   axis_ry: 4
+    #   axis_l2: 2
+    #   axis_lx_scale: -1.0   # joy is left-positive, the remote right-positive
+    #   axis_rx_scale: -1.0
+    #   # Joy button index -> bit in the 16-bit Unitree key mask:
+    #   #   0 R1     1 L1      2 start  3 select
+    #   #   4 R2     5 L2      6 F1     7 F2
+    #   #   8 A      9 B      10 X     11 Y
+    #   #  12 up    13 right  14 down  15 left
+    #   button_joy_indices: [0, 1, 2, 3]
+    #   button_bits:        [8, 9, 10, 11]

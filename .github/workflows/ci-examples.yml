@@ -68,8 +68,10 @@ jobs:
           mkdir -p /ros2_ws/src
           cp -r mujoco_ros2_control /ros2_ws/src/
           cp -r mujoco_ros2_control_examples /ros2_ws/src/
-
-          git clone -b jazzy https://github.com/frankarobotics/franka_description.git /ros2_ws/src/franka_description
+          
+          vcs import --input src/mujoco_ros2_control_examples/.repos src/
+          mv src/unitree_ros2/cyclonedds_ws/src/unitree/unitree_hg src/unitree_hg
+          rm -rf src/unitree_ros2
 
       - name: Resolve rosdep dependencies
         working-directory: /ros2_ws

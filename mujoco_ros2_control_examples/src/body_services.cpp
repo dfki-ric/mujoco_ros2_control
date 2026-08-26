@@ -40,16 +40,18 @@
 
 namespace mujoco_ros2_control_examples {
 
-using mujoco_ros2_control_plugins::get_param;
+// Node parameter first, then the <param> of the same name on the declaration,
+// then the default given here -- the reader shared by every plugin.
+using mujoco_ros2_control_plugins::declare_param;
 
 bool BodyServices::configure(
         const Context &context,
         const mujoco_ros2_control::MujocoRos2PluginInfo &info) {
 
-    const std::string get_name =
-        get_param(info, "get_body_state_service", "mujoco_get_body_state");
-    const std::string set_name =
-        get_param(info, "set_body_pose_service", "mujoco_set_body_pose");
+    const std::string get_name = declare_param(
+        context.node, info, "get_body_state_service", "mujoco_get_body_state");
+    const std::string set_name = declare_param(
+        context.node, info, "set_body_pose_service", "mujoco_set_body_pose");
 
     get_body_state_ = context.node->create_service<srv::GetBodyState>(
         get_name,

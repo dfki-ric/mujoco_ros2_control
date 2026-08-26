@@ -354,10 +354,33 @@ Four rules matter for a plugin that behaves itself in the control loop:
   bookkeeping and then reports *"no factory exists for it"* when the class is
   requested.
 
-Helpers for reading params and resolving MuJoCo sensor addresses are in
+Helpers for reading configuration and resolving MuJoCo sensor addresses are in
 [`sensor_lookup.hpp`](include/mujoco_ros2_control_plugins/sensor_lookup.hpp):
 `get_param()`, `get_bool_param()`, `resolve_object_name()`, `find_sensor_adr()`
 and `export_state_interfaces()`.
+
+The `declare_*_param()` helpers in the same header read one key from both places
+at once: the node parameter wins, its default is the `<param>` of that name on
+the declaration, and that falls back to the value passed in. Prefer them over
+`get_param()` for anything a user might retune, so a robot can be described
+entirely in its URDF and still be reconfigured from the YAML that configures the
+controllers.
+
+```cpp
+using mujoco_ros2_control_plugins::declare_param;
+using mujoco_ros2_control_plugins::declare_double_param;
+
+topic_ = declare_param(node, sensor_info, "topic", sensor_info.name + "/touch");
+cutoff_ = declare_double_param(node, sensor_info, "cutoff", 20.0);
+```
+
+There is one per type - `declare_param()` (string), `declare_bool_param()`,
+`declare_int_param()`, `declare_double_param()` and the three
+`declare_*_array_param()` - and each may be called once per key, from
+`registerSensor()`/`configure()` only. Where the key lands in the YAML follows
+from the node: a `<mujoco_ros2_plugin>` has one of its own, named after the
+declaration, while a `<sensor>` inside `<ros2_control>` shares the simulation
+node and so publishes its keys under `mujoco_ros2_control`.
 
 #### Out-of-tree packages
 

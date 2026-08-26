@@ -1,0 +1,15 @@
+<library path="mujoco_ros2_control_examples_unitree_plugins">
+    <class
+            name="mujoco_ros2_control_examples/UnitreeHgLowLevel"
+            type="mujoco_ros2_control_examples::UnitreeHgLowLevel"
+            base_class_type="mujoco_ros2_control::MujocoRos2PluginInterface">
+        <description>
+            Serves the Unitree G1/H1-2 low-level interface from inside the
+            simulation: subscribes to unitree_hg/LowCmd, publishes
+            unitree_hg/LowState, and closes the per-motor PD loop into
+            mjData::qfrc_applied on every physics step. Built only when the
+            unitree_hg messages are in the workspace, so it lives in its own
+            library rather than beside the other example plugins.
+        </description>
+    </class>
+</library>

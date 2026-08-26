@@ -6,7 +6,7 @@
   <version>1.0.0</version>
   <description>
     Example robots simulated with mujoco_ros2_control: Franka (with the task
-    table), Universal Robots (UR) and Unitree H1.
+    table), Universal Robots (UR) and Unitree H1/G1.
   </description>
 
   <maintainer email="adrian.danzglock@dfki.de">Adrian Danzglock</maintainer>
@@ -19,12 +19,26 @@
   <exec_depend>launch_ros</exec_depend>
   <depend>mujoco_ros2_control</depend>
 
-  <!-- For the example plugins in src/: TouchGridSensor and BodyServices. -->
+  <!-- For the example plugins in src/: TouchGridSensor, BodyServices and
+       UnitreeHgLowLevel (sensor_msgs for its Joy -> wireless_remote packing). -->
   <depend>hardware_interface</depend>
   <depend>pluginlib</depend>
   <depend>rclcpp</depend>
   <depend>realtime_tools</depend>
   <depend>std_msgs</depend>
+  <depend>sensor_msgs</depend>
+
+  <!-- The G1 low-level example holds its start pose with `ros2 topic pub`:
+       UnitreeHgLowLevel deliberately commands nothing of its own. -->
+  <exec_depend>ros2topic</exec_depend>
+
+  <!-- The messages UnitreeHgLowLevel serves. They have no binary release, so
+       rosdep cannot resolve this key: the .repositories file beside this one clones
+       that message package into the workspace, the way franka_description is
+       cloned too, and rosdep then skips it as a source package. Without it the plugin
+       is left out of the build and everything else here still works, so passing
+       "skip-keys unitree_hg" to rosdep is the other way out. -->
+  <depend>unitree_hg</depend>
 
   <!-- BodyServices brings its own service definitions (srv/), so this package
        generates interfaces as well as consuming them. -->
@@ -57,6 +71,8 @@
   <test_depend>ament_cmake_ros</test_depend>
   <test_depend>launch_testing_ament_cmake</test_depend>
   <test_depend>launch_testing_ros</test_depend>
+  <!-- The launch tests are rclpy nodes; nothing that runs the examples needs it. -->
+  <test_depend>rclpy</test_depend>
   <!-- The ur_multi test queries the controller manager for its hardware components. -->
   <test_depend>controller_manager_msgs</test_depend>
   <!-- The body services test calls /mujoco_reset. -->

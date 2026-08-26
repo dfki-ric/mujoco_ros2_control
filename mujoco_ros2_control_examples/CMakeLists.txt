@@ -12,6 +12,7 @@ foreach(Dependency IN ITEMS
     rclcpp
     realtime_tools
     std_msgs
+    sensor_msgs
     geometry_msgs
     rosidl_default_generators
 )
@@ -118,6 +119,52 @@ pluginlib_export_plugin_description_file(
 
 # So a client of the body services can find the generated srv types.
 ament_export_dependencies(rosidl_default_runtime)
+
+##########################
+# UNITREE LOW-LEVEL PLUGIN #
+##########################
+# UnitreeHgLowLevel serves unitree_hg/LowCmd and LowState from inside the
+# simulation, closing the motor PD loop into qfrc_applied on every physics step,
+# so a G1 policy talks to MuJoCo the way it talks to the robot.
+find_package(unitree_hg QUIET)
+if(unitree_hg_FOUND)
+    add_library(${PROJECT_NAME}_unitree_plugins SHARED
+        src/unitree_hg_low_level.cpp
+    )
+
+    target_include_directories(${PROJECT_NAME}_unitree_plugins PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>
+    )
+
+    ament_target_dependencies(${PROJECT_NAME}_unitree_plugins
+        mujoco_ros2_control
+        # For the shared <param> readers in mujoco_ros2_control_plugins/, which
+        # serve both kinds of declaration and so include hardware_interface.
+        hardware_interface
+        pluginlib
+        rclcpp
+        realtime_tools
+        sensor_msgs
+        unitree_hg
+    )
+
+    target_link_libraries(${PROJECT_NAME}_unitree_plugins
+        mujoco::mujoco
+    )
+
+    install(TARGETS ${PROJECT_NAME}_unitree_plugins
+        ARCHIVE DESTINATION lib
+        LIBRARY DESTINATION lib
+        RUNTIME DESTINATION bin
+    )
+
+    pluginlib_export_plugin_description_file(
+        mujoco_ros2_control ${PROJECT_NAME}_unitree_plugins.xml)
+else()
+    message(STATUS
+        "unitree_hg not found: skipping the UnitreeHgLowLevel plugin.")
+endif()
 
 ###########
 # INSTALL #
@@ -484,9 +531,29 @@ if(DOWNLOAD_FRANKA_CAMERA_MOUNT_ASSET)
   # 295768, so it is rewritten as an OBJ - the same triangles through a loader
   # without that limit, rather than a decimation that would no longer match the
   # measured visual origin.
+  #
+  # The converter lives in mujoco_ros2_control, next to dae2stl.py, since the
+  # face limit is MuJoCo's and not this example's. ament sets _DIR to
+  # <prefix>/share/mujoco_ros2_control/cmake, so three levels up is the prefix
+  # that package installed its scripts into.
+  get_filename_component(MUJOCO_ROS2_CONTROL_PREFIX
+      "${mujoco_ros2_control_DIR}/../../.." ABSOLUTE)
+  find_program(STL_TO_OBJ_SCRIPT stl_to_obj.py
+      PATHS "${MUJOCO_ROS2_CONTROL_PREFIX}/lib/mujoco_ros2_control"
+      NO_DEFAULT_PATH
+  )
+  if(NOT STL_TO_OBJ_SCRIPT)
+    message(FATAL_ERROR
+      "stl_to_obj.py was not found in ${MUJOCO_ROS2_CONTROL_PREFIX}/lib/"
+      "mujoco_ros2_control. Rebuild mujoco_ros2_control, or turn off "
+      "DOWNLOAD_FRANKA_CAMERA_MOUNT_ASSET and pass load_realsense:=false.")
+  endif()
+
+  # Through the interpreter rather than the shebang: the script is installed
+  # executable, but that survives neither every packaging path nor a Windows host.
   execute_process(
       COMMAND ${Python3_EXECUTABLE}
-              "${CMAKE_CURRENT_SOURCE_DIR}/scripts/stl_to_obj.py"
+              "${STL_TO_OBJ_SCRIPT}"
               "${MOUNT_DEST_DIR}/${MOUNT_STL}"
               "${MOUNT_DEST_DIR}/${MOUNT_OBJ}"
       RESULT_VARIABLE CONVERT_RESULT
@@ -521,6 +588,9 @@ if(BUILD_TESTING)
   add_ros_isolated_launch_test(test/test_ur_multi_example.test.py)
   add_ros_isolated_launch_test(test/test_unitree_h1_example.test.py)
   add_ros_isolated_launch_test(test/test_unitree_g1_example.test.py)
+  # Longer than the plain G1 test: this one waits for the commanded pose to be
+  # reached, not just for the node to come up.
+  add_ros_isolated_launch_test(test/test_unitree_g1_low_level_example.test.py TIMEOUT 180)
   add_ros_isolated_launch_test(test/test_tactile_example.test.py TIMEOUT 120)
   add_ros_isolated_launch_test(test/test_body_services_example.test.py TIMEOUT 120)
 endif()

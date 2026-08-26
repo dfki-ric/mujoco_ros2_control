@@ -58,7 +58,9 @@ namespace mujoco_ros2_control_examples {
  * not advertise them, and a description can declare them under whatever names
  * suit it.
  *
- * Parameters, both optional:
+ * Parameters, both optional, and each read from this plugin's own node first
+ * (keyed by the declaration name in the same YAML as the controllers), then from
+ * the `<param>` of the same name on the declaration:
  * - `get_body_state_service` : service name (default `mujoco_get_body_state`)
  * - `set_body_pose_service`  : service name (default `mujoco_set_body_pose`)
  *

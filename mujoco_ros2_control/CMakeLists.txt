@@ -329,6 +329,7 @@ install(PROGRAMS
     scripts/xacro2mjcf.py
     scripts/urdf2mjcf.py
     scripts/dae2stl.py
+    scripts/stl_to_obj.py
     scripts/prepare_terrain.py
     DESTINATION lib/${PROJECT_NAME}
 )

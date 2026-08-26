@@ -1,0 +1,19 @@
+# The unitree_hg/LowCmd the G1 low-level example holds its start pose with,
+# published on /lowcmd at 50 Hz by `ros2 topic pub` in launch/unitree_g1.launch.py.
+# UnitreeHgLowLevel leaves the joints slack until a command arrives, so this is
+# what keeps the robot standing while nothing else is driving it; a policy
+# publishes faster than 50 Hz and takes the topic over.
+#
+# motor_cmd is indexed in LowCmd motor order, which is the order the joints are
+# declared in urdf/unitree_g1/ros2_control.urdf.xacro: q is each joint's
+# initial_value there and kp/kd are the gains its ros2_control block uses, so the
+# robot stands the same way in both modes. Slots 29-34 do not exist on the 29-DoF
+# G1 and are left at mode 0.
+#
+# crc is inert here -- the plugin never checks it, while the real robot's SDK
+# computes it itself -- so this message is for the simulation only.
+mode_pr: 0
+mode_machine: 0
+motor_cmd: [{mode: 1, q: -0.10000000149011612, dq: 0.0, tau: 0.0, kp: 500.0, kd: 2.0, reserve: 0}, {mode: 1, q: 0.0, dq: 0.0, tau: 0.0, kp: 500.0, kd: 2.0, reserve: 0}, {mode: 1, q: 0.0, dq: 0.0, tau: 0.0, kp: 500.0, kd: 2.0, reserve: 0}, {mode: 1, q: 0.30000001192092896, dq: 0.0, tau: 0.0, kp: 750.0, kd: 4.0, reserve: 0}, {mode: 1, q: -0.20000000298023224, dq: 0.0, tau: 0.0, kp: 200.0, kd: 2.0, reserve: 0}, {mode: 1, q: 0.0, dq: 0.0, tau: 0.0, kp: 200.0, kd: 2.0, reserve: 0}, {mode: 1, q: -0.10000000149011612, dq: 0.0, tau: 0.0, kp: 500.0, kd: 2.0, reserve: 0}, {mode: 1, q: 0.0, dq: 0.0, tau: 0.0, kp: 500.0, kd: 2.0, reserve: 0}, {mode: 1, q: 0.0, dq: 0.0, tau: 0.0, kp: 500.0, kd: 2.0, reserve: 0}, {mode: 1, q: 0.30000001192092896, dq: 0.0, tau: 0.0, kp: 750.0, kd: 4.0, reserve: 0}, {mode: 1, q: -0.20000000298023224, dq: 0.0, tau: 0.0, kp: 200.0, kd: 2.0, reserve: 0}, {mode: 1, q: 0.0, dq: 0.0, tau: 0.0, kp: 200.0, kd: 2.0, reserve: 0}, {mode: 1, q: 0.0, dq: 0.0, tau: 0.0, kp: 1000.0, kd: 5.0, reserve: 0}, {mode: 1, q: 0.0, dq: 0.0, tau: 0.0, kp: 200.0, kd: 5.0, reserve: 0}, {mode: 1, q: 0.0, dq: 0.0, tau: 0.0, kp: 200.0, kd: 5.0, reserve: 0}, {mode: 1, q: 0.30000001192092896, dq: 0.0, tau: 0.0, kp: 200.0, kd: 1.0, reserve: 0}, {mode: 1, q: 0.25, dq: 0.0, tau: 0.0, kp: 200.0, kd: 1.0, reserve: 0}, {mode: 1, q: 0.0, dq: 0.0, tau: 0.0, kp: 200.0, kd: 1.0, reserve: 0}, {mode: 1, q: 0.9700000286102295, dq: 0.0, tau: 0.0, kp: 200.0, kd: 1.0, reserve: 0}, {mode: 1, q: 0.15000000596046448, dq: 0.0, tau: 0.0, kp: 200.0, kd: 1.0, reserve: 0}, {mode: 1, q: 0.0, dq: 0.0, tau: 0.0, kp: 200.0, kd: 1.0, reserve: 0}, {mode: 1, q: 0.0, dq: 0.0, tau: 0.0, kp: 200.0, kd: 1.0, reserve: 0}, {mode: 1, q: 0.30000001192092896, dq: 0.0, tau: 0.0, kp: 200.0, kd: 1.0, reserve: 0}, {mode: 1, q: -0.25, dq: 0.0, tau: 0.0, kp: 200.0, kd: 1.0, reserve: 0}, {mode: 1, q: 0.0, dq: 0.0, tau: 0.0, kp: 200.0, kd: 1.0, reserve: 0}, {mode: 1, q: 0.9700000286102295, dq: 0.0, tau: 0.0, kp: 200.0, kd: 1.0, reserve: 0}, {mode: 1, q: -0.15000000596046448, dq: 0.0, tau: 0.0, kp: 200.0, kd: 1.0, reserve: 0}, {mode: 1, q: 0.0, dq: 0.0, tau: 0.0, kp: 200.0, kd: 1.0, reserve: 0}, {mode: 1, q: 0.0, dq: 0.0, tau: 0.0, kp: 200.0, kd: 1.0, reserve: 0}, {mode: 0, q: 0.0, dq: 0.0, tau: 0.0, kp: 0.0, kd: 0.0, reserve: 0}, {mode: 0, q: 0.0, dq: 0.0, tau: 0.0, kp: 0.0, kd: 0.0, reserve: 0}, {mode: 0, q: 0.0, dq: 0.0, tau: 0.0, kp: 0.0, kd: 0.0, reserve: 0}, {mode: 0, q: 0.0, dq: 0.0, tau: 0.0, kp: 0.0, kd: 0.0, reserve: 0}, {mode: 0, q: 0.0, dq: 0.0, tau: 0.0, kp: 0.0, kd: 0.0, reserve: 0}, {mode: 0, q: 0.0, dq: 0.0, tau: 0.0, kp: 0.0, kd: 0.0, reserve: 0}]
+reserve: [0, 0, 0, 0]
+crc: 1098765018

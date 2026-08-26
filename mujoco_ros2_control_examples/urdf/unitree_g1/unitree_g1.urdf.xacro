@@ -15,13 +15,18 @@
   <xacro:arg name="name" default="unitree_g1"/>
   <xacro:arg name="mujoco_model_path" default="/tmp/mujoco"/>
   <xacro:arg name="mujoco" default="true"/>
+  <!-- true: the joints are driven by the UnitreeHgLowLevel plugin over
+       unitree_hg/LowCmd, the way the real G1 is driven, and ros2_control exports
+       state only. false (the default): the ros2_control position controllers hold
+       the start pose. -->
+  <xacro:arg name="low_level" default="false"/>
 
   <!-- Base robot (downloaded + patched) -->
   <xacro:include filename="$(find mujoco_ros2_control_examples)/urdf/unitree_g1/unitree_g1.urdf"/>
 
   <!-- ros2_control: PD hold of the default pose -->
   <xacro:include filename="$(find mujoco_ros2_control_examples)/urdf/unitree_g1/ros2_control.urdf.xacro"/>
-  <xacro:unitree_g1_ros2_control mujoco="$(arg mujoco)"/>
+  <xacro:unitree_g1_ros2_control mujoco="$(arg mujoco)" low_level="$(arg low_level)"/>
 
   <!-- ROS optical frame for the d435 depth camera (REP-103: x-right, y-down, z-forward) -->
   <link name="d435_depth_optical_frame"/>
@@ -126,5 +131,32 @@
     <mujoco_ros2_plugin name="lidar_head" plugin="mujoco_ros2_control/LidarSensor">
       <param name="site">lidar_head_mount</param>
     </mujoco_ros2_plugin>
+
+    <!-- The low-level interface a G1 policy expects: unitree_hg/LowCmd in,
+         unitree_hg/LowState out, and the per-motor PD loop closed on every
+         physics step instead of once per controller-manager period.
+
+         The joints are listed in LowCmd motor order (0..28 for the 29-DOF G1),
+         which is the order they are declared in above, so the default
+         motor_indices of 0..N-1 are already right. Everything else (the
+         gamepad mapping, the publish rate, torque clamps) is a parameter of the
+         "unitree_g1_low_level" node in unitree_g1_controllers.yaml. -->
+    <xacro:if value="$(arg low_level)">
+      <mujoco_ros2_plugin name="unitree_g1_low_level"
+                          plugin="mujoco_ros2_control_examples/UnitreeHgLowLevel">
+        <param name="joints">
+          left_hip_pitch_joint left_hip_roll_joint left_hip_yaw_joint
+          left_knee_joint left_ankle_pitch_joint left_ankle_roll_joint
+          right_hip_pitch_joint right_hip_roll_joint right_hip_yaw_joint
+          right_knee_joint right_ankle_pitch_joint right_ankle_roll_joint
+          waist_yaw_joint waist_roll_joint waist_pitch_joint
+          left_shoulder_pitch_joint left_shoulder_roll_joint left_shoulder_yaw_joint
+          left_elbow_joint left_wrist_roll_joint left_wrist_pitch_joint left_wrist_yaw_joint
+          right_shoulder_pitch_joint right_shoulder_roll_joint right_shoulder_yaw_joint
+          right_elbow_joint right_wrist_roll_joint right_wrist_pitch_joint right_wrist_yaw_joint
+        </param>
+        <param name="imu_sensor_name">imu_in_pelvis</param>
+      </mujoco_ros2_plugin>
+    </xacro:if>
   </xacro:if>
 </robot>
