@@ -241,12 +241,20 @@ cd <workspace>
 vcs import --input src/mujoco_ros2_control/mujoco_ros2_control_examples/.repos src/
 mv src/unitree_ros2/cyclonedds_ws/src/unitree/unitree_hg src/unitree_hg
 rm -rf src/unitree_ros2
+sed -i '/<build_depend>rosidl_default_generators<\/build_depend>/a\  <build_depend>rosidl_generator_dds_idl</build_depend>' \
+  src/unitree_hg/package.xml
 rosdep install --from-paths src --ignore-src --rosdistro $ROS_DISTRO -y
 colcon build --packages-up-to mujoco_ros2_control_examples
 ```
 
 (swap `mujoco_ros2_control` for wherever you cloned this repo, if you gave it a
 different name)
+
+The `sed` line patches a gap in `unitree_hg`'s own `package.xml`: its
+`CMakeLists.txt` calls `find_package(rosidl_generator_dds_idl REQUIRED)` but
+never declares that as a dependency, so `rosdep install` -- which resolves
+purely from `package.xml` -- skips it and the build fails in CMake configure
+without this. The Dockerfile and `ci-examples.yml` apply the same patch.
 
 Skip it and the plugin is simply left out of the build (CMake says so) and the
 rest of the package is unaffected; `rosdep install` then needs
