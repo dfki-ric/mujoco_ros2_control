@@ -96,6 +96,13 @@ namespace mujoco_ros2_control {
 
             // --- IMU Sensor ---
             if (has_imu_interfaces) {
+                RCLCPP_WARN(
+                        rclcpp::get_logger(hardware_info.name),
+                        "Sensor '%s' is using the deprecated built-in IMU classifier, which is "
+                        "scheduled for removal. Add <param name=\"%s\">mujoco_ros2_control/ImuSensor</param> "
+                        "to this <sensor> to switch to the plugin.",
+                        sensor_info.name.c_str(), kSensorPluginParam);
+
                 ImuData imu;
                 imu.name = sensor_info.name;
 
@@ -142,6 +149,14 @@ namespace mujoco_ros2_control {
 
             // --- ForceTorque Sensor ---
             if (has_ft_interfaces) {
+                RCLCPP_WARN(
+                        rclcpp::get_logger(hardware_info.name),
+                        "Sensor '%s' is using the deprecated built-in force/torque classifier, "
+                        "which is scheduled for removal. Add <param name=\"%s\">"
+                        "mujoco_ros2_control/ForceTorqueSensor</param> to this <sensor> to switch "
+                        "to the plugin.",
+                        sensor_info.name.c_str(), kSensorPluginParam);
+
                 ForceTorqueData ft;
                 ft.name = sensor_info.name;
 
@@ -182,6 +197,13 @@ namespace mujoco_ros2_control {
 
             // --- Pose Sensor ---
             if (has_pose_interfaces) {
+                RCLCPP_WARN(
+                        rclcpp::get_logger(hardware_info.name),
+                        "Sensor '%s' is using the deprecated built-in pose classifier, which is "
+                        "scheduled for removal. Add <param name=\"%s\">mujoco_ros2_control/PoseSensor</param> "
+                        "to this <sensor> to switch to the plugin.",
+                        sensor_info.name.c_str(), kSensorPluginParam);
+
                 PoseData pose;
                 pose.name = sensor_info.name;
 

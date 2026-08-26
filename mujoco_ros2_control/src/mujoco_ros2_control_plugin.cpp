@@ -594,8 +594,19 @@ void MujocoRos2Control::registerSensors() {
 
   // Add cameras declared as MuJoCo <camera> elements. These are always created;
   // their pose and vertical FOV come from the model camera (mjCAMERA_FIXED).
+  //
+  // @deprecated Superseded by declaring the camera with <mujoco_ros2_plugin
+  //             plugin="mujoco_ros2_control/DepthCameraSensor"> and a "camera"
+  //             param naming this element. Scheduled for removal in a future
+  //             release.
   for (int id = 0; id < mujoco_model_->ncam; id++) {
     std::string name = mj_id2name(mujoco_model_, mjOBJ_CAMERA, id);
+    RCLCPP_WARN(nh_->get_logger(),
+      "Camera '%s' was auto-discovered from a MuJoCo <camera> element, which is "
+      "deprecated and scheduled for removal. Declare it instead with "
+      "<mujoco_ros2_plugin plugin=\"mujoco_ros2_control/DepthCameraSensor\">"
+      "<param name=\"camera\">%s</param></mujoco_ros2_plugin>.",
+      name.c_str(), name.c_str());
     auto node = camera_nodes_.emplace_back(rclcpp::Node::make_shared(
       name, rclcpp::NodeOptions().parameter_overrides({{"use_sim_time", true}})));
     executor_->add_node(node);
@@ -614,6 +625,11 @@ void MujocoRos2Control::registerSensors() {
   //   mjCamOpt_<name>    -> color/optical site of a two-frame camera
   //   mjCamDepth_<name>  -> depth site of a two-frame camera (rendered separately)
   // A camera is created only if its node's params set enabled=true.
+  //
+  // @deprecated Superseded by declaring the camera with <mujoco_ros2_plugin
+  //             plugin="mujoco_ros2_control/DepthCameraSensor"> and a "site"/
+  //             "optical_site"/"depth_site" param. Scheduled for removal in a
+  //             future release.
   {
     auto probe_node = rclcpp::Node::make_shared(
       "_mujoco_rgbd_camera_probe",
@@ -664,6 +680,12 @@ void MujocoRos2Control::registerSensors() {
 
       camera_nodes_.push_back(node);
       executor_->add_node(node);
+      RCLCPP_WARN(nh_->get_logger(),
+        "Camera '%s' was auto-discovered from a site-prefix (mjCam_/mjCamOpt_/"
+        "mjCamDepth_), which is deprecated and scheduled for removal. Declare it "
+        "instead with <mujoco_ros2_plugin "
+        "plugin=\"mujoco_ros2_control/DepthCameraSensor\">.",
+        node_name.c_str());
       auto camera = std::make_shared<mujoco_rgbd_camera::MujocoDepthCamera>(
         node, mujoco_model_, mujoco_data_, &sim_mutex_, node_name, &stop_,
         mujoco_rgbd_camera::MujocoDepthCamera::Mount::Site, sites.optical_id, sites.depth_id);
@@ -672,6 +694,9 @@ void MujocoRos2Control::registerSensors() {
     }
   }
 
+ // @deprecated Superseded by declaring the lidar with <mujoco_ros2_plugin
+ //             plugin="mujoco_ros2_control/LidarSensor"> and a "site" param.
+ //             Scheduled for removal in a future release.
  {
     auto probe_node = rclcpp::Node::make_shared(
       "_mujoco_gl_lidar_probe",
@@ -703,6 +728,11 @@ void MujocoRos2Control::registerSensors() {
 
       lidar_nodes_.push_back(node);
       executor_->add_node(node);
+      RCLCPP_WARN(nh_->get_logger(),
+        "Lidar '%s' was auto-discovered from a site-prefix, which is deprecated "
+        "and scheduled for removal. Declare it instead with <mujoco_ros2_plugin "
+        "plugin=\"mujoco_ros2_control/LidarSensor\">.",
+        node_name.c_str());
       auto lidar = std::make_shared<mujoco_gl_lidar::MujocoGLLidar>(
         node, mujoco_model_, mujoco_data_, &sim_mutex_, id, node_name, &stop_);
       lidars_.push_back(lidar);

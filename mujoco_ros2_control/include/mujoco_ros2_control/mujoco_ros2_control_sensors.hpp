@@ -95,12 +95,15 @@ namespace mujoco_ros2_control {
      * @deprecated Superseded by MujocoRos2ControlSensorInterface plugins, loaded through
      *             pluginlib by MujocoRos2ControlSensorLoader. This class still runs for
      *             every `<sensor>` that does not name a `plugin` parameter, its
-     *             behaviour is unchanged, and it is not scheduled for removal.
-     *             Prefer a plugin for new sensor types: dispatch here is a
-     *             substring match on state interface names, so it can only ever
-     *             express these three kinds, and anything whose interface names
-     *             happen to contain "force", "position" or "orientation" is
-     *             misclassified into one of them.
+     *             behaviour is unchanged, and it is scheduled for removal in a
+     *             future release. Each sensor it classifies logs a runtime
+     *             warning naming the replacement plugin
+     *             (mujoco_ros2_control/ImuSensor, ForceTorqueSensor, or
+     *             PoseSensor). Dispatch here is a substring match on state
+     *             interface names, so it can only ever express these three
+     *             kinds, and anything whose interface names happen to contain
+     *             "force", "position" or "orientation" is misclassified into
+     *             one of them.
      */
     class MujocoRos2ControlSensors {
     public:

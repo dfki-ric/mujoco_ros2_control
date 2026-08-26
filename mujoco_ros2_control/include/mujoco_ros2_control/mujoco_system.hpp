@@ -323,8 +323,8 @@ namespace mujoco_ros2_control {
         /// Built-in IMU/force-torque/pose handling.
         /// @deprecated Superseded by MujocoRos2ControlSensorLoader, which loads sensor
         ///             handlers through pluginlib. Still the default for every
-        ///             <sensor> that does not name a plugin, and not scheduled
-        ///             for removal.
+        ///             <sensor> that does not name a plugin, and scheduled for
+        ///             removal in a future release.
         MujocoRos2ControlSensors sensors_;
 
         /// Sensor handlers named by a <sensor> "plugin" parameter.
