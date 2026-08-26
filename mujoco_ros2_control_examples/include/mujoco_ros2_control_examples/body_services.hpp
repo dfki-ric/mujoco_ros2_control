@@ -30,23 +30,33 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef MUJOCO_ROS2_PLUGINS__BODY_SERVICES_HPP_
-#define MUJOCO_ROS2_PLUGINS__BODY_SERVICES_HPP_
+#ifndef MUJOCO_ROS2_CONTROL_EXAMPLES__BODY_SERVICES_HPP_
+#define MUJOCO_ROS2_CONTROL_EXAMPLES__BODY_SERVICES_HPP_
 
+#include <memory>
 #include <string>
 
 #include "mujoco_ros2_control/mujoco_ros2_plugin_interface.hpp"
-#include "mujoco_ros2_control/srv/get_body_state.hpp"
-#include "mujoco_ros2_control/srv/set_body_pose.hpp"
+#include "mujoco_ros2_control_examples/srv/get_body_state.hpp"
+#include "mujoco_ros2_control_examples/srv/set_body_pose.hpp"
 
-namespace mujoco_ros2_plugins {
+namespace mujoco_ros2_control_examples {
 
 /**
  * @brief Reads a body's pose and twist, and teleports a free body.
  *
- * Both services used to be built into the simulation node unconditionally. As a
- * plugin they are opt-in, so a model that does not need them does not advertise
- * them, and a description can declare them under whatever names suit it.
+ * Both services used to be built into the simulation node unconditionally, then
+ * became a plugin shipped by mujoco_ros2_control. They live here now: teleporting
+ * a body is a convenience for driving a simulation from outside, not part of
+ * simulating one, so it belongs with the examples rather than in the core
+ * package. Like TouchGridSensor, this doubles as a worked example of a
+ * MujocoRos2PluginInterface implementation -- and of one that brings its own
+ * service definitions (`srv/GetBodyState.srv`, `srv/SetBodyPose.srv` in this
+ * package) rather than reusing an existing interface package.
+ *
+ * As a plugin the services are opt-in, so a model that does not need them does
+ * not advertise them, and a description can declare them under whatever names
+ * suit it.
  *
  * Parameters, both optional:
  * - `get_body_state_service` : service name (default `mujoco_get_body_state`)
@@ -55,10 +65,12 @@ namespace mujoco_ros2_plugins {
  * The defaults are the names the built-in services used. A node's name does not
  * prefix service names -- only its namespace does -- so declaring this plugin in
  * the root namespace serves exactly `/mujoco_get_body_state` and
- * `/mujoco_set_body_pose` as before, whatever the declaration is called.
+ * `/mujoco_set_body_pose` as before, whatever the declaration is called. The
+ * service *types* did move with the plugin, though: they are
+ * mujoco_ros2_control_examples/srv/* now, not mujoco_ros2_control/srv/*.
  *
  * @code{.xml}
- * <mujoco_ros2_plugin name="body_services" plugin="mujoco_ros2_control/BodyServices"/>
+ * <mujoco_ros2_plugin name="body_services" plugin="mujoco_ros2_control_examples/BodyServices"/>
  * @endcode
  *
  * @par Why Execution::Step
@@ -88,17 +100,17 @@ public:
 
 private:
     void getBodyState(
-            const std::shared_ptr<mujoco_ros2_control::srv::GetBodyState::Request> request,
-            std::shared_ptr<mujoco_ros2_control::srv::GetBodyState::Response> response);
+            const std::shared_ptr<srv::GetBodyState::Request> request,
+            std::shared_ptr<srv::GetBodyState::Response> response);
 
     void setBodyPose(
-            const std::shared_ptr<mujoco_ros2_control::srv::SetBodyPose::Request> request,
-            std::shared_ptr<mujoco_ros2_control::srv::SetBodyPose::Response> response);
+            const std::shared_ptr<srv::SetBodyPose::Request> request,
+            std::shared_ptr<srv::SetBodyPose::Response> response);
 
-    rclcpp::Service<mujoco_ros2_control::srv::GetBodyState>::SharedPtr get_body_state_;
-    rclcpp::Service<mujoco_ros2_control::srv::SetBodyPose>::SharedPtr set_body_pose_;
+    rclcpp::Service<srv::GetBodyState>::SharedPtr get_body_state_;
+    rclcpp::Service<srv::SetBodyPose>::SharedPtr set_body_pose_;
 };
 
-}  // namespace mujoco_ros2_plugins
+}  // namespace mujoco_ros2_control_examples
 
-#endif  // MUJOCO_ROS2_PLUGINS__BODY_SERVICES_HPP_
+#endif  // MUJOCO_ROS2_CONTROL_EXAMPLES__BODY_SERVICES_HPP_

@@ -20,15 +20,4 @@
             of being found by a site prefix.
         </description>
     </class>
-    <class
-            name="mujoco_ros2_control/BodyServices"
-            type="mujoco_ros2_plugins::BodyServices"
-            base_class_type="mujoco_ros2_control::MujocoRos2PluginInterface">
-        <description>
-            Serves mujoco_get_body_state and mujoco_set_body_pose: reads a body's
-            world pose and twist, and teleports a body with a single free joint.
-            Previously built into the simulation node; declaring this plugin is
-            now what advertises them.
-        </description>
-    </class>
 </library>

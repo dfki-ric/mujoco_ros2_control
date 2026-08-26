@@ -447,9 +447,11 @@ class TestBringup(unittest.TestCase):
     def test_body_services_are_opt_in(self):
         """No <mujoco_ros2_plugin> declaration, so no body services.
 
-        double_pendulum.urdf.xacro declares no BodyServices, and these names are
-        no longer created by the simulation node itself. If they turn up here,
-        something is advertising them unconditionally again.
+        These names are no longer created by the simulation node itself -- they
+        come from the BodyServices plugin, which lives in
+        mujoco_ros2_control_examples and which double_pendulum.urdf.xacro does not
+        declare. If they turn up here, something in this package is advertising
+        them unconditionally again.
         """
         # Absence is only meaningful once the graph is discovered, so wait for
         # the services that are still built in to show up first. They double as

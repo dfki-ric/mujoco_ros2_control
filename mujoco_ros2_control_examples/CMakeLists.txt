@@ -12,6 +12,8 @@ foreach(Dependency IN ITEMS
     rclcpp
     realtime_tools
     std_msgs
+    geometry_msgs
+    rosidl_default_generators
 )
     find_package(${Dependency} REQUIRED)
 endforeach()
@@ -42,19 +44,45 @@ option(DOWNLOAD_INDUSTREAL_PEG_ASSETS
 # then needs load_realsense:=false.
 option(DOWNLOAD_FRANKA_CAMERA_MOUNT_ASSET
   "Download the Franka printable D435 camera mount at configure time" ON)
-##########################
-# EXAMPLE SENSOR PLUGINS #
-##########################
-# A MujocoRos2ControlSensorInterface implementation living outside mujoco_ros2_control, to
-# show what writing your own sensor plugin looks like. The tactile grid is a
-# natural fit: its nchannel*width*height output does not map onto ros2_control's
-# scalar state interfaces, so it publishes a topic instead.
+##############
+# INTERFACES #
+##############
+# The services BodyServices advertises. They lived in mujoco_ros2_control while
+# the plugin did; they moved with it, so an example brings its own interfaces
+# instead of the core package carrying types only an example uses.
+#
+# The target rosidl creates is named after the project, so no other target here
+# may be called ${PROJECT_NAME} -- hence ${PROJECT_NAME}_plugins below.
+rosidl_generate_interfaces(${PROJECT_NAME}
+    srv/GetBodyState.srv
+    srv/SetBodyPose.srv
+    DEPENDENCIES geometry_msgs
+)
+
+rosidl_get_typesupport_target(cpp_typesupport_target
+    ${PROJECT_NAME}
+    rosidl_typesupport_cpp
+)
+
+###################
+# EXAMPLE PLUGINS #
+###################
+# Plugin implementations living outside mujoco_ros2_control, to show what
+# writing your own looks like:
+#
+# * TouchGridSensor -- the tactile grid is a natural fit for a plugin, because its
+#   nchannel*width*height output does not map onto ros2_control's scalar state
+#   interfaces, so it publishes a topic instead.
+# * BodyServices -- reads a body's pose and twist and teleports a free body, over
+#   services declared in srv/ above. Driving a simulation from outside is a
+#   convenience rather than part of simulating one, so it lives here.
 #
 # Nothing may link this library: pluginlib has to be the one that dlopens it, or
 # class_loader registers its factories outside its own bookkeeping and then
 # reports "no factory exists for it" when the class is requested.
 add_library(${PROJECT_NAME}_plugins SHARED
     src/touch_grid_sensor.cpp
+    src/body_services.cpp
 )
 
 target_include_directories(${PROJECT_NAME}_plugins PUBLIC
@@ -73,6 +101,8 @@ ament_target_dependencies(${PROJECT_NAME}_plugins
 
 target_link_libraries(${PROJECT_NAME}_plugins
     mujoco::mujoco
+    # BodyServices serves this package's own srv types.
+    "${cpp_typesupport_target}"
 )
 
 install(DIRECTORY include/ DESTINATION include)
@@ -85,6 +115,9 @@ install(TARGETS ${PROJECT_NAME}_plugins
 
 pluginlib_export_plugin_description_file(
     mujoco_ros2_control ${PROJECT_NAME}_plugins.xml)
+
+# So a client of the body services can find the generated srv types.
+ament_export_dependencies(rosidl_default_runtime)
 
 ###########
 # INSTALL #
@@ -489,6 +522,7 @@ if(BUILD_TESTING)
   add_ros_isolated_launch_test(test/test_unitree_h1_example.test.py)
   add_ros_isolated_launch_test(test/test_unitree_g1_example.test.py)
   add_ros_isolated_launch_test(test/test_tactile_example.test.py TIMEOUT 120)
+  add_ros_isolated_launch_test(test/test_body_services_example.test.py TIMEOUT 120)
 endif()
 
 ament_package()

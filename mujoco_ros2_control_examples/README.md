@@ -11,14 +11,17 @@ and `task_table_mujoco` packages. Assets are split per robot:
 ```
 launch/   <robot>.launch.py
 urdf/     franka/  ur/  unitree_h1/  unitree_g1/  industreal/  tactile/
+          body_services/
 config/   franka/  ur/  unitree_h1/  unitree_g1/  tactile/
+          body_services/
+srv/      GetBodyState.srv  SetBodyPose.srv   (the BodyServices interfaces)
 meshes/   industreal/         (gear assets; pegs/ downloaded at build time)
           unitree_h1/         (downloaded at build time)
           unitree_g1/         (downloaded at build time)
           franka/             (D435 wrist mount, downloaded at build time)
 patches/  unitree_h1.urdf.patch (the G1 URDF is rewritten in place instead)
 scripts/  stl_to_obj.py       (build-time mesh conversion)
-include/  src/                (the TouchGridSensor example plugin)
+include/  src/                (the TouchGridSensor and BodyServices example plugins)
 test/     per-robot launch smoke tests
 ```
 
@@ -338,6 +341,84 @@ The other examples use the plugins that ship with `mujoco_ros2_control`:
 `ImuSensor` and `PoseSensor` on the Unitree robots, `ForceTorqueSensor` on Franka
 and UR.
 
+### Body services (read and teleport bodies)
+
+Two probe boxes and no robot at all. Like the tactile pad this example is about
+the plugin, not the scene: it is the worked example of reaching into a running
+simulation from outside, and of a plugin that brings its **own generated service
+types** rather than reusing an existing interface package.
+
+```bash
+ros2 launch mujoco_ros2_control_examples body_services.launch.py
+ros2 launch mujoco_ros2_control_examples body_services.launch.py headless:=true
+
+ros2 service call /mujoco_get_body_state \
+    mujoco_ros2_control_examples/srv/GetBodyState "{body_name: probe_float}"
+
+ros2 service call /mujoco_set_body_pose \
+    mujoco_ros2_control_examples/srv/SetBodyPose \
+    "{body_name: probe_float, x: 0.5, y: -0.25, z: 1.75, qw: 1.0}"
+```
+
+[`BodyServices`](src/body_services.cpp) serves two services: one reads a body's
+world pose and twist, the other teleports a body with a single free joint.
+Teleporting is a convenience for *driving* a simulation - an external training
+loop, a scripted scenario - rather than part of simulating one, which is why it
+lives here and not in `mujoco_ros2_control`. Both services were once built into
+the simulation node unconditionally; now nothing advertises them unless a model
+asks for them.
+
+Declared in
+[`urdf/body_services/probe_bodies.urdf.xacro`](urdf/body_services/probe_bodies.urdf.xacro),
+twice - which is the point of the parameters:
+
+```xml
+<!-- outside <ros2_control>: the plugin exports nothing to ros2_control -->
+<mujoco_ros2_plugin name="body_services"
+                    plugin="mujoco_ros2_control_examples/BodyServices"/>
+
+<mujoco_ros2_plugin name="body_services_alt"
+                    plugin="mujoco_ros2_control_examples/BodyServices">
+  <param name="get_body_state_service">alt/get_body_state</param>
+  <param name="set_body_pose_service">alt/set_body_pose</param>
+</mujoco_ros2_plugin>
+```
+
+| `<param>` | Default | Meaning |
+|-----------|---------|---------|
+| `get_body_state_service` | `mujoco_get_body_state` | Name of the read service. |
+| `set_body_pose_service` | `mujoco_set_body_pose` | Name of the teleport service. |
+
+A node's name does not prefix service names - only its namespace does - so the
+declaration's `name` does not affect where the services land. That is what the
+parameters are for: several models in one simulation each get their own pair
+instead of fighting over the defaults. Both instances read and write the same
+simulation, so `/alt/set_body_pose` followed by `/mujoco_get_body_state` sees the
+move.
+
+Three things are easy to get wrong when copying this:
+
+- **Only a body whose sole joint is free can be teleported.** `probe_float` can
+  be; `probe_fixed` is welded to the world and the set service rejects it. A weld
+  is not a pose you can write - MuJoCo has no degrees of freedom to write it into.
+- **Gravity is off in this model** so `probe_float` stays where it is put. With
+  gravity on, a teleported free body starts falling on the next step and a
+  read-back a moment later no longer matches what was written.
+- **The write is not deferred to the next step.** It happens in the service
+  callback, under both simulation locks, followed by `mj_forward()`. That is
+  deliberate: under `synchronous_mode` nothing advances the simulation except a
+  step request, so a queued pose would not land until the client asked for a step
+  - while a client that sets a pose and reads it straight back expects to see what
+  it just wrote. Try it with `synchronous:=true`.
+
+| Argument      | Default | Description                                                    |
+|---------------|---------|----------------------------------------------------------------|
+| `headless`    | `false` | Run without the MuJoCo viewer window.                          |
+| `synchronous` | `false` | Start paused; advance only on `/mujoco_step_simulation`.        |
+
+For what writing such a plugin involves, see
+[Writing a Sensor Plugin](../mujoco_ros2_control/README.md#writing-a-sensor-plugin).
+
 ## Offline builds
 
 Four asset groups are fetched at configure time and can each be turned off:
@@ -370,7 +451,7 @@ starts the `mujoco_ros2_control` node headless, and asserts the node comes up
 description package is not installed, or - for the Unitree robots - when the
 upstream assets were not downloaded.
 
-Three tests check more than that the node starts. The Unitree G1 test brings the
+Four tests check more than that the node starts. The Unitree G1 test brings the
 robot up on its default generated stepping-stones terrain, and the `ur_multi`
 test asserts every arm reached the merged model, that the bases really are evenly
 spaced in a row, that the arm behind each prefix really is the type that prefix
@@ -380,6 +461,14 @@ resolved this package's out-of-tree `TouchGridSensor`, that the published array
 has the taxel count and labelled channel-major layout the MJCF asks for, and that
 the resting pad's weight actually registers on a taxel - which is what fails if
 the touch_grid site ends up facing the wrong way.
+
+The `body_services` test covers the other out-of-tree plugin, and runs in
+synchronous mode because that is the mode pinning down its contract: a pose
+written and read straight back, with no step in between, must come back
+unchanged. It also checks that the second declaration serves a working pair
+rather than merely existing, that a teleport through one instance is visible
+through the other, that `/mujoco_reset` restores the body state, and that a
+welded body and an unknown body name are both rejected rather than crashing.
 
 These run in CI in their own workflow, `.github/workflows/ci-examples.yml`, which
 builds the package and clones `franka_description` from source — it has no jazzy

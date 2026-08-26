@@ -30,7 +30,7 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "mujoco_ros2_plugins/body_services.hpp"
+#include "mujoco_ros2_control_examples/body_services.hpp"
 
 #include <mutex>
 
@@ -38,7 +38,7 @@
 
 #include "mujoco_ros2_control_plugins/sensor_lookup.hpp"
 
-namespace mujoco_ros2_plugins {
+namespace mujoco_ros2_control_examples {
 
 using mujoco_ros2_control_plugins::get_param;
 
@@ -51,17 +51,17 @@ bool BodyServices::configure(
     const std::string set_name =
         get_param(info, "set_body_pose_service", "mujoco_set_body_pose");
 
-    get_body_state_ = context.node->create_service<mujoco_ros2_control::srv::GetBodyState>(
+    get_body_state_ = context.node->create_service<srv::GetBodyState>(
         get_name,
-        [this](const std::shared_ptr<mujoco_ros2_control::srv::GetBodyState::Request> request,
-               std::shared_ptr<mujoco_ros2_control::srv::GetBodyState::Response> response) {
+        [this](const std::shared_ptr<srv::GetBodyState::Request> request,
+               std::shared_ptr<srv::GetBodyState::Response> response) {
             getBodyState(request, response);
         });
 
-    set_body_pose_ = context.node->create_service<mujoco_ros2_control::srv::SetBodyPose>(
+    set_body_pose_ = context.node->create_service<srv::SetBodyPose>(
         set_name,
-        [this](const std::shared_ptr<mujoco_ros2_control::srv::SetBodyPose::Request> request,
-               std::shared_ptr<mujoco_ros2_control::srv::SetBodyPose::Response> response) {
+        [this](const std::shared_ptr<srv::SetBodyPose::Request> request,
+               std::shared_ptr<srv::SetBodyPose::Response> response) {
             setBodyPose(request, response);
         });
 
@@ -71,8 +71,8 @@ bool BodyServices::configure(
 }
 
 void BodyServices::getBodyState(
-        const std::shared_ptr<mujoco_ros2_control::srv::GetBodyState::Request> request,
-        std::shared_ptr<mujoco_ros2_control::srv::GetBodyState::Response> response) {
+        const std::shared_ptr<srv::GetBodyState::Request> request,
+        std::shared_ptr<srv::GetBodyState::Response> response) {
 
     const int body_id =
         mj_name2id(context_.mujoco_model, mjOBJ_BODY, request->body_name.c_str());
@@ -111,8 +111,8 @@ void BodyServices::getBodyState(
 }
 
 void BodyServices::setBodyPose(
-        const std::shared_ptr<mujoco_ros2_control::srv::SetBodyPose::Request> request,
-        std::shared_ptr<mujoco_ros2_control::srv::SetBodyPose::Response> response) {
+        const std::shared_ptr<srv::SetBodyPose::Request> request,
+        std::shared_ptr<srv::SetBodyPose::Response> response) {
 
     const int body_id =
         mj_name2id(context_.mujoco_model, mjOBJ_BODY, request->body_name.c_str());
@@ -158,7 +158,7 @@ void BodyServices::setBodyPose(
     response->message = "Body '" + request->body_name + "' repositioned.";
 }
 
-}  // namespace mujoco_ros2_plugins
+}  // namespace mujoco_ros2_control_examples
 
 PLUGINLIB_EXPORT_CLASS(
-    mujoco_ros2_plugins::BodyServices, mujoco_ros2_control::MujocoRos2PluginInterface)
+    mujoco_ros2_control_examples::BodyServices, mujoco_ros2_control::MujocoRos2PluginInterface)

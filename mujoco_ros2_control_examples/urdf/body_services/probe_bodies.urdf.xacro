@@ -1,12 +1,31 @@
 <?xml version="1.0"?>
-<robot xmlns:xacro="http://ros.org/wiki/xacro" name="test_pose_rigid">
+<!--
+  Body services example: two probe bodies with a known, constant pose, driven
+  from outside through the BodyServices plugin this package ships.
 
-  <!--
-    Two rigid bodies parented to "world" with a known, constant pose:
-      probe_fixed  - fixed joint, 30 deg pitch, at (1.0, 2.0, 3.0)
-      probe_float  - floating joint, 45 deg yaw,  at (-1.0, -2.0, 5.0)
-    Gravity is disabled in the <mujoco> block so probe_float stays put.
-  -->
+    probe_fixed  - fixed joint,    30 deg pitch, at ( 1.0,  2.0, 3.0)
+    probe_float  - floating joint, 45 deg yaw,   at (-1.0, -2.0, 5.0)
+
+  There is no robot here on purpose. The example is about reaching into a running
+  simulation to read a body's world pose and twist, and to teleport a free body -
+  the operations an external training loop or scripted scenario needs, and which
+  are a convenience for driving a simulation rather than part of simulating one.
+  That is why the plugin lives in this package and not in mujoco_ros2_control.
+
+  Two things worth copying:
+
+  * Only a body whose sole joint is free can be teleported. probe_float can be;
+    probe_fixed is welded to the world and the set service rejects it. A weld is
+    not a pose you can write - MuJoCo has no degrees of freedom to write it into.
+  * Gravity is off in the <mujoco> block, so probe_float stays wherever it is put.
+    With gravity on, a teleported free body starts falling on the next step and a
+    read-back a moment later no longer matches what was written.
+
+  The plugin is declared twice, which is what its parameters are for: several
+  models in one simulation each want their own pair of services rather than
+  fighting over the default names.
+-->
+<robot xmlns:xacro="http://ros.org/wiki/xacro" name="probe_bodies">
 
   <link name="world"/>
 
@@ -20,6 +39,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry><box size="0.1 0.1 0.1"/></geometry>
+      <material name="probe_fixed_grey"><color rgba="0.6 0.6 0.65 1"/></material>
     </visual>
   </link>
   <joint name="world_to_probe_fixed" type="fixed">
@@ -38,6 +58,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry><box size="0.1 0.1 0.1"/></geometry>
+      <material name="probe_float_orange"><color rgba="0.9 0.5 0.2 1"/></material>
     </visual>
   </link>
   <joint name="world_to_probe_float" type="floating">
@@ -47,6 +68,10 @@
   </joint>
 
   <!-- ====================== ros2_control ====================== -->
+  <!-- The pose sensors are not needed by the services, which read the model
+       directly. They are here so the same poses are visible the ordinary
+       ros2_control way too, which is what makes a teleport observable on
+       /probe_float_pose_broadcaster/pose as well as through the read service. -->
   <ros2_control name="ProbeHardware" type="system">
     <hardware><plugin>mujoco_ros2_control/MujocoSystem</plugin></hardware>
 
@@ -71,69 +96,32 @@
       <state_interface name="orientation.z"/>
       <state_interface name="orientation.w"/>
     </sensor>
-
-    <sensor name="site_probe_fixed_pose">
-      <param name="site">probe_fixed_site</param>
-      <state_interface name="position.x"/>
-      <state_interface name="position.y"/>
-      <state_interface name="position.z"/>
-      <state_interface name="orientation.x"/>
-      <state_interface name="orientation.y"/>
-      <state_interface name="orientation.z"/>
-      <state_interface name="orientation.w"/>
-    </sensor>
-
-    <sensor name="site_probe_float_pose">
-      <param name="site">probe_float_site</param>
-      <state_interface name="position.x"/>
-      <state_interface name="position.y"/>
-      <state_interface name="position.z"/>
-      <state_interface name="orientation.x"/>
-      <state_interface name="orientation.y"/>
-      <state_interface name="orientation.z"/>
-      <state_interface name="orientation.w"/>
-    </sensor>
   </ros2_control>
 
-  <xacro:arg name="with_camera" default="false"/>
+  <!-- The body read/teleport services, on the default names, so this serves
+       /mujoco_get_body_state and /mujoco_set_body_pose. Declared outside
+       <ros2_control>: the plugin exports nothing to ros2_control, so no hardware
+       component owns it. -->
+  <mujoco_ros2_plugin name="body_services"
+                      plugin="mujoco_ros2_control_examples/BodyServices"/>
+
+  <!-- A second instance of the same plugin, on names of its own. One
+       simulation, two front doors onto it. -->
+  <mujoco_ros2_plugin name="body_services_alt"
+                      plugin="mujoco_ros2_control_examples/BodyServices">
+    <param name="get_body_state_service">alt/get_body_state</param>
+    <param name="set_body_pose_service">alt/set_body_pose</param>
+  </mujoco_ros2_plugin>
 
   <!-- ====================== MuJoCo block ====================== -->
   <mujoco>
     <option gravity="0 0 0"/>
 
-    <reference name="probe_fixed">
-        <site name="probe_fixed_site" size="0.01" pos="0 0 0" />
-    </reference>
-    <reference name="probe_float">
-        <site name="probe_float_site" size="0.01" pos="0 0 0" />
-    </reference>
-    
     <sensor>
       <framepos  objtype="xbody" objname="probe_fixed" reftype="body" refname="world" name="probe_fixed_pose"/>
       <framequat objtype="xbody" objname="probe_fixed" reftype="body" refname="world" name="probe_fixed_orientation"/>
       <framepos  objtype="xbody" objname="probe_float" reftype="body" refname="world" name="probe_float_pose"/>
       <framequat objtype="xbody" objname="probe_float" reftype="body" refname="world" name="probe_float_orientation"/>
-
-      <framepos  objtype="site" objname="probe_fixed_site" reftype="body" refname="world" name="site_probe_fixed_pose"/>
-      <framequat objtype="site" objname="probe_fixed_site" reftype="body" refname="world" name="site_probe_fixed_orientation"/>
-      <framepos  objtype="site" objname="probe_float_site" reftype="body" refname="world" name="site_probe_float_pose"/>
-      <framequat objtype="site" objname="probe_float_site" reftype="body" refname="world" name="site_probe_float_orientation"/>
     </sensor>
   </mujoco>
-
-  <!-- A declared RGB-D camera, used only by test_synchronous_rl to check that
-       deterministic stepping waits for a <mujoco_ros2_plugin> camera the same
-       way it waits for a prefix-discovered one. Off by default so the tests that
-       do not need a GL context are unaffected. -->
-  <xacro:if value="$(arg with_camera)">
-    <mujoco>
-      <reference name="probe_fixed">
-        <site name="sync_camera_optical" size="0.01" pos="0 0 0"/>
-      </reference>
-    </mujoco>
-
-    <mujoco_ros2_plugin name="sync_camera" plugin="mujoco_ros2_control/DepthCameraSensor">
-      <param name="site">sync_camera_optical</param>
-    </mujoco_ros2_plugin>
-  </xacro:if>
 </robot>

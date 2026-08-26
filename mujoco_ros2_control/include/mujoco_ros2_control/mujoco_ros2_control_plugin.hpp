@@ -86,12 +86,9 @@
 #include "std_msgs/msg/bool.hpp"
 #include "std_msgs/msg/empty.hpp"
 #include "std_msgs/msg/float64_multi_array.hpp"
-#include "geometry_msgs/msg/pose.hpp"
 #include "rosgraph_msgs/msg/clock.hpp"
 #include "std_srvs/srv/trigger.hpp"
-#include "mujoco_ros2_control/srv/set_body_pose.hpp"
 #include "mujoco_ros2_control/srv/step_simulation.hpp"
-#include "mujoco_ros2_control/srv/get_body_state.hpp"
 
 // URDF
 #include "urdf/urdf/model.h"

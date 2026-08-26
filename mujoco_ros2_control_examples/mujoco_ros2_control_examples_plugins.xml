@@ -11,4 +11,16 @@
             &lt;mujoco_ros2_plugin&gt; element.
         </description>
     </class>
+    <class
+            name="mujoco_ros2_control_examples/BodyServices"
+            type="mujoco_ros2_control_examples::BodyServices"
+            base_class_type="mujoco_ros2_control::MujocoRos2PluginInterface">
+        <description>
+            Serves mujoco_get_body_state and mujoco_set_body_pose: reads a body's
+            world pose and twist, and teleports a body with a single free joint.
+            Once built into the simulation node, then shipped by
+            mujoco_ros2_control; an example plugin now, bringing its own service
+            definitions with it.
+        </description>
+    </class>
 </library>

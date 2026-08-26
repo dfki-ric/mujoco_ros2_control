@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Deterministic stepping, body-state, pose, and reset regression test."""
+"""Deterministic stepping and reset regression test.
+
+The body read/teleport services used to be exercised here too. They are a
+plugin in mujoco_ros2_control_examples now, so their coverage -- including
+"reset restores the body state" -- lives in that package's
+test_body_services_example.test.py, which can depend on it.
+"""
 
 import os
 import time
@@ -17,7 +23,7 @@ from launch import LaunchContext
 from launch.actions import LogInfo, OpaqueFunction, RegisterEventHandler
 from launch.event_handlers import OnProcessExit
 from launch_ros.actions import Node
-from mujoco_ros2_control.srv import GetBodyState, SetBodyPose, StepSimulation
+from mujoco_ros2_control.srv import StepSimulation
 from rosgraph_msgs.msg import Clock
 from sensor_msgs.msg import Image
 from std_srvs.srv import Trigger
@@ -123,7 +129,8 @@ class TestSynchronousRl(unittest.TestCase):
         )
         self.node.destroy_subscription(subscription)
 
-    def test_exact_step_pose_and_reset(self):
+    def test_exact_step_timing_and_reset(self):
+        """A batch adds exactly steps / frequency, and reset rewinds the clock."""
         baseline_request = StepSimulation.Request()
         baseline_request.steps = 1
         baseline = self.call(
@@ -143,28 +150,8 @@ class TestSynchronousRl(unittest.TestCase):
         first_time = stepped.simulation_time.sec + stepped.simulation_time.nanosec * 1e-9
         self.assertAlmostEqual(first_time - baseline_time, 0.25, places=8)
 
-        get_request = GetBodyState.Request()
-        get_request.body_name = "probe_float"
-        initial = self.call(GetBodyState, "/mujoco_get_body_state", get_request)
-        self.assertTrue(initial.success, initial.message)
-
-        set_request = SetBodyPose.Request()
-        set_request.body_name = "probe_float"
-        set_request.x, set_request.y, set_request.z = 0.5, -0.25, 1.75
-        set_request.qw, set_request.qx, set_request.qy, set_request.qz = 1.0, 0.0, 0.0, 0.0
-        moved = self.call(SetBodyPose, "/mujoco_set_body_pose", set_request)
-        self.assertTrue(moved.success, moved.message)
-        observed = self.call(GetBodyState, "/mujoco_get_body_state", get_request)
-        self.assertAlmostEqual(observed.pose.position.x, 0.5, places=8)
-        self.assertAlmostEqual(observed.pose.position.y, -0.25, places=8)
-        self.assertAlmostEqual(observed.pose.position.z, 1.75, places=8)
-
         reset = self.call(Trigger, "/mujoco_reset", Trigger.Request())
         self.assertTrue(reset.success, reset.message)
-        restored = self.call(GetBodyState, "/mujoco_get_body_state", get_request)
-        self.assertAlmostEqual(restored.pose.position.x, initial.pose.position.x, places=8)
-        self.assertAlmostEqual(restored.pose.position.y, initial.pose.position.y, places=8)
-        self.assertAlmostEqual(restored.pose.position.z, initial.pose.position.z, places=8)
 
         one_step = StepSimulation.Request()
         one_step.steps = 1
@@ -226,70 +213,3 @@ class TestSynchronousRl(unittest.TestCase):
             f"no camera frame stamped at the post-step simulation time {target}; "
             f"got {stamps}. StepSimulation is not waiting for cameras declared as "
             f"<mujoco_ros2_plugin> -- only for prefix-discovered ones.")
-
-    def test_body_services_come_from_the_plugin(self):
-        """The services are the plugin's, and its names are configurable.
-
-        They used to be created unconditionally by the simulation node. Now a
-        <mujoco_ros2_plugin> declaration provides them, on a node of its own, and
-        a second declaration can serve the same pair under different names -- so
-        several models in one simulation need not fight over the defaults.
-        """
-        deadline = time.time() + 20.0
-        while time.time() < deadline:
-            names = self.node.get_node_names()
-            if "body_services" in names and "body_services_alt" in names:
-                break
-            rclpy.spin_once(self.node, timeout_sec=0.1)
-        names = self.node.get_node_names()
-        self.assertIn("body_services", names, "the BodyServices plugin did not come up")
-        self.assertIn("body_services_alt", names, "the renamed instance did not come up")
-
-        # The renamed pair has to work, not merely exist: same plugin, same
-        # simulation, reached through the parameters instead of the defaults.
-        request = GetBodyState.Request()
-        request.body_name = "probe_float"
-        alt = self.call(GetBodyState, "/alt/get_body_state", request)
-        self.assertTrue(alt.success, alt.message)
-
-        default = self.call(GetBodyState, "/mujoco_get_body_state", request)
-        self.assertTrue(default.success, default.message)
-        self.assertAlmostEqual(alt.pose.position.x, default.pose.position.x, places=8)
-        self.assertAlmostEqual(alt.pose.position.y, default.pose.position.y, places=8)
-        self.assertAlmostEqual(alt.pose.position.z, default.pose.position.z, places=8)
-
-    def test_teleport_via_the_renamed_instance(self):
-        """The renamed instance writes too, not just reads."""
-        get_request = GetBodyState.Request()
-        get_request.body_name = "probe_float"
-
-        set_request = SetBodyPose.Request()
-        set_request.body_name = "probe_float"
-        set_request.x, set_request.y, set_request.z = -1.5, 0.75, 2.25
-        set_request.qw, set_request.qx, set_request.qy, set_request.qz = 1.0, 0.0, 0.0, 0.0
-        moved = self.call(SetBodyPose, "/alt/set_body_pose", set_request)
-        self.assertTrue(moved.success, moved.message)
-
-        # Read back through the other instance: one simulation, two front doors.
-        observed = self.call(GetBodyState, "/mujoco_get_body_state", get_request)
-        self.assertAlmostEqual(observed.pose.position.x, -1.5, places=8)
-        self.assertAlmostEqual(observed.pose.position.y, 0.75, places=8)
-        self.assertAlmostEqual(observed.pose.position.z, 2.25, places=8)
-
-        self.call(Trigger, "/mujoco_reset", Trigger.Request())
-
-    def test_teleport_rejects_a_body_without_a_free_joint(self):
-        """probe_fixed is welded, so it cannot be repositioned."""
-        request = SetBodyPose.Request()
-        request.body_name = "probe_fixed"
-        request.qw = 1.0
-        response = self.call(SetBodyPose, "/mujoco_set_body_pose", request)
-        self.assertFalse(response.success)
-        self.assertIn("free joint", response.message)
-
-    def test_body_state_rejects_an_unknown_body(self):
-        request = GetBodyState.Request()
-        request.body_name = "no_such_body"
-        response = self.call(GetBodyState, "/mujoco_get_body_state", request)
-        self.assertFalse(response.success)
-        self.assertIn("Unknown body", response.message)

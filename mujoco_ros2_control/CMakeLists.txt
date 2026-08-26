@@ -26,7 +26,6 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
     ament_cmake
     rclcpp
     std_msgs
-    geometry_msgs
     rosgraph_msgs
     controller_manager
     hardware_interface
@@ -131,10 +130,8 @@ generate_parameter_library(mujoco_gl_lidar_parameters
 )
 
 rosidl_generate_interfaces(${PROJECT_NAME}
-    srv/SetBodyPose.srv
     srv/StepSimulation.srv
-    srv/GetBodyState.srv
-    DEPENDENCIES builtin_interfaces geometry_msgs
+    DEPENDENCIES builtin_interfaces
 )
 
 rosidl_get_typesupport_target(cpp_typesupport_target
@@ -217,7 +214,6 @@ target_link_libraries(mujoco_sensor_implementations
 # <mujoco_ros2_plugin> instead of found by a site prefix.
 # Nothing may link this library: pluginlib has to be the one that dlopens it.
 add_library(mujoco_ros2_plugins SHARED
-    src/mujoco_ros2_plugins/body_services.cpp
     src/mujoco_ros2_plugins/depth_camera_sensor.cpp
     src/mujoco_ros2_plugins/lidar_sensor.cpp
 )
@@ -230,8 +226,6 @@ ament_target_dependencies(mujoco_ros2_plugins
 target_link_libraries(mujoco_ros2_plugins
     mujoco::mujoco
     mujoco_sensor_implementations
-    # BodyServices serves this package's own srv types.
-    "${cpp_typesupport_target}"
 )
 
 add_executable(${MUJOCO_ROS2_CONTROL_NODE_TARGET}
