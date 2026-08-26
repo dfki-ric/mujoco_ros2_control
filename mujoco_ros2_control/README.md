@@ -12,8 +12,6 @@ For reference, see the `urdf` directories in the provided examples ([franka](htt
 
 ## MuJoCo-Specific Elements
 
-The following snippet shows how to integrate MuJoCo configuration elements into your robot description:
-
 ```xml
 <mujoco>
     <!-- Compiler options:
@@ -37,7 +35,6 @@ The following snippet shows how to integrate MuJoCo configuration elements into 
 
     <!-- Add elements/tags to an MJCF body or any of its children -->
     <reference name="${prefix}left_inner_finger">
-        <!-- Add per-body and per-joint configuration -->
         <body gravcomp="1"/>            <!-- Enable gravity compensation -->
         <joint damping="10"/>           <!-- Add damping to all child joints -->
 
@@ -63,8 +60,6 @@ The following snippet shows how to integrate MuJoCo configuration elements into 
 
     <!-- Camera pose sensors relative to the world frame -->
     <sensor>
-        <!-- Position sensor:
-             https://mujoco.readthedocs.io/en/stable/XMLreference.html#sensor-framepos -->
         <framepos
             name="camera_link_pose"
             objtype="xbody"
@@ -72,8 +67,6 @@ The following snippet shows how to integrate MuJoCo configuration elements into 
             reftype="body"
             refname="world"/>
 
-        <!-- Orientation sensor:
-             https://mujoco.readthedocs.io/en/stable/XMLreference.html#sensor-framequat -->
         <framequat
             name="camera_link_quat"
             objtype="xbody"
@@ -99,7 +92,6 @@ The following snippet shows how to integrate MuJoCo configuration elements into 
 ```
 
 ## ROS 2 Control Hardware Example
-Below is an example of how to declare a ROS 2 Control system using PID and torque control:
 ```xml
 <ros2_control name="${prefix}${name}" type="system">
     <hardware>
@@ -143,16 +135,14 @@ Below is an example of how to declare a ROS 2 Control system using PID and torqu
 
 ## ROS 2 Control Sensor Interfaces
 
-Sensors are declared inside the `<ros2_control>` block and are matched to MuJoCo sensors via a `<param>` that specifies the MuJoCo object (site, xbody, geom, etc.) the sensor is attached to.
-
-Each `<sensor>` is handled in one of two ways:
+Sensors are declared inside the `<ros2_control>` block and matched to MuJoCo sensors via a `<param>` naming the MuJoCo object (site, xbody, geom, ...) they're attached to.
 
 | Path | Selected by | Can do |
 |---|---|---|
 | **Sensor plugin** (recommended) | a `<param name="plugin">` naming a class | whatever the plugin implements: state interfaces, topics, or both |
-| **Built-in classifier** (deprecated) | no `plugin` param | **IMU**, **Force/Torque** and **Pose** only, inferred from the declared state interface names |
+| **Built-in classifier** (deprecated) | no `plugin` param | **IMU**, **Force/Torque** and **Pose** only, inferred from the state interface names |
 
-The three built-in types also ship as plugins, exporting exactly the same state interfaces, so the standard broadcasters work either way:
+The three built-in types also ship as plugins with the same state interfaces, so the standard broadcasters work either way:
 
 | Plugin class | Sensor type | Broadcaster |
 |---|---|---|
@@ -160,13 +150,13 @@ The three built-in types also ship as plugins, exporting exactly the same state 
 | `mujoco_ros2_control/ForceTorqueSensor` | Force/Torque | `force_torque_sensor_broadcaster` |
 | `mujoco_ros2_control/PoseSensor` | Pose | `pose_broadcaster` |
 
-The classifier still runs for every `<sensor>` that names no plugin, its behaviour is unchanged, and it is not scheduled for removal - existing models keep working untouched. Prefer a plugin for new sensors: the classifier dispatches on a substring match over state interface names, so it can never grow past those three types, and it cannot express a sensor whose output does not fit ros2_control's scalar state interfaces. A plugin needs no change to this package - see [Writing a Sensor Plugin](#writing-a-sensor-plugin).
+The classifier keeps working for existing models but isn't scheduled to grow: it dispatches on a substring match over state interface names, so it can express only these three types and never a sensor whose output doesn't fit ros2_control's scalar state interfaces. Prefer a plugin for new sensors. A plugin needs no change to this package, see [Writing a Sensor Plugin](#writing-a-sensor-plugin).
 
-The plugin has to be named by a `<param>` rather than an attribute on `<sensor>`: ros2_control's URDF parser silently discards unknown attributes there.
+Note: a plugin must be named by a `<param>`, not an attribute on `<sensor>` - ros2_control's URDF parser discards unknown attributes there.
 
 ### IMU Sensor
 
-Reads orientation (framequat), angular velocity (gyro), and linear acceleration (accelerometer) from a MuJoCo site. Use with the standard [imu_sensor_broadcaster](https://control.ros.org/rolling/doc/ros2_controllers/imu_sensor_broadcaster/doc/userdoc.html). Each of the three MuJoCo sensors is optional: whichever the model declares against the named object is picked up, the rest stay at their defaults.
+Reads orientation (framequat), angular velocity (gyro) and linear acceleration (accelerometer) from a MuJoCo site. Use with [imu_sensor_broadcaster](https://control.ros.org/rolling/doc/ros2_controllers/imu_sensor_broadcaster/doc/userdoc.html). Each of the three MuJoCo sensors is optional.
 
 ```xml
 <ros2_control name="MySystem" type="system">
@@ -193,10 +183,9 @@ Reads orientation (framequat), angular velocity (gyro), and linear acceleration 
 </ros2_control>
 ```
 
-The corresponding MuJoCo sensors must be defined in the `<mujoco>` section:
+The corresponding MuJoCo sensors:
 ```xml
 <mujoco>
-    <!-- Create the site on the body where the IMU is located -->
     <reference name="pelvis">
         <site name="imu_in_pelvis" size="0.01" pos="0 0 0"/>
     </reference>
@@ -224,7 +213,7 @@ imu_broadcaster:
 
 ### Force/Torque Sensor
 
-Reads force and torque from a MuJoCo site. Use with the standard [force_torque_sensor_broadcaster](https://control.ros.org/rolling/doc/ros2_controllers/force_torque_sensor_broadcaster/doc/userdoc.html). Either MuJoCo sensor may be absent.
+Reads force and torque from a MuJoCo site. Use with [force_torque_sensor_broadcaster](https://control.ros.org/rolling/doc/ros2_controllers/force_torque_sensor_broadcaster/doc/userdoc.html). Either MuJoCo sensor may be absent.
 
 ```xml
 <sensor name="ft_sensor">
@@ -239,7 +228,6 @@ Reads force and torque from a MuJoCo site. Use with the standard [force_torque_s
 </sensor>
 ```
 
-The corresponding MuJoCo sensors:
 ```xml
 <mujoco>
     <reference name="link7">
@@ -252,7 +240,6 @@ The corresponding MuJoCo sensors:
 </mujoco>
 ```
 
-Controller configuration:
 ```yaml
 controller_manager:
   ros__parameters:
@@ -267,7 +254,7 @@ ft_sensor_broadcaster:
 
 ### Pose Sensor
 
-Reads position (framepos) and orientation (framequat) of a MuJoCo body. Use with the standard [pose_broadcaster](https://control.ros.org/rolling/doc/ros2_controllers/pose_broadcaster/doc/userdoc.html). This is useful for floating-base robots to get the base link pose. Either MuJoCo sensor may be absent.
+Reads position (framepos) and orientation (framequat) of a MuJoCo body. Use with [pose_broadcaster](https://control.ros.org/rolling/doc/ros2_controllers/pose_broadcaster/doc/userdoc.html), useful for a floating-base robot's base link pose. Either MuJoCo sensor may be absent.
 
 ```xml
 <sensor name="pelvis_pose">
@@ -283,7 +270,6 @@ Reads position (framepos) and orientation (framequat) of a MuJoCo body. Use with
 </sensor>
 ```
 
-The corresponding MuJoCo sensors:
 ```xml
 <mujoco>
     <sensor>
@@ -293,7 +279,6 @@ The corresponding MuJoCo sensors:
 </mujoco>
 ```
 
-Controller configuration:
 ```yaml
 controller_manager:
   ros__parameters:
@@ -311,60 +296,38 @@ pelvis_pose_broadcaster:
 
 ### Sensor Matching
 
-The `<param>` inside a `<sensor>` block tells the plugin which MuJoCo object to look for. Supported keys are, in the order they are checked: `site`, `body`, `geom`, `camera`, `light`, `frame`. If none of them is given, the sensor `name` is used as the match key.
+The `<param>` inside a `<sensor>` block tells the plugin which MuJoCo object to look for. Supported keys, checked in this order: `site`, `body`, `geom`, `camera`, `light`, `frame`. If none is given, the sensor `name` is used as the match key.
 
-For example, `<param name="site">imu_in_pelvis</param>` will match all MuJoCo sensors whose object name is `imu_in_pelvis`.
-
-The three shipped plugins reuse exactly these keys, so a model written for the built-in classifier keeps matching once a `plugin` param is added to it.
+For example, `<param name="site">imu_in_pelvis</param>` matches all MuJoCo sensors whose object name is `imu_in_pelvis`. The three shipped plugins reuse these keys, so a model written for the built-in classifier keeps matching once a `plugin` param is added.
 
 ### Writing a Sensor Plugin
 
 A sensor plugin implements
 [`mujoco_ros2_control::MujocoRos2ControlSensorInterface`](include/mujoco_ros2_control/mujoco_ros2_control_sensor_interface.hpp)
-and is loaded by name through `pluginlib`. This is the way to add a sensor type
-the built-in classifier cannot express, and the only way to expose an output
-that does not fit ros2_control's scalar `StateInterface` model - a MuJoCo
-`touch_grid`, for instance, yields `nchannel * width * height` values per step,
-which belongs on a topic rather than in several hundred interfaces.
+and is loaded by name through `pluginlib`. Use this to add a sensor type the built-in classifier can't express, or to expose output that doesn't fit ros2_control's scalar `StateInterface` model - a MuJoCo
+`touch_grid`, for instance, yields `nchannel * width * height` values per step, which belongs on a topic rather than several hundred interfaces.
 
-The interface has four methods, of which only the first two have to be
-implemented:
+Four methods, of which only the first two are required:
 
 | Method | Called | Purpose |
 |---|---|---|
-| `registerSensor(node, mujoco_model, sensor_info, state_interfaces)` | once, while the hardware component initialises | read the `<param>` entries, resolve MuJoCo sensor addresses, append state interfaces. Return `false` to reject the declaration (after logging why); the sensor is then skipped and the rest keep loading. |
+| `registerSensor(node, mujoco_model, sensor_info, state_interfaces)` | once, while the hardware component initialises | read the `<param>` entries, resolve MuJoCo sensor addresses, append state interfaces. Return `false` to reject the declaration (after logging why); the sensor is skipped and the rest keep loading. |
 | `read(mujoco_data)` | every `read()` cycle, in the control loop | copy this step's values out of `mjData::sensordata` |
 | `activate()` / `deactivate()` | from the component's `on_activate()` / `on_deactivate()` | start and stop publishing |
 
-Four rules matter for a plugin that behaves itself in the control loop:
+Rules for a plugin that behaves in the control loop:
 
-- **Storage must not move.** Every `double` exported as a `StateInterface` is
-  handed out as a pointer, so it has to live in the plugin object itself, never
-  in a container that can reallocate.
-- **`read()` runs in the control loop.** Keep it allocation-free. Publishing
-  from it is fine, but only through
-  `realtime_tools::RealtimePublisher` - never a plain publisher, which can
-  block.
-- **The `node` passed to `registerSensor()` is the simulation node**, already
-  spinning, so declaring parameters and creating publishers there is allowed. It
-  is deliberately not the hardware component's own node: `get_node()` on the
-  component still returns `nullptr` at that point.
-- **Nothing may link the plugin library.** `pluginlib` has to be the one that
-  `dlopen`s it, or `class_loader` registers the factories outside its own
-  bookkeeping and then reports *"no factory exists for it"* when the class is
-  requested.
+- **Storage must not move.** Every `double` exported as a `StateInterface` is handed out as a pointer, so it must live in the plugin object itself, never a container that can reallocate.
+- **`read()` runs in the control loop.** Keep it allocation-free. Publish only through `realtime_tools::RealtimePublisher`, never a plain publisher, which can block.
+- **The `node` passed to `registerSensor()` is the simulation node**, already spinning, so declaring parameters and creating publishers there is fine. It's deliberately not the hardware component's own node: `get_node()` on the component still returns `nullptr` at that point.
+- **Nothing may link the plugin library.** `pluginlib` has to `dlopen` it itself, or `class_loader` registers the factories outside its own bookkeeping and reports "no factory exists for it" when the class is requested.
 
 Helpers for reading configuration and resolving MuJoCo sensor addresses are in
 [`sensor_lookup.hpp`](include/mujoco_ros2_control_plugins/sensor_lookup.hpp):
 `get_param()`, `get_bool_param()`, `resolve_object_name()`, `find_sensor_adr()`
 and `export_state_interfaces()`.
 
-The `declare_*_param()` helpers in the same header read one key from both places
-at once: the node parameter wins, its default is the `<param>` of that name on
-the declaration, and that falls back to the value passed in. Prefer them over
-`get_param()` for anything a user might retune, so a robot can be described
-entirely in its URDF and still be reconfigured from the YAML that configures the
-controllers.
+The `declare_*_param()` helpers in the same header read one key from both the node parameter and the `<param>` on the declaration, node parameter wins, falling back to the value passed in. Prefer them over `get_param()` for anything a user might retune, so a robot can be described entirely in its URDF and still be reconfigured from the controller YAML.
 
 ```cpp
 using mujoco_ros2_control_plugins::declare_param;
@@ -374,25 +337,17 @@ topic_ = declare_param(node, sensor_info, "topic", sensor_info.name + "/touch");
 cutoff_ = declare_double_param(node, sensor_info, "cutoff", 20.0);
 ```
 
-There is one per type - `declare_param()` (string), `declare_bool_param()`,
-`declare_int_param()`, `declare_double_param()` and the three
-`declare_*_array_param()` - and each may be called once per key, from
-`registerSensor()`/`configure()` only. Where the key lands in the YAML follows
-from the node: a `<mujoco_ros2_plugin>` has one of its own, named after the
-declaration, while a `<sensor>` inside `<ros2_control>` shares the simulation
-node and so publishes its keys under `mujoco_ros2_control`.
+One helper per type - `declare_param()` (string), `declare_bool_param()`, `declare_int_param()`, `declare_double_param()`, and the three `declare_*_array_param()` - each callable once per key, from `registerSensor()`/`configure()` only. Where the key lands in the YAML follows from the node: a `<mujoco_ros2_plugin>` has its own, named after the declaration; a `<sensor>` inside `<ros2_control>` shares the simulation node, so its keys go under `mujoco_ros2_control`.
 
 #### Out-of-tree packages
 
-`mujoco_ros2_control` installs its public headers and re-exports the MuJoCo it
-fetched, so a plugin can live in any package. The header
+`mujoco_ros2_control` installs its public headers and re-exports the MuJoCo it fetched, so a plugin can live in any package. The header
 [`touch_grid_sensor.hpp`](../mujoco_ros2_control_examples/include/mujoco_ros2_control_examples/touch_grid_sensor.hpp)
 and its
 [implementation](../mujoco_ros2_control_examples/src/touch_grid_sensor.cpp) in
-`mujoco_ros2_control_examples` are a complete worked example of one.
+`mujoco_ros2_control_examples` are a complete worked example.
 
 `package.xml`:
-
 ```xml
 <depend>mujoco_ros2_control</depend>
 <depend>hardware_interface</depend>
@@ -402,7 +357,6 @@ and its
 ```
 
 Register the class at the bottom of the `.cpp`:
-
 ```cpp
 #include "pluginlib/class_list_macros.hpp"
 
@@ -410,9 +364,7 @@ PLUGINLIB_EXPORT_CLASS(
     my_package::MySensor, mujoco_ros2_control::MujocoRos2ControlSensorInterface)
 ```
 
-Describe it in `my_package_plugins.xml`, where `path` is the library name
-without the `lib` prefix or the `.so` suffix:
-
+Describe it in `my_package_plugins.xml` (`path` is the library name without the `lib` prefix or `.so` suffix):
 ```xml
 <library path="my_package_plugins">
     <class
@@ -424,9 +376,7 @@ without the `lib` prefix or the `.so` suffix:
 </library>
 ```
 
-`CMakeLists.txt` - `find_package(mujoco REQUIRED)` resolves to the very same
-`libmujoco.so` the simulator uses, because `mujoco_ros2_control` re-exports it:
-
+`CMakeLists.txt` (`find_package(mujoco REQUIRED)` resolves to the same `libmujoco.so` the simulator uses, since `mujoco_ros2_control` re-exports it):
 ```cmake
 find_package(mujoco_ros2_control REQUIRED)
 find_package(mujoco REQUIRED)
@@ -444,9 +394,7 @@ pluginlib_export_plugin_description_file(
     mujoco_ros2_control my_package_plugins.xml)
 ```
 
-The description file is exported **against `mujoco_ros2_control`**, not against
-the package that owns the plugin - that is what puts the class on the list the
-simulator's class loader searches. Then name the class from the URDF:
+The description file is exported **against `mujoco_ros2_control`**, not the package that owns the plugin - that's what puts the class on the list the simulator's class loader searches. Then name the class from the URDF:
 
 ```xml
 <sensor name="fingertip_touch">
@@ -455,17 +403,11 @@ simulator's class loader searches. Then name the class from the URDF:
 </sensor>
 ```
 
-A plugin that fails to load, or whose `registerSensor()` returns `false`, is
-logged as an error and skipped; the simulation comes up without it rather than
-refusing to start. Check the node's output for `loaded plugin` lines to confirm
-what was picked up.
+A plugin that fails to load, or whose `registerSensor()` returns `false`, is logged as an error and skipped; the simulation comes up without it. Check the node's output for `loaded plugin` lines to confirm what was picked up.
 
 ## MuJoCo Engine Plugins
 
-MuJoCo's own [engine plugins](https://mujoco.readthedocs.io/en/stable/programming/extension.html)
-are a separate mechanism from the sensor plugins above: they extend the physics
-engine itself and are referenced from an `<extension>` block in the MJCF, which
-`xacro2mjcf.py` copies out of the `<mujoco>` section of your description.
+MuJoCo's own [engine plugins](https://mujoco.readthedocs.io/en/stable/programming/extension.html) are separate from the sensor plugins above: they extend the physics engine and are referenced from an `<extension>` block in the MJCF, which `xacro2mjcf.py` copies out of the `<mujoco>` section of your description.
 
 ```xml
 <mujoco>
@@ -485,19 +427,14 @@ engine itself and are referenced from an `<extension>` block in the MJCF, which
 </mujoco>
 ```
 
-`libmujoco` never scans for plugin libraries itself, so they have to be
-`dlopen`ed before the model is compiled or the compiler cannot resolve
-`<extension>`. The node does that on startup, controlled by two parameters:
+`libmujoco` never scans for plugin libraries itself, so they must be `dlopen`ed before the model is compiled, or the compiler can't resolve `<extension>`. The node does that on startup, controlled by two read-only parameters (set at launch):
 
 | Parameter | Default | Description |
 |---|---|---|
-| `mujoco_plugin_directories` | *(empty)* | Directories scanned before the model is compiled; every shared library in each one is loaded. Left empty, the package's own `lib/mujoco_plugin` directory is scanned, which holds the plugins shipped with MuJoCo: `mujoco.sensor.touch_grid`, `mujoco.elasticity.cable`, `mujoco.pid` and the `mujoco.sdf.*` set. |
+| `mujoco_plugin_directories` | *(empty)* | Directories scanned before the model is compiled; every shared library in each is loaded. Left empty, the package's own `lib/mujoco_plugin` directory is scanned, holding the plugins shipped with MuJoCo: `mujoco.sensor.touch_grid`, `mujoco.elasticity.cable`, `mujoco.pid` and the `mujoco.sdf.*` set. |
 | `mujoco_plugin_libraries` | *(empty)* | Explicit library paths, loaded after the directory scan. |
 
-Both are read-only, so they have to be set at launch. Setting
-`mujoco_plugin_directories` **replaces** the default directory rather than
-adding to it - include the package's own path if you still want MuJoCo's
-plugins:
+Setting `mujoco_plugin_directories` **replaces** the default directory rather than adding to it - include the package's own path if you still want MuJoCo's plugins:
 
 ```python
 {"mujoco_plugin_directories": [
@@ -506,22 +443,19 @@ plugins:
 ]}
 ```
 
-A configured directory that does not exist is warned about and skipped; a path
-in `mujoco_plugin_libraries` that does not exist is fatal, because
-`mj_loadPluginLibrary()` reports a failed `dlopen` through `mju_error`, which
-would terminate the process.
+A configured directory that doesn't exist is warned about and skipped; a path in `mujoco_plugin_libraries` that doesn't exist is fatal, since `mj_loadPluginLibrary()` reports a failed `dlopen` through `mju_error`, which terminates the process.
 
 ## Side-Channel Sensors (cameras and lidars)
 
-These sensors are **not** ros2_control interfaces. Each instance runs as its own ROS node with its own publisher and worker thread, so they don't appear in `<ros2_control>` blocks and aren't broadcast through controllers.
+These are **not** ros2_control interfaces. Each instance runs as its own ROS node with its own publisher and worker thread, so they don't appear in `<ros2_control>` blocks and aren't broadcast through controllers.
 
 ### RGB-D Camera
 
-A depth-camera node can be mounted in two ways. Both publish the same topics and read the same per-instance ROS parameters (keyed by the node name); they differ only in how the camera pose and field of view are defined.
+A depth-camera node can be mounted in two ways. Both publish the same topics and read the same per-instance ROS parameters (keyed by the node name); they differ only in how camera pose and field of view are defined.
 
 #### From a `<camera>` element (fixed FOV)
 
-Every MuJoCo `<camera>` declared under a `<reference>` body automatically spawns a depth-camera node named after the camera. The body the camera lives in defines its pose, and the vertical FOV comes from the MJCF `fovy`. The horizontal FOV follows from the `width`/`height` aspect ratio (square pixels). These cameras are always created and ignore the `enabled` flag.
+Every MuJoCo `<camera>` declared under a `<reference>` body spawns a depth-camera node named after the camera. The body defines its pose, vertical FOV comes from the MJCF `fovy`, horizontal FOV follows from the `width`/`height` aspect ratio. These cameras are always created and ignore the `enabled` flag.
 
 ```xml
 <reference name="camera_link">
@@ -542,16 +476,16 @@ camera:
 
 #### From a `<site>` (config-driven, like the lidar)
 
-A depth camera is also attached to MuJoCo sites, mirroring the GL lidar. Each site frame is interpreted as a **REP-103 optical frame** (+Z forward, +X right, +Y down), so place the site in your `*_optical_frame` and no orientation fix-up is needed — the plugin converts it to the OpenGL camera convention internally. FOV and resolution come entirely from ROS parameters, so the intrinsics live in config instead of the model. The published `header.frame_id` is the site's **render frame** (its parent body), so put the site in the link whose TF frame you want.
+A depth camera can also attach to MuJoCo sites, mirroring the GL lidar. Each site frame is interpreted as a **REP-103 optical frame** (+Z forward, +X right, +Y down), so place the site in your `*_optical_frame` - no orientation fix-up needed, the plugin converts it to the OpenGL camera convention internally. FOV and resolution come from ROS parameters, so intrinsics live in config instead of the model. The published `header.frame_id` is the site's **render frame** (its parent body).
 
-A site camera is instantiated only if its `enabled` param is `true`, so camera sites can stay in the MJCF and be toggled at runtime. The node — and therefore its params block and topics — is named after the site **with the prefix stripped**, so `mjCam_d435` becomes node `d435` publishing on `/d435/...`.
+A site camera is instantiated only if its `enabled` param is `true`, so camera sites can stay in the MJCF and be toggled at runtime. The node (and its params block and topics) is named after the site **with the prefix stripped**, so `mjCam_d435` becomes node `d435` publishing on `/d435/...`.
 
 Three prefixes select how color and depth are sourced (grouped into one camera by the stripped `<name>`):
 
 | Site | Meaning |
 |---|---|
-| `mjCam_<name>` | one site for **both** color and depth — a single shared render pass |
-| `mjCamOpt_<name>` + `mjCamDepth_<name>` | color from the optical site, depth from the depth site — **two render passes** (true parallax). Each stream's `frame_id` is its own site's render frame; the cloud is colored from a render at the depth site so RGB and depth stay aligned. |
+| `mjCam_<name>` | one site for **both** color and depth - a single shared render pass |
+| `mjCamOpt_<name>` + `mjCamDepth_<name>` | color from the optical site, depth from the depth site - **two render passes** (true parallax). Each stream's `frame_id` is its own site's render frame; the cloud is colored from a render at the depth site so RGB and depth stay aligned. |
 
 **Single site (shared render):**
 ```xml
@@ -584,13 +518,11 @@ d435:                                  # site name(s) with the prefix stripped
     point_cloud: true
 ```
 
-Set only `fovy` (leave `fovx: 0.0`) for square pixels, where the horizontal FOV is `2·atan(tan(fovy/2)·width/height)`. Set **both** `fovx` and `fovy` to fix the two fields of view independently (e.g. to match a calibrated RealSense): MuJoCo renders square angular pixels, so the scene is rendered at the aspect implied by `(fovx, fovy)` and resampled to `width × height`, producing independent `fx`/`fy` in the published `camera_info` and point cloud.
+Set only `fovy` (leave `fovx: 0.0`) for square pixels, where horizontal FOV is `2·atan(tan(fovy/2)·width/height)`. Set **both** to fix the two fields of view independently (e.g. to match a calibrated RealSense): MuJoCo renders square angular pixels, so the scene is rendered at the aspect implied by `(fovx, fovy)` and resampled to `width × height`, producing independent `fx`/`fy` in `camera_info` and the point cloud.
 
-Only the enabled streams are rendered: with separate sites, the color pass is skipped when `color_image` is off and the depth pass when both `depth_image` and `point_cloud` are off. The three prefixes and the topic namespace can be changed on the `_mujoco_rgbd_camera_probe` node (`site_prefix`, `optical_site_prefix`, `depth_site_prefix`) and per camera (`topic_namespace`).
+Only enabled streams are rendered: with separate sites, the color pass is skipped when `color_image` is off, the depth pass when both `depth_image` and `point_cloud` are off. The three prefixes and topic namespace can be changed on the `_mujoco_rgbd_camera_probe` node (`site_prefix`, `optical_site_prefix`, `depth_site_prefix`) and per camera (`topic_namespace`).
 
 #### Topics
-
-Topics (only created for the outputs you enable, named after the camera/site node):
 
 | Output | Topic | Type |
 |---|---|---|
@@ -602,9 +534,9 @@ Full parameter reference: [`mujoco_rgbd_camera_parameters.yaml`](src/mujoco_rgbd
 
 ### GL Depth-Buffer Lidar
 
-A GPU-rendered lidar is attached to any MuJoCo site whose name starts with the configured prefix (default: `mjLidar_`). The published `frame_id` is the parent body name; the site's local pose defines the lidar frame. The node — and therefore its params block and topics — is named after the site **with the prefix stripped**, so site `mjLidar_head` becomes node `head` publishing on `/head/...`. The global lidar `site_prefix` can be changed on the `_mujoco_gl_lidar_probe` node in your params YAML.
+A GPU-rendered lidar attaches to any MuJoCo site whose name starts with the configured prefix (default: `mjLidar_`). The published `frame_id` is the parent body name; the site's local pose defines the lidar frame. The node is named after the site with the prefix stripped, so `mjLidar_head` becomes node `head` publishing on `/head/...`. The global `site_prefix` can be changed on the `_mujoco_gl_lidar_probe` node.
 
-A lidar is instantiated only if its site exists in the MJCF **and** its per-site ROS params set `enabled: true`. Sites with `enabled: false` (or missing params) are skipped, so lidar sites can stay in the MJCF and be toggled at runtime.
+A lidar is instantiated only if its site exists in the MJCF **and** its per-site ROS params set `enabled: true`, so lidar sites can stay in the MJCF and be toggled at runtime.
 
 ```xml
 <reference name="head_link">
@@ -612,7 +544,6 @@ A lidar is instantiated only if its site exists in the MJCF **and** its per-site
 </reference>
 ```
 
-Per-lidar parameters are keyed by the node name (site name with the prefix stripped) in your params YAML:
 ```yaml
 head:                     # site "mjLidar_head" with the "mjLidar_" prefix stripped
   ros__parameters:
@@ -629,8 +560,6 @@ head:                     # site "mjLidar_head" with the "mjLidar_" prefix strip
     range_max: 30.0
     render_height: 256
 ```
-
-Topics:
 
 | Output mode | Topic | Type |
 |---|---|---|
