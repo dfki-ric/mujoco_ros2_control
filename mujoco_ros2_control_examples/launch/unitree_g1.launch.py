@@ -28,7 +28,7 @@ below does not change with the terrain.
 
 import os
 
-from ament_index_python import get_package_prefix, get_package_share_directory
+from ament_index_python import get_package_share_directory
 
 from launch import LaunchDescription, LaunchContext
 from launch.actions import (
@@ -83,21 +83,20 @@ def create_nodes(context: LaunchContext):
 
     if terrain == "stones":
         scene_file = os.path.join(terrain_dir, "terrain_scene.xml")
-        prepare_terrain = ExecuteProcess(
-            cmd=[
-                os.path.join(
-                    get_package_prefix("mujoco_ros2_control"),
-                    "lib", "mujoco_ros2_control", "prepare_terrain.py",
-                ),
-                "--out-dir", terrain_dir,
-                "--difficulty", LaunchConfiguration("terrain_difficulty"),
-                "--seed", LaunchConfiguration("terrain_seed"),
-                "--collider", LaunchConfiguration("terrain_collider"),
-                "--field-half", LaunchConfiguration("terrain_field_half"),
-                "--max-height-var", LaunchConfiguration("terrain_height_var"),
-                "--max-tilt-deg", LaunchConfiguration("terrain_tilt_deg"),
-                "--max-drop-frac", LaunchConfiguration("terrain_hole_frac"),
-            ],
+        prepare_terrain = Node(
+            package="mujoco_ros2_control",
+            executable="prepare_terrain_node.py",
+            parameters=[{
+                "out_dir": terrain_dir,
+                "difficulty": float(LaunchConfiguration("terrain_difficulty").perform(context)),
+                "seed": int(LaunchConfiguration("terrain_seed").perform(context)),
+                "collider": LaunchConfiguration("terrain_collider").perform(context),
+                "field_half": float(LaunchConfiguration("terrain_field_half").perform(context)),
+                "max_height_var": float(
+                    LaunchConfiguration("terrain_height_var").perform(context)),
+                "max_tilt_deg": float(LaunchConfiguration("terrain_tilt_deg").perform(context)),
+                "max_drop_frac": float(LaunchConfiguration("terrain_hole_frac").perform(context)),
+            }],
             output="screen",
         )
     else:

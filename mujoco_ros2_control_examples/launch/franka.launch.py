@@ -17,6 +17,23 @@ def _spawner(name, params_file=None):
     return Node(package="controller_manager", executable="spawner", arguments=arguments)
 
 
+def _pending_peg_tray_decompositions(examples_share):
+    """Pick/insert tray meshes that still need CoaCD, in a fixed order.
+
+    A tray that already carries its decomposed folder (from a previous run)
+    is left alone -- coacd_node.py (and decompose_mesh() under it) skips it
+    too, so this is only for deciding whether to run the node at all."""
+    pegs_dir = os.path.join(examples_share, "meshes", "industreal", "pegs")
+    pending = []
+    for shape in ("round", "rectangular"):
+        for size in (8, 12, 16):
+            for kind in ("pick", "insert"):
+                mesh = os.path.join(pegs_dir, f"industreal_tray_{kind}_{shape}_peg_{size}mm.obj")
+                if os.path.isfile(mesh) and not os.path.isdir(os.path.splitext(mesh)[0]):
+                    pending.append(mesh)
+    return pending
+
+
 def create_nodes(context: LaunchContext):
     examples_share = get_package_share_directory("mujoco_ros2_control_examples")
     mujoco_share = get_package_share_directory("mujoco_ros2_control")
@@ -57,10 +74,13 @@ def create_nodes(context: LaunchContext):
         additional_files.append(os.path.join(
             examples_share, "urdf", "imrk_table", "imrk_table.urdf.xacro"
         ))
+    pending_trays = []
     if value("load_industreal_board").lower() == "true":
         additional_files.append(os.path.join(
             examples_share, "urdf", "industreal", "industreal_task_board.urdf.xacro"
         ))
+        if value("decompose_industreal_peg_trays").lower() == "true":
+            pending_trays = _pending_peg_tray_decompositions(examples_share)
 
     converter = Node(
         package="mujoco_ros2_control",
@@ -125,7 +145,25 @@ def create_nodes(context: LaunchContext):
         target_action=simulator,
         on_start=[*controller_nodes, rviz],
     ))
-    return [publisher, converter, start_simulator, start_controllers]
+
+    # coacd_node.py takes the whole pending list in one process (like
+    # xacro2mjcf.py takes input_files); converter starts once it exits, same
+    # as when there is nothing to decompose and it is the very first action.
+    if pending_trays:
+        decompose = Node(
+            package="mujoco_ros2_control",
+            executable="coacd_node.py",
+            parameters=[{"meshes": pending_trays}],
+            output="screen",
+        )
+        first_action = decompose
+        decompose_handlers = [RegisterEventHandler(
+            OnProcessExit(target_action=decompose, on_exit=[converter]))]
+    else:
+        first_action = converter
+        decompose_handlers = []
+
+    return [publisher, first_action, *decompose_handlers, start_simulator, start_controllers]
 
 
 def generate_launch_description():
@@ -143,6 +181,7 @@ def generate_launch_description():
         DeclareLaunchArgument("robot_base_xyz", default_value="-0.308 0 0.875"),
         DeclareLaunchArgument("load_imrk_table", default_value="true"),
         DeclareLaunchArgument("load_industreal_board", default_value="true"),
+        DeclareLaunchArgument("decompose_industreal_peg_trays", default_value="false"),
         DeclareLaunchArgument("synchronous_mode", default_value="false"),
         DeclareLaunchArgument(
             "camera_config",

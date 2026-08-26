@@ -72,6 +72,21 @@ RUN vcs import --input src/mujoco_ros2_control_examples/.repos src/ \
     && mv src/unitree_ros2/cyclonedds_ws/src/unitree/unitree_hg src/unitree_hg \
     && rm -rf src/unitree_ros2
 
+# coacd/trimesh, for the Franka example's decompose_industreal_peg_trays. They
+# have no apt/rosdep package, and this image's system Python is PEP 668
+# externally-managed, so `pip install --system --break-system-packages` is the
+# obvious move -- and the wrong one: coacd/trimesh pull in an unpinned numpy
+# that would shadow the apt-built python3-numpy for every process in the image,
+# and trimesh unconditionally imports the apt-built python3-scipy (compiled
+# against numpy 1.x's ABI) at import time, crashing the moment numpy floats to
+# 2.x. A venv bridged onto PYTHONPATH keeps these out of the files apt manages;
+# ${PYTHONPATH} still has to carry it, because run_coacd.py is launched as
+# `sys.executable` from whichever Python is already running -- the ROS-sourced
+# system one, not a venv's.
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+RUN uv venv /ros2_ws/.venv --python 3.12 && \
+    uv pip install --python /ros2_ws/.venv/bin/python "numpy<2" coacd trimesh
+ENV PYTHONPATH="/ros2_ws/.venv/lib/python3.12/site-packages:${PYTHONPATH}"
 
 RUN rosdep update && \
     rosdep install --from-paths src --ignore-src --rosdistro $ROS_DISTRO -y

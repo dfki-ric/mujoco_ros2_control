@@ -331,6 +331,9 @@ install(PROGRAMS
     scripts/dae2stl.py
     scripts/stl_to_obj.py
     scripts/prepare_terrain.py
+    scripts/prepare_terrain_node.py
+    scripts/run_coacd.py
+    scripts/coacd_node.py
     DESTINATION lib/${PROJECT_NAME}
 )
 

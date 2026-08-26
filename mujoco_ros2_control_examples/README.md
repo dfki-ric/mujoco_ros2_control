@@ -46,6 +46,7 @@ ros2 launch mujoco_ros2_control_examples franka.launch.py
 | `rviz`             | `true`         | Start RViz.                                              |
 | `load_industreal_board` | `true`      | Load the unified board as an additional scene model.       |
 | `task_board_config` | package default | YAML selecting the gears and the peg assemblies.          |
+| `decompose_industreal_peg_trays` | `false` | Convex-decompose the pick/insert tray meshes with CoaCD at launch, so the peg hole survives instead of being filled in by MuJoCo's convex-hull collision. Cached by settings, not just presence -- see below -- so this cost is paid once per install, not once per launch. Requires `coacd`/`trimesh` (see below). |
 | `load_imrk_table`  | `true`         | Load the IMRK task table as an additional scene model.    |
 | `load_gripper`     | `true`         | Attach an end-effector.                                  |
 | `ee_id`            | `franka_hand`  | End-effector: `none`, `franka_hand`.                     |
@@ -612,7 +613,94 @@ DISABLE_OPENGL=1 colcon test --packages-select mujoco_ros2_control_examples   # 
 See [`urdf/industreal/`](urdf/industreal) and [`meshes/industreal/`](meshes/industreal).
 The collision meshes were generated with [Phobos](https://github.com/dfki-ric/phobos)
 and [CoACD](https://github.com/SarahWeiii/CoACD); use `mujoco_ros2_control/scripts/run_coacd.py`
-to decompose a mesh into collision-friendly components.
+to decompose a mesh into collision-friendly components. The URDF-to-MJCF
+converter picks the pieces up automatically: a `<collision>` mesh is replaced
+by every file in a folder of the same name (extension stripped) sitting beside
+it, which is exactly what `run_coacd.py`'s `decompose_mesh()` writes. The
+Franka example already does this for the peg trays on demand -- see
+`decompose_industreal_peg_trays` above -- because a single collision mesh
+takes its convex hull, which fills in the peg-shaped hole a tray is supposed
+to have.
+
+`decompose_mesh()` caches by settings, not just by a folder's presence: it
+also writes a `<name>.coacd_settings.json` file beside the output folder (a
+sibling, not a file inside it -- the converter's folder-substitution above has
+no extension filter, so anything inside would get fed to MuJoCo as a mesh),
+recording the input mesh's hash and every CoaCD argument. A call whose
+settings and input hash match what is on disk is skipped; a call whose folder
+exists but whose settings differ deletes it and rebuilds. A folder with no
+settings file at all -- `meshes/industreal/gears/` ships ones generated
+offline with Phobos, not by this function -- is left alone either way: this
+is the only case that still keys on presence, since there is nothing of this
+function's own to compare against. While a mesh is being worked on, a
+`<name>.coacd_ongoing` marker sits beside it too, removed only once every
+write below it (pieces, then settings, in that order) has actually landed --
+`ls` the output directory during a slow multi-mesh batch to see which mesh is
+currently running, and a leftover marker after a crash names the one that
+did not finish. The output folder itself is built under a temporary name and
+`os.rename()`d into place last, so a run killed mid-decomposition never
+leaves a folder with a stale settings file, half its pieces, and no way to
+tell it apart from a finished one.
+
+`coacd_node.py` wraps `decompose_mesh()` as a ROS node, invoked the way
+`xacro2mjcf.py` is -- a `Node` action taking a list (`meshes`) as a
+parameter, one process for every pending tray, rather than one `ExecuteProcess`
+per mesh. `franka.launch.py` chains it before the model converter with a
+`RegisterEventHandler(OnProcessExit(...))`, exactly like the converter chains
+into the simulator; it deliberately does *not* call `decompose_mesh()` inline
+inside the `OpaqueFunction` that builds the launch description, because that
+function runs on the launch executor's own thread, and CoaCD takes tens of
+seconds per mesh -- blocking there freezes the whole launch, not just the
+decomposition, since no other action (including the one this would eventually
+start) gets to run until it returns. `prepare_terrain_node.py` wraps
+`prepare_terrain.py`'s `build_scene()` the same way, for `unitree_g1.launch.py`'s
+stepping-stones terrain.
+
+`coacd` and `trimesh` have no apt/rosdep package, so `rosdep install` will
+never pull them in, and the `ros:jazzy` image's system Python is [PEP
+668](https://peps.python.org/pep-0668/) externally-managed, so a bare `pip
+install` is refused.
+
+The tempting fix is `uv pip install --system --break-system-packages coacd
+trimesh`, and it is the wrong one: `coacd`/`trimesh` pull in an unpinned numpy,
+and installing that into the system interpreter shadows the apt-built
+`python3-numpy` for *every* process on the machine, not just this one. Worse,
+`trimesh` unconditionally imports the apt-built `python3-scipy` at import time
+-- which is compiled against numpy 1.x's ABI -- so the moment `pip`/`uv` picks
+the latest numpy (2.x), every other user of `scipy` on the machine starts
+crashing with a binary-incompatibility error. This is exactly the failure mode
+PEP 668 exists to prevent; `--break-system-packages` just overrides the rail
+that was stopping it.
+
+Use a venv instead, with numpy pinned to a 1.x release so it stays
+ABI-compatible with the apt-built scipy, and bridge it onto `PYTHONPATH`
+rather than activating it:
+
+```bash
+uv venv .venv --python 3.12
+uv pip install --python .venv/bin/python "numpy<2" coacd trimesh
+export PYTHONPATH="$(pwd)/.venv/lib/python3.12/site-packages:$PYTHONPATH"
+```
+
+The bridge matters because `coacd_node.py` is launched as a `Node` action --
+`ros2 launch` execs the installed script by its own `#!/usr/bin/env python3`
+shebang, which resolves against the ROS-sourced system Python, not the venv's
+own interpreter -- so the packages have to be importable *from that process*
+via `PYTHONPATH` rather than by activating the venv. This is what the
+`Dockerfile` and `.github/workflows/ci-examples.yml` do
+(as a Docker `ENV` and a `$GITHUB_ENV` entry, respectively, so every later step
+and every container built from the image inherit it). For local development, a
+one-line addition to whatever script sources `install/setup.bash` -- exporting
+the same `PYTHONPATH` line -- gets the same bridge without touching either
+`install/` or the venv.
+
+`test/test_franka_industreal_decompose_example.test.py` exercises this flag
+end to end -- it launches the real `franka.launch.py` with it set and asserts
+the tray meshes actually got decomposed, not just that the node came up (an
+undecomposed tray still loads fine in MuJoCo). It self-skips when `coacd`/
+`trimesh` are not importable. CoaCD is slow at its default settings -- budget
+several minutes for a cold run over all twelve tray meshes; the launch
+argument caches its output, so this cost is paid once per install.
 
 The default `config/franka/industreal_task_board.yaml` describes one unified
 board: a medium-dark-grey optical breadboard, the 8, 12, and 16 mm round and

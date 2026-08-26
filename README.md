@@ -28,6 +28,9 @@ Franka description and the gears from the IndustRealKit that can be started with
 ![](./images/franka_rgbd_example.png)
 *RGBD Camera (640x480px) inside of MuJoCo ([MuJoCo Visualizer](https://github.com/google-deepmind/mujoco/tree/main/simulate) \[left\], [rviz2](https://index.ros.org/p/rviz2/) \[right\])*
 
+![](./images/franka_industrial.png)
+*The IndustReal task board's peg trays and gears, collision geometry as CoaCD convex-decomposes it -- high enough resolution that a tray's peg-shaped hole survives instead of being filled in by a single convex hull. See [`decompose_industreal_peg_trays`](./mujoco_ros2_control_examples/README.md#task-table-assets) in the examples README.*
+
 ### Unitree
 Unitree G1 with lidar and using the prepare_terrain.py script 
 ```bash

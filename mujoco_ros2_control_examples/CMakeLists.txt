@@ -593,6 +593,11 @@ if(BUILD_TESTING)
   add_ros_isolated_launch_test(test/test_unitree_g1_low_level_example.test.py TIMEOUT 180)
   add_ros_isolated_launch_test(test/test_tactile_example.test.py TIMEOUT 120)
   add_ros_isolated_launch_test(test/test_body_services_example.test.py TIMEOUT 120)
+  # Longer still: CoaCD decomposes all twelve IndustReal tray meshes
+  # synchronously before the node comes up. Self-skips when coacd/trimesh are
+  # not importable - see README.md, "Task table assets".
+  add_ros_isolated_launch_test(
+    test/test_franka_industreal_decompose_example.test.py TIMEOUT 1200)
 endif()
 
 ament_package()
