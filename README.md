@@ -20,21 +20,16 @@ The development and testing of control algorithms for robotic systems is a cruci
 | Jazzy | [jazzy](https://github.com/dfki-ric/mujoco_ros2_control/tree/jazzy) | [![CI](https://github.com/dfki-ric/mujoco_ros2_control/actions/workflows/ci.yml/badge.svg?branch=jazzy)](https://github.com/dfki-ric/mujoco_ros2_control/actions/workflows/ci.yml?query=branch%3Ajazzy) | [![CI Examples](https://github.com/dfki-ric/mujoco_ros2_control/actions/workflows/ci-examples.yml/badge.svg?branch=jazzy)](https://github.com/dfki-ric/mujoco_ros2_control/actions/workflows/ci-examples.yml?query=branch%3Ajazzy) |
 
 ## Examples
-We provide one example with the franka description and the gears from the IndustRealKit that can be started with 
+### Franka
+Franka description and the gears from the IndustRealKit that can be started with 
 ```bash
   ros2 launch mujoco_ros2_control_examples franka.launch.py
 ```
 ![](./images/franka_rgbd_example.png)
 *RGBD Camera (640x480px) inside of MuJoCo ([MuJoCo Visualizer](https://github.com/google-deepmind/mujoco/tree/main/simulate) \[left\], [rviz2](https://index.ros.org/p/rviz2/) \[right\])*
 
-one example with a unitree H1 that can be started with
-```bash
-  ros2 launch mujoco_ros2_control_examples unitree_h1.launch.py
-```
-![](./paper/figures/unitree_h1_example.png)
-*Unitree H1 with floating joint between world and pelvis ([MuJoCo Visualizer](https://github.com/google-deepmind/mujoco/tree/main/simulate) \[left\], [rqt_joint_trajectory_controller](https://index.ros.org/p/rqt_joint_trajectory_controller/)/[rviz2](https://index.ros.org/p/rviz2/) \[right\])*
-
-one example with a unitree G1 with lidar and using the prepare_terrain.py script 
+### Unitree
+Unitree G1 with lidar and using the prepare_terrain.py script 
 ```bash
   ros2 launch mujoco_ros2_control_examples unitree_g1.launch.py
 ```
@@ -50,21 +45,21 @@ for the one message package it needs)
   ros2 launch mujoco_ros2_control_examples unitree_g1.launch.py low_level:=true
 ```
 
-one example with a Universal Robots arm, selectable with `ur_type`
+### UR
+Universal Robots arm, selectable with `ur_type`
 ```bash
   ros2 launch mujoco_ros2_control_examples ur.launch.py ur_type:=ur10e
 ```
 
-and one example with several UR arms in a single MuJoCo world, driven by one
-controller manager
+several UR arms in a single MuJoCo world, driven by one controller manager
 ```bash
   ros2 launch mujoco_ros2_control_examples ur_multi.launch.py
 ```
 ![](./images/ur_multi_example.png)
 *A ur3e, a ur5e and a ur10e in one world. Each arm is prefixed with its own type, so it gets its own ros2_control hardware component, joint names and controllers ([MuJoCo Visualizer](https://github.com/google-deepmind/mujoco/tree/main/simulate) \[left\], `ros2 control list_hardware_components` \[right\])*
 
-### Docker
-To start you can use the ![dockerfile](./Dockerfile) to create a docker container with MuJoCo ROS2 control and its examples.
+## Docker
+To start you can use the [dockerfile](./Dockerfile) to create a docker container with MuJoCo ROS2 control and its examples.
 
 To try it out you can build and start the Docker image by execute the [run_docker_gui.sh](https://github.com/dfki-ric/mujoco_ros2_control/blob/main/run_docker_gui.sh) script.
 
@@ -89,6 +84,8 @@ ros-jazzy-pcl-conversions
 ros-jazzy-cv-bridge
 libpcl-dev
 ros-jazzy-urdfdom-py
+libegl-dev
+extra-cmake-modules
 ```
 
 ## Installation
@@ -101,6 +98,8 @@ To use the **MuJoCo ROS2 Control**, follow these steps:
         libglfw3-dev \
         libx11-dev \
         xorg-dev \
+        libegl-dev \
+        extra-cmake-modules \
         ros-jazzy-urdf \
         ros-jazzy-xacro \
         ros-jazzy-rviz2 \
@@ -124,7 +123,7 @@ To use the **MuJoCo ROS2 Control**, follow these steps:
    ```bash
     cd ~/mujoco_ws/src
     git clone https://github.com/dfki-ric/mujoco_ros2_control
-    rosdep update && rosdep install --from-paths . --ignore-src --rosdistro humble -y # optional
+    rosdep update && rosdep install --from-paths . --ignore-src --rosdistro jazzy -y # optional
     cd ~/mujoco_ws
     colcon build
    ```
@@ -135,7 +134,7 @@ To use the **MuJoCo ROS2 Control**, follow these steps:
    ```
 4. Test the ros package (Optional)
    ```bash
-   launch_test src/mujoco_ros2_pkgs/mujoco_ros2_control/test/simple_launch.test.py 
+   launch_test src/mujoco_ros2_control/mujoco_ros2_control/test/simple_launch.test.py 
    ```
 
 
@@ -329,7 +328,7 @@ Sensors are declared inside the `<ros2_control>` block in your URDF and matched 
 A `<sensor>` that names no plugin is still handled by the built-in classifier, which infers the same three types from the declared state interface names. That path is deprecated but unchanged, so existing models keep working as they are.
 
 Sensor types beyond those three are added by implementing
-[`MujocoSensorInterface`](./mujoco_ros2_control/include/mujoco_ros2_control/mujoco_sensor_interface.hpp)
+[`MujocoRos2ControlSensorInterface`](./mujoco_ros2_control/include/mujoco_ros2_control/mujoco_ros2_control_sensor_interface.hpp)
 in a package of your own - no change to `mujoco_ros2_control` needed. A plugin is
 not restricted to ros2_control's scalar state interfaces either: it may publish a
 topic instead, which is what the
@@ -346,7 +345,7 @@ Run ```doxygen Doxyfile``` in the mujoco_ros2_control directory
 
 ## Bug Reports
 
-To search for bugs or report them, please use GitHubs ![issue tracker](https://github.com/dfki-ric/mujoco_ros2_control/issues)
+To search for bugs or report them, please use GitHubs [issue tracker](https://github.com/dfki-ric/mujoco_ros2_control/issues)
 
 ## Releases
 

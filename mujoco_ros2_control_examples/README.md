@@ -46,8 +46,9 @@ ros2 launch mujoco_ros2_control_examples franka.launch.py
 | `rviz`             | `true`         | Start RViz.                                              |
 | `load_industreal_board` | `true`      | Load the unified board as an additional scene model.       |
 | `task_board_config` | package default | YAML selecting the gears and the peg assemblies.          |
+| `load_imrk_table`  | `true`         | Load the IMRK task table as an additional scene model.    |
 | `load_gripper`     | `true`         | Attach an end-effector.                                  |
-| `ee_id`            | `franka_hand`  | End-effector: `none`, `franka_hand`, `cobot_pump`.       |
+| `ee_id`            | `franka_hand`  | End-effector: `none`, `franka_hand`.                     |
 | `arm_id`           | `fr3`          | Arm: `fer`, `fr3`, `fp3`.                                |
 | `load_realsense`   | `true`         | Attach the simulated D435 wrist camera and official Franka mount. |
 | `realsense_xyz`    | `0.025 0 0.0075` | Centre of the front-side Hand M6 mounting hole.          |
@@ -230,21 +231,25 @@ so nothing else writes their torque, while every state interface and every
 broadcaster stays exactly as it was.
 
 The messages have no binary release, and building them under a package name of
-our own would change the type name a policy publishes, so the one message
-package -- not the whole `unitree_ros2` workspace -- is cloned into the
-workspace:
+our own would change the type name a policy publishes, so `unitree_hg` is
+pulled out of the upstream `unitree_ros2` repo -- not the whole workspace --
+via the `.repos` file next to this README:
 
 ```bash
-ros2 run mujoco_ros2_control_examples fetch_unitree_hg.sh <workspace>/src
-# or, before this package is built:
-./src/mujoco_ros2_control_examples/scripts/fetch_unitree_hg.sh src
+cd <workspace>
+vcs import --input src/mujoco_ros2_control/mujoco_ros2_control_examples/.repos src/
+mv src/unitree_ros2/cyclonedds_ws/src/unitree/unitree_hg src/unitree_hg
+rm -rf src/unitree_ros2
+rosdep install --from-paths src --ignore-src --rosdistro $ROS_DISTRO -y
 colcon build --packages-up-to mujoco_ros2_control_examples
 ```
 
-Without it the plugin is simply left out of the build (CMake says so) and the
+(swap `mujoco_ros2_control` for wherever you cloned this repo, if you gave it a
+different name)
+
+Skip it and the plugin is simply left out of the build (CMake says so) and the
 rest of the package is unaffected; `rosdep install` then needs
-`--skip-keys unitree_hg`. The upstream interface package also needs
-`ros-$ROS_DISTRO-rosidl-generator-dds-idl`, which it does not declare.
+`--skip-keys unitree_hg`.
 
 ```bash
 ros2 launch mujoco_ros2_control_examples unitree_g1.launch.py low_level:=true
