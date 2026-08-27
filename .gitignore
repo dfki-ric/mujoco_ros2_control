@@ -1,6 +1,7 @@
 .idea/
 .vscode/
 .cache/
+.claude/
 __pycache__/
 */build/
 cmake-build-debug/
