@@ -77,9 +77,11 @@ RUN sed -i '/<build_depend>rosidl_default_generators<\/build_depend>/a\  <build_
     src/unitree_hg/package.xml
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
-RUN uv venv /ros2_ws/.venv --python 3.12 && \
-    uv pip install --python /ros2_ws/.venv/bin/python "numpy<2" coacd trimesh
-ENV PYTHONPATH="/ros2_ws/.venv/lib/python3.12/site-packages:${PYTHONPATH}"
+RUN PY_VER=$(python3 -c 'import sys; print("%d.%d" % sys.version_info[:2])') && \
+    uv venv /ros2_ws/.venv --python "$PY_VER" && \
+    uv pip install --python /ros2_ws/.venv/bin/python "numpy<2" coacd trimesh && \
+    ln -s "python${PY_VER}" /ros2_ws/.venv/lib/python-site
+ENV PYTHONPATH="/ros2_ws/.venv/lib/python-site/site-packages:${PYTHONPATH}"
 
 RUN rosdep update && \
     rosdep install --from-paths src --ignore-src --rosdistro $ROS_DISTRO -y

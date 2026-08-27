@@ -81,12 +81,17 @@ jobs:
       # has to carry it into every later step, because run_coacd.py is
       # launched as `sys.executable` from whichever Python is already
       # running -- the ROS-sourced system one, not a venv's.
+      # The venv's Python version must match the system python3 that runs
+      # coacd_node.py as a `ros2 launch` Node action -- a mismatch means the
+      # venv's compiled numpy/coacd extensions are the wrong ABI for the
+      # interpreter that ends up importing them via PYTHONPATH.
       - name: Install uv and the peg-decomposition venv
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="/usr/local/bin" sh
-          uv venv /ros2_ws/.venv --python 3.12
+          PY_VER=$(python3 -c 'import sys; print("%d.%d" % sys.version_info[:2])')
+          uv venv /ros2_ws/.venv --python "$PY_VER"
           uv pip install --python /ros2_ws/.venv/bin/python "numpy<2" coacd trimesh
-          echo "PYTHONPATH=/ros2_ws/.venv/lib/python3.12/site-packages:${PYTHONPATH}" >> "$GITHUB_ENV"
+          echo "PYTHONPATH=/ros2_ws/.venv/lib/python${PY_VER}/site-packages:${PYTHONPATH}" >> "$GITHUB_ENV"
 
       - name: Resolve dependencies
         working-directory: /ros2_ws
