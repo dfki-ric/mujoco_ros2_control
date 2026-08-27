@@ -72,7 +72,7 @@ sudo apt update
 sudo apt install ros-${ROS_DISTRO}-realsense2-description
 ```
 
-Set `load_realsense:=false` to omit the camera. `headless:=true` disables camera rendering automatically (it needs an OpenGL context); the mount and camera stay in the robot description.
+Set `load_realsense:=false` to omit the camera and mount entirely. `render_realsense:=false` keeps the mount and camera in the robot description but skips rendering its images. `headless:=true` only disables the interactive viewer window; it does not affect camera rendering, which happens offscreen through EGL regardless.
 
 #### The camera mount mesh
 
