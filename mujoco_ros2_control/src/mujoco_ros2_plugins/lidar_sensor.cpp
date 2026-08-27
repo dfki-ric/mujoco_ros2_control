@@ -56,7 +56,7 @@ bool LidarSensor::configure(
     // parameters in the constructor, which can throw once EGL is involved.
     auto node = context.node;
     try {
-        lidar_ = std::make_shared<mujoco_gl_lidar::MujocoGLLidar>(
+        lidar_ = std::make_shared<mujoco_ros2_plugins_lidar::LidarImpl>(
             node, context.mujoco_model, context.mujoco_data, context.sim_mutex,
             site_id, info.name, context.stop);
     } catch (const std::exception &e) {

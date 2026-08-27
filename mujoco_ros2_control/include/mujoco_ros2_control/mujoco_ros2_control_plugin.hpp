@@ -329,12 +329,23 @@ namespace mujoco_ros2_control
         std::shared_ptr<pluginlib::ClassLoader<mujoco_ros2_control::MujocoSystemInterface> > robot_hw_sim_loader_; ///< Plugin loader for RobotHWSimInterface
         std::shared_ptr<mujoco_ros2_control::MujocoSystemInterface> robot_hw_sim_; ///< Robot hardware simulation interface
 
-        // Camera handling
+        /// Camera handling.
+        /// @deprecated Superseded by declaring <mujoco_ros2_plugin
+        ///             plugin="mujoco_ros2_control/DepthCameraSensor">, loaded through
+        ///             ros2_plugins_ below. Still the only way to auto-discover a
+        ///             <camera> element or an mjCam_/mjCamOpt_/mjCamDepth_ site, and
+        ///             scheduled for removal in a future release, along with
+        ///             mujoco_rgbd_camera::MujocoDepthCamera itself.
         std::vector<std::thread> camera_threads_; ///< Threads for the cameras (one thread per camera)
         std::vector<rclcpp::Node::SharedPtr> camera_nodes_; ///< Nodes for the cameras (one Node per camera)
         std::vector<std::shared_ptr<mujoco_rgbd_camera::MujocoDepthCamera>> cameras_; ///< Cameras Object vector
 
-        // GL lidar handling
+        /// GL lidar handling.
+        /// @deprecated Superseded by declaring <mujoco_ros2_plugin
+        ///             plugin="mujoco_ros2_control/LidarSensor">, loaded through
+        ///             ros2_plugins_ below. Still the only way to auto-discover an
+        ///             mjLidar_-prefixed site, and scheduled for removal in a future
+        ///             release, along with mujoco_gl_lidar::MujocoGLLidar itself.
         std::vector<std::thread> lidar_threads_;
         std::vector<rclcpp::Node::SharedPtr> lidar_nodes_;
         std::vector<std::shared_ptr<mujoco_gl_lidar::MujocoGLLidar>> lidars_;

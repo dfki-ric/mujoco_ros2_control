@@ -56,7 +56,7 @@ bool DepthCameraSensor::configure(
         return id;
     };
 
-    auto mount = mujoco_rgbd_camera::MujocoDepthCamera::Mount::Site;
+    auto mount = mujoco_ros2_plugins_depth_camera::DepthCameraImpl::Mount::Site;
     int optical_id = -1;
     int depth_id = -1;
     std::string mounted_on;
@@ -79,7 +79,7 @@ bool DepthCameraSensor::configure(
             return false;
         }
         // One viewpoint serves both streams, so both mount ids are the camera id.
-        mount = mujoco_rgbd_camera::MujocoDepthCamera::Mount::FixedCamera;
+        mount = mujoco_ros2_plugins_depth_camera::DepthCameraImpl::Mount::FixedCamera;
         optical_id = camera_id;
         depth_id = camera_id;
         mounted_on = "camera '" + camera_name + "'";
@@ -124,7 +124,7 @@ bool DepthCameraSensor::configure(
     // its constructor, which can throw.
     auto node = context.node;
     try {
-        camera_ = std::make_shared<mujoco_rgbd_camera::MujocoDepthCamera>(
+        camera_ = std::make_shared<mujoco_ros2_plugins_depth_camera::DepthCameraImpl>(
             node, context.mujoco_model, context.mujoco_data, context.sim_mutex,
             info.name, context.stop, mount, optical_id, depth_id);
     } catch (const std::exception &e) {

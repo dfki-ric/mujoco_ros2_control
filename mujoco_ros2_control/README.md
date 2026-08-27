@@ -449,11 +449,20 @@ A configured directory that doesn't exist is warned about and skipped; a path in
 
 These are **not** ros2_control interfaces. Each instance runs as its own ROS node with its own publisher and worker thread, so they don't appear in `<ros2_control>` blocks and aren't broadcast through controllers.
 
+| Path | Selected by |
+|---|---|
+| **`<mujoco_ros2_plugin>`** (recommended) | `plugin="mujoco_ros2_control/DepthCameraSensor"` or `.../LidarSensor`, with a `camera`/`site`/`optical_site`+`depth_site` param naming the mount |
+| **Auto-discovery** (deprecated) | a MuJoCo `<camera>` element, or a site name starting with `mjCam_`/`mjCamOpt_`+`mjCamDepth_`/`mjLidar_` |
+
+Auto-discovery is scheduled for removal; each camera or lidar it creates logs a runtime warning naming the replacement plugin. Prefer declaring the plugin for new models.
+
 ### RGB-D Camera
 
 A depth-camera node can be mounted in two ways. Both publish the same topics and read the same per-instance ROS parameters (keyed by the node name); they differ only in how camera pose and field of view are defined.
 
-#### From a `<camera>` element (fixed FOV)
+#### From a `<camera>` element (fixed FOV) (deprecated)
+
+Auto-discovery, scheduled for removal. Declare the equivalent camera instead with `<mujoco_ros2_plugin plugin="mujoco_ros2_control/DepthCameraSensor"><param name="camera">camera</param></mujoco_ros2_plugin>`.
 
 Every MuJoCo `<camera>` declared under a `<reference>` body spawns a depth-camera node named after the camera. The body defines its pose, vertical FOV comes from the MJCF `fovy`, horizontal FOV follows from the `width`/`height` aspect ratio. These cameras are always created and ignore the `enabled` flag.
 
@@ -474,7 +483,9 @@ camera:
     point_cloud: true
 ```
 
-#### From a `<site>` (config-driven, like the lidar)
+#### From a `<site>` (config-driven, like the lidar) (deprecated)
+
+Auto-discovery, scheduled for removal. Declare the equivalent camera instead with `<mujoco_ros2_plugin plugin="mujoco_ros2_control/DepthCameraSensor">` and a `site` param (or `optical_site`/`depth_site` for the two-frame form below).
 
 A depth camera can also attach to MuJoCo sites, mirroring the GL lidar. Each site frame is interpreted as a **REP-103 optical frame** (+Z forward, +X right, +Y down), so place the site in your `*_optical_frame` - no orientation fix-up needed, the plugin converts it to the OpenGL camera convention internally. FOV and resolution come from ROS parameters, so intrinsics live in config instead of the model. The published `header.frame_id` is the site's **render frame** (its parent body).
 
@@ -533,6 +544,8 @@ Only enabled streams are rendered: with separate sites, the color pass is skippe
 Full parameter reference: [`mujoco_rgbd_camera_parameters.yaml`](src/mujoco_rgbd_camera_parameters.yaml).
 
 ### GL Depth-Buffer Lidar
+
+The site-prefix discovery below is deprecated and scheduled for removal. Declare the equivalent lidar instead with `<mujoco_ros2_plugin plugin="mujoco_ros2_control/LidarSensor">` and a `site` param.
 
 A GPU-rendered lidar attaches to any MuJoCo site whose name starts with the configured prefix (default: `mjLidar_`). The published `frame_id` is the parent body name; the site's local pose defines the lidar frame. The node is named after the site with the prefix stripped, so `mjLidar_head` becomes node `head` publishing on `/head/...`. The global `site_prefix` can be changed on the `_mujoco_gl_lidar_probe` node.
 

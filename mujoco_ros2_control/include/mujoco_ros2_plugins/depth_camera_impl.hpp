@@ -1,13 +1,16 @@
 /**
- * @file mujoco_depth_camera.hpp
+ * @file depth_camera_impl.hpp
  *
- * @brief This file contains the implementation of the Mujoco DepthCamera.
+ * @brief RGB-D camera rendering/publishing used by the <mujoco_ros2_plugin>
+ *        DepthCameraSensor. A standalone copy of mujoco_rgbd_camera::MujocoDepthCamera
+ *        so this plugin does not depend on the mujoco_rgbd_camera folder, which is
+ *        slated for removal once the node's site-prefix discovery is retired.
  *
  * @author Adrian Danzglock
- * @date 2023
+ * @date 2026
  *
  * @license BSD 3-Clause License
- * @copyright Copyright (c) 2023, DFKI GmbH
+ * @copyright Copyright (c) 2026, DFKI GmbH
  *
  * Redistribution and use in source and binary forms, with or without modification, are permitted
  * provided that the following conditions are met:
@@ -37,8 +40,8 @@
  * https://github.com/gywhitel/mujoco_RGBD
  */
 
-#ifndef MUJOCO_ROS2_CONTROL_MUJOCO_DEPTH_CAMERA_HPP
-#define MUJOCO_ROS2_CONTROL_MUJOCO_DEPTH_CAMERA_HPP
+#ifndef MUJOCO_ROS2_PLUGINS__DEPTH_CAMERA_IMPL_HPP_
+#define MUJOCO_ROS2_PLUGINS__DEPTH_CAMERA_IMPL_HPP_
 
 #include "chrono"
 #include <condition_variable>
@@ -71,24 +74,16 @@
 #include "sensor_msgs/image_encodings.hpp"
 #include "sensor_msgs/msg/camera_info.hpp"
 
-#include <mujoco_ros2_control/mujoco_rgbd_camera_parameters.hpp>
+#include <mujoco_ros2_control/mujoco_ros2_plugins_depth_camera_parameters.hpp>
 
 using namespace std::chrono_literals;
 
-namespace mujoco_rgbd_camera {
+namespace mujoco_ros2_plugins_depth_camera {
 /**
- * @class MujocoDepthCamera
+ * @class DepthCameraImpl
  * @brief Represents a depth camera in a Mujoco simulation environment.
  *
- * @deprecated Used only by MujocoRos2Control's auto-discovery of a MuJoCo
- *             <camera> element or an mjCam_/mjCamOpt_/mjCamDepth_ site, which is
- *             scheduled for removal in a future release. The
- *             <mujoco_ros2_plugin plugin="mujoco_ros2_control/DepthCameraSensor">
- *             plugin uses its own standalone copy of this class
- *             (mujoco_ros2_plugins_depth_camera::DepthCameraImpl) and does not
- *             depend on this file; prefer that plugin for new models.
- *
- * The MujocoDepthCamera class provides functionality to capture camera data, including color images, depth images,
+ * The DepthCameraImpl class provides functionality to capture camera data, including color images, depth images,
  * and point clouds, from a Mujoco simulation environment. It uses the Mujoco physics engine for rendering and simulation,
  * and ROS 2 for communication and coordination with other nodes.
  *
@@ -101,7 +96,7 @@ namespace mujoco_rgbd_camera {
  * OpenCV for point cloud and image processing. It provides various member variables and methods to handle camera-related
  * data and operations.
  */
-class MujocoDepthCamera {
+class DepthCameraImpl {
 public:
     /**
      * @brief How the camera is mounted in the MuJoCo model.
@@ -116,7 +111,7 @@ public:
     enum class Mount { FixedCamera, Site };
 
     /**
-     * @brief Constructor for MujocoDepthCamera class.
+     * @brief Constructor for DepthCameraImpl class.
      *
      * @param node Pointer to the ROS 2 Node object.
      * @param model Pointer to the Mujoco model object.
@@ -132,27 +127,27 @@ public:
      *        (or < 0 if the camera has no depth stream). When @p optical_id ==
      *        @p depth_id the two streams share a single render pass.
      *
-     * @post Initializes the MujocoDepthCamera object with the provided parameters and sets up the required ROS 2 publishers.
+     * @post Initializes the DepthCameraImpl object with the provided parameters and sets up the required ROS 2 publishers.
      *       Initializes an EGL pbuffer surface and context for offscreen rendering.
      *       Sets up the Mujoco camera properties.
      *       Creates and initializes the Mujoco scene and context for rendering.
      *       Creates ROS 2 publishers for camera information, color image, depth image, and point cloud data.
      */
-    MujocoDepthCamera(rclcpp::Node::SharedPtr &node, mjModel_ *model, mjData_ *data,
+    DepthCameraImpl(rclcpp::Node::SharedPtr &node, mjModel_ *model, mjData_ *data,
                       std::mutex* data_mutex, const std::string& name, const std::atomic<bool>* stop,
                       Mount mount, int optical_id, int depth_id);
 
     /**
-     * @brief Destroys the `MujocoDepthCamera` object.
+     * @brief Destroys the `DepthCameraImpl` object.
      *
      * This destructor cleans up the OpenGL Ressources.
      * It is responsible for releasing any dynamically allocated memory or performing any necessary cleanup operations.
      * It is automatically called when the object goes out of scope or is explicitly deleted.
      */
-    ~MujocoDepthCamera();
+    ~DepthCameraImpl();
 
     /**
-     * @brief Updates the MujocoDepthCamera by continuously capturing camera data and publishing it.
+     * @brief Updates the DepthCameraImpl by continuously capturing camera data and publishing it.
      *
      * The method runs in a loop until the stop flag is set to true or ROS 2 is no longer okay.
      * It checks the time elapsed since the last update and, if enough time has passed according to the camera frequency,
@@ -187,7 +182,7 @@ private:
 
     // Parameters from ROS2 using generate_parameter_library
     std::shared_ptr<ParamListener> param_listener_;
-    mujoco_rgbd_camera::Params params_;
+    mujoco_ros2_plugins_depth_camera::Params params_;
 
     const std::atomic<bool>* stop_; ///< Pointer to an atomic boolean flag indicating whether the camera should stop or continue.
 
@@ -385,4 +380,4 @@ private:
 }
 
 
-#endif //MUJOCO_ROS2_CONTROL_MUJOCO_DEPTH_CAMERA_HPP
+#endif //MUJOCO_ROS2_PLUGINS__DEPTH_CAMERA_IMPL_HPP_

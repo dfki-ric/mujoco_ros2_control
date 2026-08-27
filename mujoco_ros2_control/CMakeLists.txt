@@ -152,6 +152,18 @@ generate_parameter_library(mujoco_gl_lidar_parameters
     src/mujoco_gl_lidar_parameters.yaml
 )
 
+# Parameter libraries for the <mujoco_ros2_plugin> depth camera and lidar,
+# kept separate from mujoco_rgbd_camera_parameters/mujoco_gl_lidar_parameters
+# above so the plugin does not depend on those folders, which are slated for
+# removal once the node's site-prefix discovery is retired.
+generate_parameter_library(mujoco_ros2_plugins_depth_camera_parameters
+    src/mujoco_ros2_plugins/mujoco_ros2_plugins_depth_camera_parameters.yaml
+)
+
+generate_parameter_library(mujoco_ros2_plugins_lidar_parameters
+    src/mujoco_ros2_plugins/mujoco_ros2_plugins_lidar_parameters.yaml
+)
+
 rosidl_generate_interfaces(${PROJECT_NAME}
     srv/StepSimulation.srv
     DEPENDENCIES builtin_interfaces
@@ -209,10 +221,13 @@ set(MUJOCO_ROS2_CONTROL_NODE_TARGET ${PROJECT_NAME}_node)
 # Add executable for the main ROS2 control node.
 # The CMake target name must differ from PROJECT_NAME because rosidl creates a
 # generated interface target with the package name.
-# The camera and lidar implementations. A library of their own because two
-# things need them: the node, whose site-prefix discovery still creates them
-# directly, and the <mujoco_ros2_plugin> plugins that wrap them. Compiling them
-# into the executable would leave the plugin .so with undefined symbols.
+# The camera and lidar implementations used by the node's site-prefix
+# discovery. A library of its own because compiling these into the executable
+# would leave the node with no way to share them with anything else that might
+# dlopen it. The <mujoco_ros2_plugin> depth camera and lidar plugins keep their
+# own copies (depth_camera_impl.cpp, lidar_impl.cpp) instead of linking this,
+# so they do not depend on this folder pairing, which is slated for removal
+# once the site-prefix discovery below is retired.
 add_library(mujoco_sensor_implementations SHARED
     src/mujoco_depth_camera.cpp
     src/mujoco_gl_lidar.cpp
@@ -236,20 +251,34 @@ target_link_libraries(mujoco_sensor_implementations
 # The MujocoRos2PluginInterface implementations shipped with this package: thin
 # adapters that let the camera and lidar above be declared as
 # <mujoco_ros2_plugin> instead of found by a site prefix.
+# The rendering/publishing logic (depth_camera_impl.cpp, lidar_impl.cpp) is
+# built directly into this library rather than linking mujoco_sensor_implementations,
+# so this plugin does not depend on the mujoco_rgbd_camera/mujoco_gl_lidar
+# folders, which are slated for removal once the node's site-prefix discovery
+# is retired.
 # Nothing may link this library: pluginlib has to be the one that dlopens it.
 add_library(mujoco_ros2_plugins SHARED
     src/mujoco_ros2_plugins/depth_camera_sensor.cpp
+    src/mujoco_ros2_plugins/depth_camera_impl.cpp
     src/mujoco_ros2_plugins/lidar_sensor.cpp
+    src/mujoco_ros2_plugins/lidar_impl.cpp
 )
 ament_target_dependencies(mujoco_ros2_plugins
     hardware_interface  # sensor_lookup.hpp, for the shared <param> readers
     pluginlib
     rclcpp
+    cv_bridge
+    PCL
+    pcl_conversions
     sensor_msgs
 )
 target_link_libraries(mujoco_ros2_plugins
     mujoco::mujoco
-    mujoco_sensor_implementations
+    OpenGL::EGL
+    ${PCL_LIBRARIES}
+    ${OpenCV_LIBS}
+    mujoco_ros2_plugins_depth_camera_parameters
+    mujoco_ros2_plugins_lidar_parameters
 )
 
 add_executable(${MUJOCO_ROS2_CONTROL_NODE_TARGET}

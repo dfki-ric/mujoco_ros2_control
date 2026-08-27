@@ -1,17 +1,12 @@
 /**
- * @file mujoco_gl_lidar.hpp
- *
- * @brief OpenGL-based lidar for MuJoCo. Renders a depth image at the lidar
- * site's pose, then samples per-beam ranges from the depth buffer. Reuses the
- * EGL / mjvScene / mjrContext pattern from MujocoDepthCamera.
- *
- * @deprecated Used only by MujocoRos2Control's auto-discovery of an
- *             mjLidar_-prefixed site, which is scheduled for removal in a
- *             future release. The
- *             <mujoco_ros2_plugin plugin="mujoco_ros2_control/LidarSensor">
- *             plugin uses its own standalone copy of this class
- *             (mujoco_ros2_plugins_lidar::LidarImpl) and does not depend on
- *             this file; prefer that plugin for new models.
+ * @file lidar_impl.hpp
+ * @brief OpenGL-based lidar rendering/publishing used by the <mujoco_ros2_plugin>
+ *        LidarSensor. A standalone copy of mujoco_gl_lidar::MujocoGLLidar so this
+ *        plugin does not depend on the mujoco_gl_lidar folder, which is slated
+ *        for removal once the node's site-prefix discovery is retired. Renders a
+ *        depth image at the lidar site's pose, then samples per-beam ranges from
+ *        the depth buffer. Reuses the EGL / mjvScene / mjrContext pattern from
+ *        DepthCameraImpl.
  *
  * @author Adrian Danzglock
  * @date 2026
@@ -20,8 +15,8 @@
  * @copyright Copyright (c) 2026, DFKI GmbH
  */
 
-#ifndef MUJOCO_ROS2_CONTROL_MUJOCO_GL_LIDAR_HPP
-#define MUJOCO_ROS2_CONTROL_MUJOCO_GL_LIDAR_HPP
+#ifndef MUJOCO_ROS2_PLUGINS__LIDAR_IMPL_HPP_
+#define MUJOCO_ROS2_PLUGINS__LIDAR_IMPL_HPP_
 
 #include <array>
 #include <atomic>
@@ -38,11 +33,11 @@
 #include "sensor_msgs/msg/laser_scan.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
 
-#include <mujoco_ros2_control/mujoco_gl_lidar_parameters.hpp>
+#include <mujoco_ros2_control/mujoco_ros2_plugins_lidar_parameters.hpp>
 
-namespace mujoco_gl_lidar {
+namespace mujoco_ros2_plugins_lidar {
 
-class MujocoGLLidar {
+class LidarImpl {
 public:
     /**
      * @param node       Per-lidar ROS node (created by the plugin, use_sim_time on).
@@ -57,7 +52,7 @@ public:
      * @param name       Unique name (used for topic and frame_id).
      * @param stop       Plugin-owned stop flag; the worker exits when set.
      */
-    MujocoGLLidar(rclcpp::Node::SharedPtr &node,
+    LidarImpl(rclcpp::Node::SharedPtr &node,
                   mjModel_ *model,
                   mjData_ *data,
                   std::mutex *sim_mutex,
@@ -65,7 +60,7 @@ public:
                   const std::string &name,
                   const std::atomic<bool> *stop);
 
-    ~MujocoGLLidar();
+    ~LidarImpl();
 
     void update();
 
@@ -76,8 +71,8 @@ private:
     void publish_scan(const rclcpp::Time &stamp);
     void publish_cloud(const rclcpp::Time &stamp);
 
-    std::shared_ptr<mujoco_gl_lidar::ParamListener> param_listener_;
-    mujoco_gl_lidar::Params params_;
+    std::shared_ptr<mujoco_ros2_plugins_lidar::ParamListener> param_listener_;
+    mujoco_ros2_plugins_lidar::Params params_;
 
     rclcpp::Node::SharedPtr nh_;
     rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr scan_pub_;
@@ -157,6 +152,6 @@ private:
     std::normal_distribution<double> noise_dist_;
 };
 
-}  // namespace mujoco_gl_lidar
+}  // namespace mujoco_ros2_plugins_lidar
 
-#endif  // MUJOCO_ROS2_CONTROL_MUJOCO_GL_LIDAR_HPP
+#endif  // MUJOCO_ROS2_PLUGINS__LIDAR_IMPL_HPP_

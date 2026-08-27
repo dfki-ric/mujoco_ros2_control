@@ -36,7 +36,7 @@
 #include <memory>
 
 #include "mujoco_ros2_control/mujoco_ros2_plugin_interface.hpp"
-#include "mujoco_gl_lidar/mujoco_gl_lidar.hpp"
+#include "mujoco_ros2_plugins/lidar_impl.hpp"
 
 namespace mujoco_ros2_plugins {
 
@@ -44,10 +44,11 @@ namespace mujoco_ros2_plugins {
  * @brief Declares a GL lidar through the robot description instead of a site prefix.
  *
  * A thin adapter: the scanning, rendering and publishing all stay in
- * mujoco_gl_lidar::MujocoGLLidar, which is unchanged and still reachable through
- * the site-prefix discovery in MujocoRos2Control. This only makes it declarable,
- * so a lidar can be named in the URDF next to the site it is mounted on rather
- * than being found by a naming convention.
+ * mujoco_ros2_plugins_lidar::LidarImpl, a standalone copy of
+ * mujoco_gl_lidar::MujocoGLLidar kept independent of the folder used by the
+ * site-prefix discovery in MujocoRos2Control. This only makes it declarable, so
+ * a lidar can be named in the URDF next to the site it is mounted on rather than
+ * being found by a naming convention.
  *
  * Parameters:
  * - `site` : the MuJoCo site the lidar is mounted on. Site +X is the 0-rad scan
@@ -81,7 +82,7 @@ public:
     void run() override;
 
 private:
-    std::shared_ptr<mujoco_gl_lidar::MujocoGLLidar> lidar_;
+    std::shared_ptr<mujoco_ros2_plugins_lidar::LidarImpl> lidar_;
 };
 
 }  // namespace mujoco_ros2_plugins

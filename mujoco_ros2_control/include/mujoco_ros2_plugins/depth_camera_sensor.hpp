@@ -38,7 +38,7 @@
 #include <memory>
 
 #include "mujoco_ros2_control/mujoco_ros2_plugin_interface.hpp"
-#include "mujoco_rgbd_camera/mujoco_depth_camera.hpp"
+#include "mujoco_ros2_plugins/depth_camera_impl.hpp"
 
 namespace mujoco_ros2_plugins {
 
@@ -47,10 +47,11 @@ namespace mujoco_ros2_plugins {
  *        `<camera>` element or a site prefix.
  *
  * A thin adapter: the rendering and publishing all stay in
- * mujoco_rgbd_camera::MujocoDepthCamera, which is unchanged and still reachable
- * through the discovery in MujocoRos2Control. This only makes it declarable, so
- * a camera can be named in the URDF next to the frame it looks from rather than
- * being found by a naming convention.
+ * mujoco_ros2_plugins_depth_camera::DepthCameraImpl, a standalone copy of
+ * mujoco_rgbd_camera::MujocoDepthCamera kept independent of the folder used by
+ * the site-prefix discovery in MujocoRos2Control. This only makes it declarable,
+ * so a camera can be named in the URDF next to the frame it looks from rather
+ * than being found by a naming convention.
  *
  * Exactly one mount has to be named:
  * - `camera`       : a MuJoCo `<camera>` element. Pose and vertical FOV come
@@ -100,7 +101,7 @@ public:
             std::uint64_t sequence, std::chrono::milliseconds timeout) override;
 
 private:
-    std::shared_ptr<mujoco_rgbd_camera::MujocoDepthCamera> camera_;
+    std::shared_ptr<mujoco_ros2_plugins_depth_camera::DepthCameraImpl> camera_;
 };
 
 }  // namespace mujoco_ros2_plugins
