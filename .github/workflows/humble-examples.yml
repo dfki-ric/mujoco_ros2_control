@@ -1,0 +1,138 @@
+name: CI Examples
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-test-examples:
+    runs-on: ubuntu-24.04
+    container:
+      image: ros:humble
+    env:
+      ROS_DISTRO: humble
+      DEBIAN_FRONTEND: noninteractive
+      DISABLE_OPENGL: "0"
+      EGL_PLATFORM: surfaceless
+      LIBGL_ALWAYS_SOFTWARE: "1"
+      GALLIUM_DRIVER: llvmpipe
+
+    steps:
+      # actions/checkout shells out to git-lfs to fetch the mesh objects, and
+      # the ros:humble image ships git without it. This has to run before the
+      # checkout, or the working tree ends up holding pointer files.
+      - name: Install git-lfs
+        run: |
+          apt-get update
+          apt-get install -y git-lfs
+
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          lfs: true
+
+      - name: Install non-rosdep system dependencies
+        run: |
+          apt-get update
+          apt-get install -y \
+            git \
+            libegl-dev \
+            libx11-dev \
+            xorg-dev \
+            libwayland-dev \
+            libxkbcommon-dev \
+            wayland-protocols \
+            extra-cmake-modules
+
+      - name: Install Mesa software rendering (EGL/llvmpipe)
+        run: |
+          apt-get install -y \
+            libegl1 \
+            libglvnd0 \
+            libopengl0 \
+            libgl1-mesa-dri \
+            libglx-mesa0 \
+            mesa-utils \
+            mesa-utils-extra
+
+      # Diagnostic only, never a gate. eglinfo ships in mesa-utils-extra and can
+      # still be missing or unhappy inside a container, so a non-zero exit here
+      # says nothing reliable about whether MuJoCo can get a context. What
+      # actually proves the job ran with GL is the skipped-test guard below.
+      - name: Verify EGL software context
+        run: |
+          eglinfo -B || eglinfo || true
+
+      - name: Set up workspace
+        run: |
+          mkdir -p /ros2_ws/src
+          cp -r mujoco_ros2_control /ros2_ws/src/
+          cp -r mujoco_ros2_control_examples /ros2_ws/src/
+
+      # coacd/trimesh (for decompose_industreal_peg_trays) have no apt/rosdep
+      # package, and this container's system Python is PEP 668
+      # externally-managed, so `pip install --system --break-system-packages`
+      # is the obvious move -- and the wrong one: coacd/trimesh pull in an
+      # unpinned numpy that would shadow the apt-built python3-numpy for every
+      # step in this job, and trimesh unconditionally imports the apt-built
+      # python3-scipy (compiled against numpy 1.x's ABI) at import time,
+      # crashing the moment numpy floats to 2.x. A venv bridged onto
+      # PYTHONPATH keeps these out of the files apt manages; PYTHONPATH still
+      # has to carry it into every later step, because run_coacd.py is
+      # launched as `sys.executable` from whichever Python is already
+      # running -- the ROS-sourced system one, not a venv's.
+      - name: Install uv and the peg-decomposition venv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="/usr/local/bin" sh
+          uv venv /ros2_ws/.venv --python 3.12
+          uv pip install --python /ros2_ws/.venv/bin/python "numpy<2" coacd trimesh
+          echo "PYTHONPATH=/ros2_ws/.venv/lib/python3.12/site-packages:${PYTHONPATH}" >> "$GITHUB_ENV"
+
+      - name: Resolve dependencies
+        working-directory: /ros2_ws
+        run: |
+          vcs import --input src/mujoco_ros2_control_examples/.repos-$ROS_DISTRO src/
+          mv src/unitree_ros2/cyclonedds_ws/src/unitree/unitree_hg src/unitree_hg
+          rm -rf src/unitree_ros2
+          sed -i '/<build_depend>rosidl_default_generators<\/build_depend>/a\  <build_depend>rosidl_generator_dds_idl</build_depend>' src/unitree_hg/package.xml
+          rosdep update
+          rosdep install --from-paths src --ignore-src --rosdistro $ROS_DISTRO -y
+
+      - name: Build
+        working-directory: /ros2_ws
+        shell: bash
+        run: |
+          source /opt/ros/$ROS_DISTRO/setup.bash
+          colcon build --packages-up-to mujoco_ros2_control_examples
+
+      - name: Test Examples
+        working-directory: /ros2_ws
+        shell: bash
+        run: |
+          source /opt/ros/$ROS_DISTRO/setup.bash
+          source install/setup.bash
+          colcon test --packages-select mujoco_ros2_control_examples --event-handlers console_direct+
+          colcon test-result --test-result-base build/mujoco_ros2_control_examples/test_results --verbose
+
+      # These jobs deliberately run with OpenGL on (DISABLE_OPENGL=0), so a GL
+      # test that reports "skipped" means the environment quietly lost EGL and
+      # the run proved less than it claims. Treat that as a failure.
+      #
+      # `if: always()` means this also runs when an earlier step failed, so it
+      # must cope with a workspace that was never created. No `working-directory`
+      # for the same reason: pointing one at a missing /ros2_ws makes the runner
+      # fail the step with a chdir error that buries the real failure.
+      - name: Fail if any test was skipped for lack of OpenGL
+        if: always()
+        run: |
+          results=/ros2_ws/build/*/test_results
+          if ! ls -d $results >/dev/null 2>&1; then
+            echo "No test results to check - the run did not get that far."
+            exit 0
+          fi
+          if grep -rl "OpenGL disabled" $results 2>/dev/null | grep -q .; then
+            echo "::error::GL tests were skipped, but this job runs with OpenGL enabled"
+            grep -rn "OpenGL disabled" $results || true
+            exit 1
+          fi
+          echo "No GL test was skipped."
