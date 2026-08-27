@@ -36,18 +36,42 @@
                         wrist_3_joint=0.0)}"/>
 
     <!-- ============================ Robot ============================ -->
+    <!-- ur_description's ur_robot macro generates its own <ros2_control> block
+         (wired to the real UR driver hardware plugin, colliding with the
+         MuJoCo one below) unless told not to, but whether that switch is
+         even a valid parameter changed between distros. Humble's
+         ur_description (2.13.0) has generate_ros2_control_tag, defaulting to
+         true; Jazzy's (3.5.1) dropped <ros2_control> generation from this
+         macro entirely, along with the parameter, so passing it there is a
+         xacro error. Branch on ROS_DISTRO and pass it only where it exists
+         and is needed. -->
+    <xacro:property name="ros_distro" value="$(env ROS_DISTRO)"/>
     <xacro:include filename="$(find ur_description)/urdf/ur_macro.xacro"/>
-    <xacro:ur_robot
-        name="${name}"
-        tf_prefix="${tf_prefix}"
-        parent="${parent}"
-        joint_limits_parameters_file="${ur_config}/joint_limits.yaml"
-        kinematics_parameters_file="${ur_config}/default_kinematics.yaml"
-        physical_parameters_file="${ur_config}/physical_parameters.yaml"
-        visual_parameters_file="${ur_config}/visual_parameters.yaml"
-        generate_ros2_control_tag="false">
-        <origin xyz="${xyz}" rpy="${rpy}"/>
-    </xacro:ur_robot>
+    <xacro:if value="${ros_distro == 'humble'}">
+      <xacro:ur_robot
+          name="${name}"
+          tf_prefix="${tf_prefix}"
+          parent="${parent}"
+          joint_limits_parameters_file="${ur_config}/joint_limits.yaml"
+          kinematics_parameters_file="${ur_config}/default_kinematics.yaml"
+          physical_parameters_file="${ur_config}/physical_parameters.yaml"
+          visual_parameters_file="${ur_config}/visual_parameters.yaml"
+          generate_ros2_control_tag="false">
+          <origin xyz="${xyz}" rpy="${rpy}"/>
+      </xacro:ur_robot>
+    </xacro:if>
+    <xacro:unless value="${ros_distro == 'humble'}">
+      <xacro:ur_robot
+          name="${name}"
+          tf_prefix="${tf_prefix}"
+          parent="${parent}"
+          joint_limits_parameters_file="${ur_config}/joint_limits.yaml"
+          kinematics_parameters_file="${ur_config}/default_kinematics.yaml"
+          physical_parameters_file="${ur_config}/physical_parameters.yaml"
+          visual_parameters_file="${ur_config}/visual_parameters.yaml">
+          <origin xyz="${xyz}" rpy="${rpy}"/>
+      </xacro:ur_robot>
+    </xacro:unless>
 
     <!-- ============================ ros2_control ============================ -->
     <!-- One hardware component per arm. The name must be unique across the
