@@ -170,7 +170,7 @@ rosdep install --from-paths src --ignore-src --rosdistro $ROS_DISTRO -y
 colcon build --packages-up-to mujoco_ros2_control_examples
 ```
 
-The `sed` line patches a gap in `unitree_hg`'s own `package.xml` (its CMake needs `rosidl_generator_dds_idl` but never declares it, so `rosdep install` skips it and the build fails at CMake configure). The Dockerfile and `ci-examples.yml` apply the same patch. Skip it and the plugin is simply left out of the build; `rosdep install` then needs `--skip-keys unitree_hg`.
+The `sed` line patches a gap in `unitree_hg`'s own `package.xml` (its CMake needs `rosidl_generator_dds_idl` but never declares it, so `rosdep install` skips it and the build fails at CMake configure). The Dockerfile and `{humble,jazzy}-examples.yml` apply the same patch. Skip it and the plugin is simply left out of the build; `rosdep install` then needs `--skip-keys unitree_hg`.
 
 ```bash
 ros2 launch mujoco_ros2_control_examples unitree_g1.launch.py low_level:=true
@@ -382,7 +382,7 @@ With the peg assets off, launch Franka without the peg rows (`load_industreal_bo
 
 Four tests check more than that the node starts. The Unitree G1 test brings the robot up on the default stepping-stones terrain. The `ur_multi` test asserts every arm reached the merged model, the bases are evenly spaced, each arm behind a prefix is the type that prefix names, and the controller manager instantiated one hardware component per arm. The `tactile` test covers the plugin path end to end: `pluginlib` resolving the out-of-tree `TouchGridSensor`, the published array's taxel count and layout, and that the resting pad's weight actually registers on a taxel. The `body_services` test runs in synchronous mode (the mode that pins down its contract: a pose written and read back with no step in between must come back unchanged), and checks the second declaration serves a working pair, a teleport through one instance is visible through the other, `/mujoco_reset` restores body state, and a welded body or unknown name are rejected rather than crashing.
 
-These run in CI in `.github/workflows/ci-examples.yml`, which builds the package and clones `franka_description` from source (it has no jazzy release), so every example runs there, Franka included.
+These run in CI in `.github/workflows/{humble,jazzy}-examples.yml`, which builds the package and clones `franka_description` from source (it has no jazzy release), so every example runs there, Franka included.
 
 The interactive MuJoCo viewer is never opened by the tests. `DISABLE_OPENGL` controls offscreen rendering: leave it unset (or `0`) and the GL-backed sensors render through EGL; set `DISABLE_OPENGL=1` to drop them on a machine with no working GL. CI runs with GL **on**, so the camera and LiDAR paths are covered.
 
@@ -407,7 +407,7 @@ uv pip install --python .venv/bin/python "numpy<2" coacd trimesh
 export PYTHONPATH="$(pwd)/.venv/lib/python3.12/site-packages:$PYTHONPATH"
 ```
 
-The bridge matters because `coacd_node.py` runs via `ros2 launch` under its own shebang, resolving the ROS-sourced system Python rather than the venv's interpreter, so the packages need to be importable via `PYTHONPATH`. This is what the `Dockerfile` and `ci-examples.yml` do (as a Docker `ENV` and a `$GITHUB_ENV` entry). For local development, add the same `PYTHONPATH` export to whatever script sources `install/setup.bash`.
+The bridge matters because `coacd_node.py` runs via `ros2 launch` under its own shebang, resolving the ROS-sourced system Python rather than the venv's interpreter, so the packages need to be importable via `PYTHONPATH`. This is what the `Dockerfile` and `{humble,jazzy}-examples.yml` do (as a Docker `ENV` and a `$GITHUB_ENV` entry). For local development, add the same `PYTHONPATH` export to whatever script sources `install/setup.bash`.
 
 `test/test_franka_industreal_decompose_example.test.py` exercises this end to end: launches `franka.launch.py` with the flag set and asserts the tray meshes actually got decomposed (an undecomposed tray still loads fine in MuJoCo, so the node coming up isn't enough of a check). It self-skips when `coacd`/`trimesh` aren't importable. CoaCD is slow at default settings, budget several minutes for a cold run over all twelve tray meshes; the launch argument caches its output, so this is paid once per install.
 

@@ -49,12 +49,110 @@
 #include "mujoco/mjmodel.h"
 
 #include "hardware_interface/system_interface.hpp"
+#if !defined(ROS_DISTRO_HUMBLE)
 #include "hardware_interface/types/hardware_component_params.hpp"
+#endif
 
 #include "rclcpp/rclcpp.hpp"
 
 namespace mujoco_ros2_control
 {
+#if defined(ROS_DISTRO_HUMBLE)
+    // Humble's hardware_interface::ResourceManager has no load_and_initialize_components()
+    // hook to override: the URDF is already available synchronously (it comes from the
+    // "robot_description" parameter, not a topic controller_manager waits on), so it is
+    // loaded eagerly from load_and_initialize() below, before this manager is ever handed
+    // to the ControllerManager constructor.
+    class MujocoResourceManager
+            : public hardware_interface::ResourceManager
+    {
+    public:
+        MujocoResourceManager(
+            rclcpp::Node::SharedPtr & node,
+            mjModel *mujoco_model, mjData *mujoco_data,
+            std::atomic<bool> *system_configured = nullptr)
+        : hardware_interface::ResourceManager(),
+            robot_hw_sim_loader_("mujoco_ros2_control", "mujoco_ros2_control::MujocoSystemInterface"),
+            logger_(node->get_logger().get_child("MujocoResourceManager")) {
+            node_ = node;
+            mujoco_model_ = mujoco_model;
+            mujoco_data_ = mujoco_data;
+            system_configured_ = system_configured;
+        }
+        MujocoResourceManager(const MujocoResourceManager &) = delete;
+
+        bool load_and_initialize(const std::string & urdf) {
+            // On Jazzy+, an empty/never-published "robot_description" just means
+            // load_and_initialize_components() is never called, and the controller
+            // manager runs on happily with zero hardware components. Mirror that
+            // here instead of handing urdfdom an empty document, which throws
+            // uncaught and aborts the process.
+            if (urdf.empty()) {
+                if (system_configured_) {
+                    system_configured_->store(true, std::memory_order_release);
+                }
+                return true;
+            }
+
+            bool components_are_loaded_and_initialized = true;
+
+            urdf::Model urdf_model;
+            try {
+                urdf_model.initString(urdf);
+            } catch (const std::runtime_error & ex) {
+                RCLCPP_ERROR(node_->get_logger(), "Error parsing URDF in mujoco_ros2_control plugin: %s",
+                             ex.what());
+                rclcpp::shutdown();
+                return false;
+            }
+
+            try {
+                load_urdf(urdf, false, false);
+            } catch (...) {
+                // Expected: this resource manager is not the one meant to load and
+                // activate components below, only to hold them.
+                RCLCPP_ERROR(node_->get_logger(), "Error initializing URDF to resource manager!");
+            }
+
+            const auto hardware_info = hardware_interface::parse_control_resources_from_urdf(urdf);
+
+            for (const auto & hw_info : hardware_info) {
+                const std::string hardware_type = hw_info.hardware_class_type;
+                auto system = std::unique_ptr<mujoco_ros2_control::MujocoSystemInterface>(robot_hw_sim_loader_.createUnmanagedInstance(hardware_type));
+                // Has to precede initSim(): sensor plugins are constructed there
+                // and the component's own get_node() stays null until much later.
+                system->setSimNode(node_);
+                if(system->initSim(mujoco_model_, mujoco_data_, hw_info, &urdf_model)) {
+                    import_component(std::move(system), hw_info);
+                    // activate all components
+                    rclcpp_lifecycle::State state(
+                            lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE,
+                            hardware_interface::lifecycle_state_names::ACTIVE);
+                    set_component_state(hw_info.name, state);
+                } else {
+                    components_are_loaded_and_initialized = false;
+                }
+            }
+
+            if (system_configured_) {
+                system_configured_->store(components_are_loaded_and_initialized, std::memory_order_release);
+            }
+
+            return components_are_loaded_and_initialized;
+        }
+
+    private:
+        std::shared_ptr<rclcpp::Node> node_;
+
+        /// \brief Interface loader
+        pluginlib::ClassLoader<mujoco_ros2_control::MujocoSystemInterface> robot_hw_sim_loader_;
+
+        rclcpp::Logger logger_;
+        mjModel* mujoco_model_;
+        mjData* mujoco_data_;
+        std::atomic<bool>* system_configured_ = nullptr;
+    };
+#else
     class MujocoResourceManager
             : public hardware_interface::ResourceManager
     {
@@ -133,6 +231,7 @@ namespace mujoco_ros2_control
         mjData* mujoco_data_;
         std::atomic<bool>* system_configured_ = nullptr;
     };
+#endif
 
 }  // namespace mujoco_ros2_control
 

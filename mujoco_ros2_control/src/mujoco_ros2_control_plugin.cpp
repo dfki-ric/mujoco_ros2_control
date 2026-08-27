@@ -481,21 +481,40 @@ bool MujocoRos2Control::init_mujoco() {
     void MujocoRos2Control::init_controller_manager() {
         RCLCPP_INFO(nh_->get_logger(), "init controller manager");
 
-        resource_manager_ = std::make_unique<mujoco_ros2_control::MujocoResourceManager>(nh_, mujoco_model_, mujoco_data_, &system_configured_);
-
         executor_ = std::make_shared<rclcpp::executors::MultiThreadedExecutor>();
+
+#if defined(ROS_DISTRO_HUMBLE)
+        // Humble's ControllerManager has no NodeOptions-based constructor and its
+        // ResourceManager has no callback for a late-bound URDF, so the components are
+        // loaded eagerly here, using the "robot_description" parameter that is already
+        // available, before the manager is handed off.
+        auto mujoco_resource_manager = std::make_unique<mujoco_ros2_control::MujocoResourceManager>(
+            nh_, mujoco_model_, mujoco_data_, &system_configured_);
+        mujoco_resource_manager->load_and_initialize(params_.robot_description);
+        resource_manager_ = std::move(mujoco_resource_manager);
+
+        controller_manager_.reset(
+            new controller_manager::ControllerManager(
+            std::move(resource_manager_),
+            executor_,
+            "controller_manager",
+            nh_->get_namespace()
+        ));
+#else
+        resource_manager_ = std::make_unique<mujoco_ros2_control::MujocoResourceManager>(nh_, mujoco_model_, mujoco_data_, &system_configured_);
 
         rclcpp::NodeOptions cm_node_options = controller_manager::get_cm_node_options();
         cm_node_options.parameter_overrides({{"use_sim_time", true}});
         controller_manager_.reset(
             new controller_manager::ControllerManager(
             std::move(resource_manager_),
-            executor_, 
+            executor_,
             "controller_manager",
             "",
             cm_node_options
         ));
-        
+#endif
+
         executor_->add_node(controller_manager_);
         
         if (!controller_manager_->has_parameter("update_rate")) {

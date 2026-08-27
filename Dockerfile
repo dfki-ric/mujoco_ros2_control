@@ -1,4 +1,5 @@
-FROM ros:jazzy AS base
+ARG ROS_DISTRO=jazzy
+FROM ros:${ROS_DISTRO} AS base
 
 # Build-time deps rosdep cannot resolve: the MuJoCo simulate GUI build headers
 # (X11/Wayland/cmake-modules) plus the EGL headers the offscreen camera and
@@ -14,7 +15,7 @@ RUN apt-get update && apt-get install -y \
     extra-cmake-modules
 
 # Mesa software rendering, so the camera and lidar sensors can get an EGL
-# context with no GPU and no display. Mirrors .github/workflows/ci.yml; without
+# context with no GPU and no display. Mirrors .github/workflows/{humble,jazzy}-core.yml; without
 # it their tests can only be skipped. A container with a real GPU passed through
 # uses that instead - these are the fallback, not a restriction.
 RUN apt-get install -y \
@@ -68,7 +69,7 @@ FROM base AS demo
 
 COPY mujoco_ros2_control_examples /ros2_ws/src/mujoco_ros2_control_examples
 
-RUN vcs import --input src/mujoco_ros2_control_examples/.repos src/ \
+RUN vcs import --input src/mujoco_ros2_control_examples/.repos-${ROS_DISTRO} src/ \
     && mv src/unitree_ros2/cyclonedds_ws/src/unitree/unitree_hg src/unitree_hg \
     && rm -rf src/unitree_ros2
 

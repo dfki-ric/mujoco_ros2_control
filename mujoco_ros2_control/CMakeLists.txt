@@ -1,6 +1,17 @@
 cmake_minimum_required(VERSION 3.6)
 project(mujoco_ros2_control)
 
+# The hardware_interface API (SystemInterface::on_init, ResourceManager) changed
+# between Humble and Jazzy, so the code branches on this at compile time rather
+# than maintaining separate source trees. Define it as ROS_DISTRO_HUMBLE,
+# ROS_DISTRO_JAZZY, etc. -- always present, since #if defined() is what the code
+# checks, never the macro's (nonexistent) value.
+if(NOT DEFINED ENV{ROS_DISTRO})
+    message(FATAL_ERROR "ROS_DISTRO is not set; source your ROS 2 setup.bash before building")
+endif()
+string(TOUPPER "$ENV{ROS_DISTRO}" ROS_DISTRO_UPPER)
+set(ROS_DISTRO_DEFINE "ROS_DISTRO_${ROS_DISTRO_UPPER}")
+
 # Set default C standards
 if(NOT CMAKE_C_STANDARD)
     set(CMAKE_C_STANDARD 99)
@@ -74,7 +85,19 @@ set(MUJOCO_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(MUJOCO_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(MUJOCO_BUILD_SIMULATE ON CACHE BOOL "" FORCE)
 set(MUJOCO_TEST_PYTHON_UTIL OFF CACHE BOOL "" FORCE)
-set(MUJOCO_SIMULATE_USE_SYSTEM_GLFW ON CACHE BOOL "" FORCE)
+# MuJoCo's FindOrFetch finds the system glfw3 package via find_package(CONFIG),
+# deep inside this FetchContent's own subdirectory scope. Below CMake 3.24,
+# find_package() has no GLOBAL option to promote that imported target out of
+# that scope, so it stays invisible to target_link_libraries() below -- a
+# "Target glfw not found" generate-time error. CMake 3.24 shipped after Jammy
+# (Humble's base, stuck on 3.22), so below that version, let MuJoCo fetch and
+# build glfw from source instead: a regular (non-imported) target, which is
+# visible project-wide regardless of which subdirectory defined it.
+if(CMAKE_VERSION VERSION_LESS 3.24)
+    set(MUJOCO_SIMULATE_USE_SYSTEM_GLFW OFF CACHE BOOL "" FORCE)
+else()
+    set(MUJOCO_SIMULATE_USE_SYSTEM_GLFW ON CACHE BOOL "" FORCE)
+endif()
 
 FetchContent_MakeAvailable(mujoco)
 
@@ -158,6 +181,7 @@ ament_target_dependencies(mujoco_system_plugins
 target_link_libraries(mujoco_system_plugins
     mujoco::mujoco
 )
+target_compile_definitions(mujoco_system_plugins PRIVATE ${ROS_DISTRO_DEFINE})
 
 # The MujocoRos2ControlSensorInterface implementations shipped with this package, one file
 # per plugin under include/ and src/mujoco_ros2_control_plugins.
@@ -236,6 +260,8 @@ add_executable(${MUJOCO_ROS2_CONTROL_NODE_TARGET}
 set_target_properties(${MUJOCO_ROS2_CONTROL_NODE_TARGET}
     PROPERTIES OUTPUT_NAME ${PROJECT_NAME}
 )
+
+target_compile_definitions(${MUJOCO_ROS2_CONTROL_NODE_TARGET} PRIVATE ${ROS_DISTRO_DEFINE})
 
 ament_target_dependencies(${MUJOCO_ROS2_CONTROL_NODE_TARGET}
     controller_manager

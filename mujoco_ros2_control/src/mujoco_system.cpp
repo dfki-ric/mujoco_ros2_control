@@ -62,11 +62,19 @@ namespace mujoco_ros2_control {
         sensors_.registerSensors(mujoco_model, hardware_info, state_interfaces_);
         // Additive: only <sensor> elements naming a "plugin" parameter are taken
         // here, everything else stays with the built-in classifier above.
+#if defined(ROS_DISTRO_HUMBLE)
+        // Humble's SystemInterface has no get_logger() accessor -- it is only
+        // populated from HardwareComponentParams.logger, passed to on_init() on
+        // Jazzy+ -- so this file's own component-named logger stands in for it.
+        const rclcpp::Logger logger = rclcpp::get_logger("mujoco_system");
+#else
+        const rclcpp::Logger logger = get_logger();
+#endif
         if (sim_node_) {
             sensor_plugins_.registerSensors(
-                sim_node_, mujoco_model, hardware_info, state_interfaces_, get_logger());
+                sim_node_, mujoco_model, hardware_info, state_interfaces_, logger);
         } else {
-            RCLCPP_ERROR(get_logger(),
+            RCLCPP_ERROR(logger,
                 "No simulation node was provided, so <sensor> plugins cannot be loaded. "
                 "MujocoResourceManager::setSimNode() was not called.");
         }
@@ -328,6 +336,15 @@ namespace mujoco_ros2_control {
         }
     }
 
+#if defined(ROS_DISTRO_HUMBLE)
+    CallbackReturn
+    MujocoSystem::on_init(const hardware_interface::HardwareInfo &system_info) {
+        if (hardware_interface::SystemInterface::on_init(system_info) != CallbackReturn::SUCCESS) {
+            return CallbackReturn::ERROR;
+        }
+        return CallbackReturn::SUCCESS;
+    }
+#else
     CallbackReturn
     MujocoSystem::on_init(const hardware_interface::HardwareComponentInterfaceParams &params) {
         if (hardware_interface::SystemInterface::on_init(params) != CallbackReturn::SUCCESS) {
@@ -335,6 +352,7 @@ namespace mujoco_ros2_control {
         }
         return CallbackReturn::SUCCESS;
     }
+#endif
 
     std::vector<hardware_interface::StateInterface>
     MujocoSystem::export_state_interfaces() {

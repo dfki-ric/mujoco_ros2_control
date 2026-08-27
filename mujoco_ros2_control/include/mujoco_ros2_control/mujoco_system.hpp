@@ -100,7 +100,11 @@ namespace mujoco_ros2_control {
          * @param system_info System information.
          * @return The success status of the on_init callback.
          */
+#if defined(ROS_DISTRO_HUMBLE)
+        CallbackReturn on_init(const hardware_interface::HardwareInfo &system_info) override;
+#else
         CallbackReturn on_init(const hardware_interface::HardwareComponentInterfaceParams &params) override;
+#endif
 
         /**
          * @brief Exports the state interfaces.

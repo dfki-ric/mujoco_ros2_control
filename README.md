@@ -14,10 +14,10 @@ Mujoco ROS2 Control was initiated and is developed at the
 Testing control algorithms on physical hardware is expensive, slow and wears down the robot. MuJoCo gives fast, accurate physics for that testing without the hardware, and this package makes it speak `ros2_control` like a real robot would.
 
 ## Compatibility
-| ROS 2 Version | Branch | Build & Test | Examples Build & Test |
-|--------------|--------|--------------|-----------------------|
-| Humble | [main](https://github.com/dfki-ric/mujoco_ros2_control) | [![CI](https://github.com/dfki-ric/mujoco_ros2_control/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/dfki-ric/mujoco_ros2_control/actions/workflows/ci.yml?query=branch%3Amain) | [![CI Examples](https://github.com/dfki-ric/mujoco_ros2_control/actions/workflows/ci-examples.yml/badge.svg?branch=main)](https://github.com/dfki-ric/mujoco_ros2_control/actions/workflows/ci-examples.yml?query=branch%3Amain) |
-| Jazzy | [jazzy](https://github.com/dfki-ric/mujoco_ros2_control/tree/jazzy) | [![CI](https://github.com/dfki-ric/mujoco_ros2_control/actions/workflows/ci.yml/badge.svg?branch=jazzy)](https://github.com/dfki-ric/mujoco_ros2_control/actions/workflows/ci.yml?query=branch%3Ajazzy) | [![CI Examples](https://github.com/dfki-ric/mujoco_ros2_control/actions/workflows/ci-examples.yml/badge.svg?branch=jazzy)](https://github.com/dfki-ric/mujoco_ros2_control/actions/workflows/ci-examples.yml?query=branch%3Ajazzy) |
+| ROS 2 Version | Build & Test | Examples Build & Test |
+|---------------|--------------|-----------------------|
+| Humble | [![Core](https://github.com/dfki-ric/mujoco_ros2_control/actions/workflows/humble-core.yml/badge.svg?branch=jazzy-pluginlib)](https://github.com/dfki-ric/mujoco_ros2_control/actions/workflows/humble-core.yml?query=branch%3Ajazzy-pluginlib) | [![Examples](https://github.com/dfki-ric/mujoco_ros2_control/actions/workflows/humble-examples.yml/badge.svg?branch=jazzy-pluginlib)](https://github.com/dfki-ric/mujoco_ros2_control/actions/workflows/humble-examples.yml?query=branch%3Ajazzy-pluginlib) |
+| Jazzy | [![Core](https://github.com/dfki-ric/mujoco_ros2_control/actions/workflows/jazzy-core.yml/badge.svg?branch=jazzy-pluginlib)](https://github.com/dfki-ric/mujoco_ros2_control/actions/workflows/jazzy-core.yml?query=branch%3Ajazzy-pluginlib) | [![Examples](https://github.com/dfki-ric/mujoco_ros2_control/actions/workflows/jazzy-examples.yml/badge.svg?branch=jazzy-pluginlib)](https://github.com/dfki-ric/mujoco_ros2_control/actions/workflows/jazzy-examples.yml?query=branch%3Ajazzy-pluginlib) |
 
 ## Examples
 ### Franka
@@ -61,10 +61,12 @@ Several UR arms in a single world, one controller manager:
 Use the [dockerfile](./Dockerfile) to build a container with MuJoCo ROS2 control and its examples, or run [run_docker_gui.sh](https://github.com/dfki-ric/mujoco_ros2_control/blob/main/run_docker_gui.sh) directly. It opens a terminal with a sourced workspace where you can start the examples with the commands above.
 
 ## Requirements / Dependencies
+Supports ROS 2 Jazzy and Humble; substitute `humble` for `jazzy` in the `ros-jazzy-*` package names below if targeting Humble.
 ```
 libglfw3-dev
 libx11-dev
 xorg-dev
+libeigen3-dev
 ros-jazzy-urdf
 ros-jazzy-xacro
 ros-jazzy-rviz2
@@ -80,11 +82,13 @@ libpcl-dev
 ros-jazzy-urdfdom-py
 libegl-dev
 extra-cmake-modules
+python3-numpy
+python3-scipy
 ```
 
 ## Installation
-1. Install [ROS2 Jazzy](https://docs.ros.org/en/jazzy/Installation.html)
-2. Install the dependencies
+1. Install [ROS 2 Jazzy](https://docs.ros.org/en/jazzy/Installation.html) or [ROS 2 Humble](https://docs.ros.org/en/humble/Installation.html)
+2. Install the dependencies (substitute `humble` for `jazzy` below if using ROS 2 Humble)
    ```bash
    sudo apt-get update && sudo apt-get install -y \
         git \
@@ -92,6 +96,7 @@ extra-cmake-modules
         libx11-dev \
         xorg-dev \
         libegl-dev \
+        libeigen3-dev \
         extra-cmake-modules \
         ros-jazzy-urdf \
         ros-jazzy-xacro \
@@ -105,14 +110,17 @@ extra-cmake-modules
         libopencv-dev \
         ros-jazzy-pcl-conversions \
         ros-jazzy-cv-bridge \
-        libpcl-dev
+        libpcl-dev \
+        python3-numpy \
+        python3-scipy
    ```
 3. Build the package
    ```bash
     mkdir -p ~/mujoco_ws/src
     cd ~/mujoco_ws/src
     git clone https://github.com/dfki-ric/mujoco_ros2_control
-    rosdep update && rosdep install --from-paths . --ignore-src --rosdistro jazzy -y # optional
+    source /opt/ros/$ROS_DISTRO/setup.bash
+    rosdep update && rosdep install --from-paths . --ignore-src --rosdistro $ROS_DISTRO -y # optional
     cd ~/mujoco_ws
     colcon build
    ```
@@ -274,7 +282,7 @@ def generate_launch_description():
 ```
 
 ### Sensor interfaces
-Three sensor types ship as `pluginlib` plugins, named from the URDF:
+Three `ros2_control` state-interface sensor types ship as `pluginlib` plugins, named from the URDF:
 
 | `<param name="plugin">` | Reads | Use with |
 |-------------------------|-------|----------|
@@ -294,6 +302,8 @@ Three sensor types ship as `pluginlib` plugins, named from the URDF:
 A `<sensor>` with no plugin param falls back to a built-in classifier that infers the same three types from the state interface names (deprecated, but still supported). Other sensor types are added by implementing
 [`MujocoRos2ControlSensorInterface`](./mujoco_ros2_control/include/mujoco_ros2_control/mujoco_ros2_control_sensor_interface.hpp)
 in a package of your own, no change to `mujoco_ros2_control` needed. See the [URDF Configuration](./mujoco_ros2_control/README.md#ros-2-control-sensor-interfaces) guide for details, and [Writing a Sensor Plugin](./mujoco_ros2_control/README.md#writing-a-sensor-plugin) for the plugin side.
+
+Depth cameras and lidars (as used in the [Franka](#franka) and [Unitree](#unitree) examples above) are a separate, sibling `pluginlib` mechanism: each runs as its own ROS node outside `<ros2_control>`, so it doesn't appear in this table. See [Side-Channel Sensors](./mujoco_ros2_control/README.md#side-channel-sensors-cameras-and-lidars) for details.
 
 ### URDF configuration
 See [URDF Configuration](./mujoco_ros2_control/README.md) for how to write the URDF/Xacro.
