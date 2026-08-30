@@ -132,9 +132,10 @@ MujocoRos2Control::MujocoRos2Control(rclcpp::Node::SharedPtr &node) : nh_(node) 
   registerSensors();
 
   if (show_gui_) {
-    mjdata_to_render_ = *mujoco_data_;
-    mj_vis_.init(mujoco_model_, &mjdata_to_render_);
+    mjdata_to_render_ = mj_copyData(nullptr, mujoco_model_, mujoco_data_);
+    mj_vis_.init(mujoco_model_, mjdata_to_render_);
     mj_vis_.setResetFlag(&reset_requested_);
+    mj_vis_.setSourceModelPath(params_.robot_model_path);
   }
 
   thread_sim_ = std::thread(&MujocoRos2Control::update, this);
@@ -166,6 +167,10 @@ MujocoRos2Control::~MujocoRos2Control()
 
   // deallocate existing mjData
   mj_deleteData(mujoco_data_);
+
+  if (show_gui_) {
+    mj_deleteData(mjdata_to_render_);
+  }
 
   if (show_gui_ && initialized_) {
     mj_vis_.terminate();
@@ -241,6 +246,14 @@ void MujocoRos2Control::update() {
 
     const bool keep_running = show_gui_ ? mj_vis_.sim->run : running_.load();
     if (!keep_running) {
+      if (show_gui_) {
+        std::lock_guard<std::mutex> sim_lock(sim_mutex_);
+        mujoco::MutexLock lock(mj_vis_.sim->mtx);
+        mju_copy(mujoco_data_->qpos, mjdata_to_render_->qpos, mujoco_model_->nq);
+        mju_copy(mujoco_data_->ctrl, mjdata_to_render_->ctrl, mujoco_model_->nu);
+        mj_forward(mujoco_model_, mujoco_data_);
+        mj_copyData(mjdata_to_render_, mujoco_model_, mujoco_data_);
+      }
       std::this_thread::sleep_for(std::chrono::milliseconds(1));
       continue;
     }
@@ -254,12 +267,17 @@ void MujocoRos2Control::update() {
     if (double(currentTime.tv_sec - startTime_.tv_sec) +
         double(currentTime.tv_nsec - startTime_.tv_nsec) / 1e9 >=
       (mujoco_data_->time - mujoco_start_time_) * params_.real_time_factor) {
+      if (show_gui_) {
+        std::lock_guard<std::mutex> sim_lock(sim_mutex_);
+        mujoco::MutexLock lock(mj_vis_.sim->mtx);
+        mju_copy(mujoco_data_->xfrc_applied, mjdata_to_render_->xfrc_applied, 6 * mujoco_model_->nbody);
+      }
       std::lock_guard<std::mutex> step_lock(step_mutex_);
       advanceSimulationStep();
 
       if (show_gui_) {
         mujoco::MutexLock lock(mj_vis_.sim->mtx);
-        mjdata_to_render_ = *mujoco_data_;
+        mj_copyData(mjdata_to_render_, mujoco_model_, mujoco_data_);
       }
     }
   }

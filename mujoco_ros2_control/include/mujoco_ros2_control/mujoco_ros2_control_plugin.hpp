@@ -317,8 +317,7 @@ namespace mujoco_ros2_control
         std::thread thread_executor_spin_; ///< Thread for the controller manager executor
         std::thread thread_sim_; ///< RT thread to run simulation on
 
-        // Visualization class
-        mjData mjdata_to_render_{}; ///< Snapshot of mjData for rendering, non-RT
+        mjData* mjdata_to_render_{nullptr}; ///< Snapshot of mjData for rendering, non-RT
         std::atomic<bool> reset_requested_{false}; ///< Flag to defer reset to sim thread
 
         std::atomic<bool> running_{true}; ///< Headless run/pause flag.
