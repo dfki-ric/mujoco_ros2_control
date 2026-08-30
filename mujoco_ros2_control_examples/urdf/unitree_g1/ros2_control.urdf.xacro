@@ -46,6 +46,33 @@
       <xacro:g1_joint name="right_ankle_pitch_joint" kp="200" kd="2" initial_position="-0.2"/>
       <xacro:g1_joint name="right_ankle_roll_joint"  kp="200" kd="2" initial_position="0.0"/>
 
+      <xacro:macro name="g1_passive_joint" params="name initial_position">
+        <xacro:if value="${low_level}">
+          <joint name="${name}">
+            <state_interface name="position">
+              <param name="initial_value">${initial_position}</param>
+            </state_interface>
+            <state_interface name="velocity">
+              <param name="initial_value">0.0</param>
+            </state_interface>
+            <state_interface name="effort"/>
+          </joint>
+        </xacro:if>
+      </xacro:macro>
+      <xacro:g1_passive_joint name="left_rodA_motor_joint"  initial_position="-0.5596"/>
+      <xacro:g1_passive_joint name="left_rodB_motor_joint"  initial_position="-0.3058"/>
+      <xacro:g1_passive_joint name="right_rodA_motor_joint" initial_position="-0.5596"/>
+      <xacro:g1_passive_joint name="right_rodB_motor_joint" initial_position="-0.3058"/>
+
+      <xacro:g1_passive_joint name="left_rodA_swing1_joint"  initial_position="-0.3690"/>
+      <xacro:g1_passive_joint name="left_rodA_swing2_joint"  initial_position="0.3866"/>
+      <xacro:g1_passive_joint name="left_rodB_swing1_joint"  initial_position="-0.1927"/>
+      <xacro:g1_passive_joint name="left_rodB_swing2_joint"  initial_position="0.2985"/>
+      <xacro:g1_passive_joint name="right_rodA_swing1_joint" initial_position="0.3690"/>
+      <xacro:g1_passive_joint name="right_rodA_swing2_joint" initial_position="0.3866"/>
+      <xacro:g1_passive_joint name="right_rodB_swing1_joint" initial_position="0.1927"/>
+      <xacro:g1_passive_joint name="right_rodB_swing2_joint" initial_position="0.2985"/>
+
       <!-- Waist (kp = base*5.0: yaw 1000, roll/pitch 200) -->
       <xacro:g1_joint name="waist_yaw_joint"   kp="1000" kd="5" initial_position="0.0"/>
       <xacro:g1_joint name="waist_roll_joint"  kp="200"  kd="5" initial_position="0.0"/>

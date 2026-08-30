@@ -118,8 +118,10 @@ lidar_head:
 
 # UnitreeHgLowLevel, declared in the description as
 # <mujoco_ros2_plugin name="unitree_g1_low_level"> when low_level:=true. The
-# joint list and the IMU site are part of the robot and stay in the xacro; what
-# is tuned per run lives here.
+# IMU site is part of the robot and stays in the xacro; what is tuned per run
+# lives here. Neither the joint list nor mode_machine is set at all: this is
+# the 29-DOF G1, which is UnitreeHgLowLevel's own default (mode_machine == 2),
+# picking its built-in joint order along with it.
 unitree_g1_low_level:
   ros__parameters:
     # LowState publish rate in simulated Hz. The PD loop itself runs at the
@@ -127,9 +129,6 @@ unitree_g1_low_level:
     rate: 500.0
     command_topic: /lowcmd
     state_topic: /lowstate
-    # Echoed in LowState::mode_machine, which the Unitree SDK examples read and
-    # copy back into LowCmd. 0 keeps the field unset.
-    mode_machine: 0
     # Per-joint torque clamp, in the order the joints are declared. Left out
     # here, which means unclamped: a single value applies to every joint, and
     # nothing in MuJoCo limits qfrc_applied on its own.

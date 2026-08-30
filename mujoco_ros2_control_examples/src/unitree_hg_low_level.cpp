@@ -56,6 +56,22 @@ namespace {
 /// unitree_hg LowCmd/LowState carry fixed-size motor arrays.
 constexpr std::size_t kMotorArraySize = 35;
 
+/// LowCmd/LowState motor order for the 29-DOF G1 (LowCmd::mode_machine == 2),
+/// per Unitree's own index table.
+constexpr std::array<const char *, 29> kG1_29Dof_JointOrder = {
+    "left_hip_pitch_joint", "left_hip_roll_joint", "left_hip_yaw_joint",
+    "left_knee_joint", "left_ankle_pitch_joint", "left_ankle_roll_joint",
+    "right_hip_pitch_joint", "right_hip_roll_joint", "right_hip_yaw_joint",
+    "right_knee_joint", "right_ankle_pitch_joint", "right_ankle_roll_joint",
+    "waist_yaw_joint", "waist_roll_joint", "waist_pitch_joint",
+    "left_shoulder_pitch_joint", "left_shoulder_roll_joint", "left_shoulder_yaw_joint",
+    "left_elbow_joint", "left_wrist_roll_joint", "left_wrist_pitch_joint",
+    "left_wrist_yaw_joint",
+    "right_shoulder_pitch_joint", "right_shoulder_roll_joint", "right_shoulder_yaw_joint",
+    "right_elbow_joint", "right_wrist_roll_joint", "right_wrist_pitch_joint",
+    "right_wrist_yaw_joint",
+};
+
 /// Unitree wireless_remote (xRockerBtnDataStruct) byte offsets in the 40-byte blob.
 constexpr std::size_t kWrHeaderOffset = 0;   // 2 bytes
 constexpr std::size_t kWrKeyOffset = 2;      // uint16 button bitmask
@@ -110,13 +126,47 @@ std::vector<double> UnitreeHgLowLevel::double_array_param(const char *key) {
     return declare_double_array_param(node_, info_, key);
 }
 
+bool UnitreeHgLowLevel::resolve_joint(
+        const mjModel *mujoco_model, const std::string &joint, int *qpos_adr,
+        int *dof_adr) const {
+    const int joint_id = mj_name2id(mujoco_model, mjOBJ_JOINT, joint.c_str());
+    if (joint_id < 0) {
+        RCLCPP_ERROR(logger_, "The model has no joint '%s'.", joint.c_str());
+        return false;
+    }
+    const int joint_type = mujoco_model->jnt_type[joint_id];
+    if (joint_type != mjJNT_HINGE && joint_type != mjJNT_SLIDE) {
+        RCLCPP_ERROR(logger_,
+            "Joint '%s' is not a hinge or slide, so it has no single torque to "
+            "command.", joint.c_str());
+        return false;
+    }
+    *qpos_adr = mujoco_model->jnt_qposadr[joint_id];
+    *dof_adr = mujoco_model->jnt_dofadr[joint_id];
+    return true;
+}
+
 bool UnitreeHgLowLevel::bind_motors(const mjModel *mujoco_model) {
-    const auto joints = string_array_param("joints");
+    auto joints = string_array_param("joints");
+    if (joints.empty() && mode_machine_ == 2) {
+        joints.assign(kG1_29Dof_JointOrder.begin(), kG1_29Dof_JointOrder.end());
+    }
     if (joints.empty()) {
         RCLCPP_ERROR(logger_,
             "No 'joints' configured. List the joints to drive, in the order their "
             "motor indices are given, either as a <param name=\"joints\"> on the "
-            "declaration or as a parameter of this node.");
+            "declaration or as a parameter of this node -- or set 'mode_machine' "
+            "to 2 to use the built-in 29-DOF G1 order.");
+        return false;
+    }
+
+    const auto motor_joints = string_array_param("motor_joints");
+    if (!motor_joints.empty() && motor_joints.size() != joints.size()) {
+        RCLCPP_ERROR(logger_,
+            "'motor_joints' has %zu entries but 'joints' has %zu: it has to be "
+            "empty (no motor-space alternates anywhere) or hold one entry -- "
+            "possibly empty, for a slot with no alternate -- per joint.",
+            motor_joints.size(), joints.size());
         return false;
     }
 
@@ -148,18 +198,17 @@ bool UnitreeHgLowLevel::bind_motors(const mjModel *mujoco_model) {
     for (std::size_t i = 0; i < joints.size(); i++) {
         Motor motor;
         motor.joint = joints[i];
-
-        const int joint_id = mj_name2id(mujoco_model, mjOBJ_JOINT, motor.joint.c_str());
-        if (joint_id < 0) {
-            RCLCPP_ERROR(logger_, "The model has no joint '%s'.", motor.joint.c_str());
+        if (!resolve_joint(mujoco_model, motor.joint, &motor.qpos_adr, &motor.dof_adr)) {
             return false;
         }
-        const int joint_type = mujoco_model->jnt_type[joint_id];
-        if (joint_type != mjJNT_HINGE && joint_type != mjJNT_SLIDE) {
-            RCLCPP_ERROR(logger_,
-                "Joint '%s' is not a hinge or slide, so it has no single torque to "
-                "command.", motor.joint.c_str());
-            return false;
+
+        if (!motor_joints.empty() && motor_joints[i] != "-") {
+            motor.motor_joint = motor_joints[i];
+            if (!resolve_joint(
+                    mujoco_model, motor.motor_joint, &motor.motor_qpos_adr,
+                    &motor.motor_dof_adr)) {
+                return false;
+            }
         }
 
         if (indices[i] < 0 || static_cast<std::size_t>(indices[i]) >= kMotorArraySize) {
@@ -169,8 +218,6 @@ bool UnitreeHgLowLevel::bind_motors(const mjModel *mujoco_model) {
             return false;
         }
 
-        motor.qpos_adr = mujoco_model->jnt_qposadr[joint_id];
-        motor.dof_adr = mujoco_model->jnt_dofadr[joint_id];
         motor.index = static_cast<std::size_t>(indices[i]);
         if (limits.size() == 1) {
             motor.effort_limit = std::abs(limits.front());
@@ -184,15 +231,16 @@ bool UnitreeHgLowLevel::bind_motors(const mjModel *mujoco_model) {
 }
 
 double UnitreeHgLowLevel::torque(
-        const Motor &motor, const mjData *mujoco_data, double kp, double kd,
-        double target_position, double target_velocity, double feed_forward) const {
-    const double position = mujoco_data->qpos[motor.qpos_adr];
-    const double velocity = mujoco_data->qvel[motor.dof_adr];
+        int qpos_adr, int dof_adr, double effort_limit, const mjData *mujoco_data,
+        double kp, double kd, double target_position, double target_velocity,
+        double feed_forward) const {
+    const double position = mujoco_data->qpos[qpos_adr];
+    const double velocity = mujoco_data->qvel[dof_adr];
 
     double value = kp * (target_position - position) + kd * (target_velocity - velocity) +
                    feed_forward;
-    if (motor.effort_limit > 0.0) {
-        value = std::clamp(value, -motor.effort_limit, motor.effort_limit);
+    if (effort_limit > 0.0) {
+        value = std::clamp(value, -effort_limit, effort_limit);
     }
     return value;
 }
@@ -257,11 +305,12 @@ bool UnitreeHgLowLevel::configure(
     set_default_rate(500.0);
     set_default_rate(double_param("rate", rate()));
 
+    // Read before bind_motors(): it picks the built-in joint order for mode_machine == 2.
+    mode_machine_ = static_cast<std::uint8_t>(int_param("mode_machine", 2));
+
     if (!bind_motors(context.mujoco_model) || !bind_imu(context.mujoco_model)) {
         return false;
     }
-
-    mode_machine_ = static_cast<std::uint8_t>(int_param("mode_machine", 0));
 
     const auto command_topic = string_param("command_topic", "/lowcmd");
     const auto state_topic = string_param("state_topic", "/lowstate");
@@ -295,7 +344,10 @@ bool UnitreeHgLowLevel::configure(
         }
     }
 
-    command_buffer_.writeFromNonRT(unitree_hg::msg::LowCmd());
+    unitree_hg::msg::LowCmd initial_command;
+    initial_command.mode_pr = 1;
+    initial_command.mode_machine = mode_machine_;
+    command_buffer_.writeFromNonRT(initial_command);
     joy_buffer_.writeFromNonRT(std::array<uint8_t, kWirelessRemoteSize>{});
 
     // These callbacks run on the loader's executor, not on the simulation thread,
@@ -341,18 +393,24 @@ void UnitreeHgLowLevel::beforeStep(mjData *mujoco_data) {
     if (holding_.load(std::memory_order_acquire)) {
         for (const auto &motor : motors_) {
             mujoco_data->qfrc_applied[motor.dof_adr] = 0.0;
+            if (motor.has_motor_joint()) {
+                mujoco_data->qfrc_applied[motor.motor_dof_adr] = 0.0;
+            }
         }
         return;
     }
 
-    // The PD loop the real motor driver closes, at physics rate rather than at
-    // the rate the targets arrive.
     const auto &command = *command_buffer_.readFromRT();
+    const std::uint8_t mode_pr = command.mode_pr;
     for (const auto &motor : motors_) {
         const auto &motor_cmd = command.motor_cmd[motor.index];
-        mujoco_data->qfrc_applied[motor.dof_adr] = torque(
-            motor, mujoco_data, motor_cmd.kp, motor_cmd.kd, motor_cmd.q, motor_cmd.dq,
-            motor_cmd.tau);
+        const int active_dof = motor.active_dof_adr(mode_pr);
+        mujoco_data->qfrc_applied[active_dof] = torque(
+            motor.active_qpos_adr(mode_pr), active_dof, motor.effort_limit, mujoco_data,
+            motor_cmd.kp, motor_cmd.kd, motor_cmd.q, motor_cmd.dq, motor_cmd.tau);
+        if (motor.has_motor_joint()) {
+            mujoco_data->qfrc_applied[motor.inactive_dof_adr(mode_pr)] = 0.0;
+        }
     }
 }
 
@@ -370,19 +428,22 @@ void UnitreeHgLowLevel::afterStep(const mjData *mujoco_data, const rclcpp::Time 
 
     auto &state = state_pub_->msg_;
     state.tick = tick_++;
-    state.mode_machine = mode_machine_;
-    state.mode_pr = command_buffer_.readFromRT()->mode_pr;
+    state.mode_machine = command_buffer_.readFromRT()->mode_machine;
+    const std::uint8_t mode_pr = command_buffer_.readFromRT()->mode_pr;
+    state.mode_pr = mode_pr;
 
     for (const auto &motor : motors_) {
         auto &motor_state = state.motor_state[motor.index];
-        motor_state.q = static_cast<float>(mujoco_data->qpos[motor.qpos_adr]);
-        motor_state.dq = static_cast<float>(mujoco_data->qvel[motor.dof_adr]);
-        motor_state.ddq = static_cast<float>(mujoco_data->qacc[motor.dof_adr]);
+        const int qpos_adr = motor.active_qpos_adr(mode_pr);
+        const int dof_adr = motor.active_dof_adr(mode_pr);
+        motor_state.q = static_cast<float>(mujoco_data->qpos[qpos_adr]);
+        motor_state.dq = static_cast<float>(mujoco_data->qvel[dof_adr]);
+        motor_state.ddq = static_cast<float>(mujoco_data->qacc[dof_adr]);
         // What the joint actually saw: the applied torque plus anything an
         // actuator in the model contributed. Same quantity MujocoSystem reports
         // as the effort state interface.
         motor_state.tau_est = static_cast<float>(
-            mujoco_data->qfrc_actuator[motor.dof_adr] + mujoco_data->qfrc_applied[motor.dof_adr]);
+            mujoco_data->qfrc_actuator[dof_adr] + mujoco_data->qfrc_applied[dof_adr]);
     }
 
     if (imu_quat_adr_ >= 0) {

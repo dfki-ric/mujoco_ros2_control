@@ -87,7 +87,20 @@ namespace mujoco_ros2_control_examples {
  * defaulting to the `<param>` of the same name on the declaration, defaulting to
  * the value given here.
  *
- * - `joints`                  : joints to drive, in LowCmd motor order (required)
+ * - `joints`                  : joints to drive, in LowCmd motor order. May be
+ *                               omitted when `mode_machine` is 2, which uses
+ *                               the built-in 29-DOF G1 order instead
+ *                               (otherwise required)
+ * - `motor_joints`            : per-joint alternate to drive instead, while
+ *                               `LowCmd::mode_pr` is nonzero -- the real ankle's
+ *                               A/B motor-space joints, alongside `joints`' P/R
+ *                               joint-space ones. A list of the same length as
+ *                               `joints`, or omitted entirely. Whitespace-split
+ *                               parameter lists cannot hold an empty token, so a
+ *                               slot with no motor-space alternate -- everything
+ *                               but the ankles, on the real hardware -- is written
+ *                               as `-` rather than left blank; it always drives
+ *                               its `joints` entry, `mode_pr` notwithstanding.
  * - `motor_indices`           : `motor_cmd`/`motor_state` index per joint (default: 0..N-1)
  * - `effort_limits`           : per-joint torque clamp; one value applies to all,
  *                               empty means unclamped (default: empty)
@@ -98,8 +111,14 @@ namespace mujoco_ros2_control_examples {
  * - `imu_accel_sensor`        : accelerometer sensor (default: `<imu_sensor_name>-linear-acceleration`)
  * - `command_topic`           : LowCmd topic (default: `/lowcmd`)
  * - `state_topic`             : LowState topic (default: `/lowstate`)
- * - `mode_machine`            : value echoed in `LowState::mode_machine`, which the
- *                               Unitree SDK examples copy back into LowCmd (default: 0)
+ * - `mode_machine`            : this robot's own identity, used once at
+ *                               configure() to pick `joints`' built-in default
+ *                               (2 = the 29-DOF G1; anything else needs an
+ *                               explicit `joints`). `LowState::mode_machine`
+ *                               itself is not this parameter: like `mode_pr`,
+ *                               it echoes whatever the current `LowCmd` says,
+ *                               starting at this value before the first one
+ *                               arrives (default: 2)
  * - `rate`                    : LowState publish rate in simulated Hz (default: 500).
  *                               The one exception to the order above: a `<param
  *                               name="rate">` wins over the node parameter, because
@@ -121,7 +140,10 @@ namespace mujoco_ros2_control_examples {
  * keeps the plugin from inventing commands nobody sent: holding a pose is a
  * publisher's job, which is why the G1 example publishes its start pose on
  * /lowcmd at 50 Hz, keeping the robot standing until a policy publishes faster
- * and takes the topic over.
+ * and takes the topic over. `LowState::mode_pr`/`mode_machine` are not affected
+ * by slack: they already read 1/`mode_machine` before that first command, so a
+ * policy connecting for the first time sees this robot's default operating
+ * mode (motor-space ankle control, the 29-DOF G1 order) immediately.
  */
 class UnitreeHgLowLevel : public mujoco_ros2_control::MujocoRos2PluginInterface {
 public:
@@ -139,22 +161,53 @@ public:
     void afterStep(const mjData *mujoco_data, const rclcpp::Time &stamp) override;
 
 private:
-    /// One driven joint: where it lives in mjModel, and which motor slot it is.
+    /// One motor slot: the joint-space (P/R) joint it drives at mode_pr == 0, and
+    /// -- for the ankles only, everywhere else left unset -- the motor-space
+    /// (A/B) joint it drives instead while mode_pr != 0.
     struct Motor {
         std::string joint;
         int qpos_adr{-1};
         int dof_adr{-1};
+        std::string motor_joint;      ///< empty = no motor-space alternate for this slot
+        int motor_qpos_adr{-1};
+        int motor_dof_adr{-1};
         std::size_t index{0};       ///< index into LowCmd::motor_cmd / LowState::motor_state
         double effort_limit{0.0};   ///< 0 = unclamped
+
+        /// True while this slot actually has a motor-space alternate to switch to.
+        bool has_motor_joint() const { return motor_qpos_adr >= 0; }
+
+        /// qpos/dof address driven right now, given the command's mode_pr.
+        int active_qpos_adr(std::uint8_t mode_pr) const {
+            return (mode_pr != 0 && has_motor_joint()) ? motor_qpos_adr : qpos_adr;
+        }
+        int active_dof_adr(std::uint8_t mode_pr) const {
+            return (mode_pr != 0 && has_motor_joint()) ? motor_dof_adr : dof_adr;
+        }
+        /// The other one: whatever is not active right now. Its qfrc_applied must
+        /// still be written every step -- MuJoCo does not clear it -- or a joint
+        /// driven under the mode just switched away from would keep the last
+        /// torque it was given, forever.
+        int inactive_dof_adr(std::uint8_t mode_pr) const {
+            return (mode_pr != 0 && has_motor_joint()) ? dof_adr : motor_dof_adr;
+        }
     };
 
-    /// Resolve `joints` and `motor_indices` against the model. False on any error.
+    /// Resolve `joints`, `motor_joints` and `motor_indices` against the model.
+    /// False on any error.
     bool bind_motors(const mjModel *mujoco_model);
+
+    /// Resolve one joint name to a hinge/slide joint's qpos/dof address. False,
+    /// with an error logged, if it does not exist or is not a hinge/slide.
+    bool resolve_joint(
+            const mjModel *mujoco_model, const std::string &joint, int *qpos_adr,
+            int *dof_adr) const;
 
     /// The PD torque for one joint, clamped to its effort limit.
     double torque(
-            const Motor &motor, const mjData *mujoco_data, double kp, double kd,
-            double target_position, double target_velocity, double feed_forward) const;
+            int qpos_adr, int dof_adr, double effort_limit, const mjData *mujoco_data,
+            double kp, double kd, double target_position, double target_velocity,
+            double feed_forward) const;
 
     /// Resolve the three IMU sensors. False only when one is declared but missing.
     bool bind_imu(const mjModel *mujoco_model);

@@ -1,0 +1,58 @@
+# AB (motor-space) counterpart of hold_start_message.yaml (see that file for the
+# full explanation of the scheme, and its KNOWN ISSUE note: at mode_pr: 1 the
+# robot has been observed to topple where the mode_pr: 0 version stands fine).
+#
+# Slots 4/5 and 10/11 (left/right ankle pitch/roll in mode_pr: 0) drive
+# left/right_rod{B,A}_motor_joint instead (pitch pairs with B, roll with A,
+# per Unitree's own index table - and per motor_joints in
+# urdf/unitree_g1/unitree_g1.urdf.xacro's UnitreeHgLowLevel plugin block,
+# which lists rodB before rodA for both legs). Their q is left/right_rodA/B
+# _motor_joint's own initial_position in ros2_control.urdf.xacro (-0.5596 for
+# A, -0.3058 for B) - the crank angle that closes the parallel-ankle loop at
+# ankle_pitch/roll's own initial pose (-0.2/0.0), not that pose itself.
+# kp/kd are 20.0/0.5, not the ankle's own 200/2: at the crank's far smaller
+# inertia that pair went unstable within seconds, while 20/0.5 held stable
+# over 120 simulated seconds in an isolated offline check (see
+# hold_start_message.yaml) - still a placeholder gain like the crank geometry
+# itself, just not one that blows up.
+mode_pr: 1
+mode_machine: 2
+motor_cmd: [
+  {mode: 1, q: -0.10000000149011612, dq: 0.0, tau: 0.0, kp: 500.0, kd: 2.0, reserve: 0},
+  {mode: 1, q: 0.0, dq: 0.0, tau: 0.0, kp: 500.0, kd: 2.0, reserve: 0},
+  {mode: 1, q: 0.0, dq: 0.0, tau: 0.0, kp: 500.0, kd: 2.0, reserve: 0},
+  {mode: 1, q: 0.30000001192092896, dq: 0.0, tau: 0.0, kp: 750.0, kd: 4.0, reserve: 0},
+  {mode: 1, q: -0.3058, dq: 0.0, tau: 0.0, kp: 20.0, kd: 0.5, reserve: 0},
+  {mode: 1, q: -0.5596, dq: 0.0, tau: 0.0, kp: 20.0, kd: 0.5, reserve: 0},
+  {mode: 1, q: -0.10000000149011612, dq: 0.0, tau: 0.0, kp: 500.0, kd: 2.0, reserve: 0},
+  {mode: 1, q: 0.0, dq: 0.0, tau: 0.0, kp: 500.0, kd: 2.0, reserve: 0},
+  {mode: 1, q: 0.0, dq: 0.0, tau: 0.0, kp: 500.0, kd: 2.0, reserve: 0},
+  {mode: 1, q: 0.30000001192092896, dq: 0.0, tau: 0.0, kp: 750.0, kd: 4.0, reserve: 0},
+  {mode: 1, q: -0.3058, dq: 0.0, tau: 0.0, kp: 20.0, kd: 0.5, reserve: 0},
+  {mode: 1, q: -0.5596, dq: 0.0, tau: 0.0, kp: 20.0, kd: 0.5, reserve: 0},
+  {mode: 1, q: 0.0, dq: 0.0, tau: 0.0, kp: 1000.0, kd: 5.0, reserve: 0},
+  {mode: 1, q: 0.0, dq: 0.0, tau: 0.0, kp: 200.0, kd: 5.0, reserve: 0},
+  {mode: 1, q: 0.0, dq: 0.0, tau: 0.0, kp: 200.0, kd: 5.0, reserve: 0},
+  {mode: 1, q: 0.30000001192092896, dq: 0.0, tau: 0.0, kp: 200.0, kd: 1.0, reserve: 0},
+  {mode: 1, q: 0.25, dq: 0.0, tau: 0.0, kp: 200.0, kd: 1.0, reserve: 0},
+  {mode: 1, q: 0.0, dq: 0.0, tau: 0.0, kp: 200.0, kd: 1.0, reserve: 0},
+  {mode: 1, q: 0.9700000286102295, dq: 0.0, tau: 0.0, kp: 200.0, kd: 1.0, reserve: 0},
+  {mode: 1, q: 0.15000000596046448, dq: 0.0, tau: 0.0, kp: 200.0, kd: 1.0, reserve: 0},
+  {mode: 1, q: 0.0, dq: 0.0, tau: 0.0, kp: 200.0, kd: 1.0, reserve: 0},
+  {mode: 1, q: 0.0, dq: 0.0, tau: 0.0, kp: 200.0, kd: 1.0, reserve: 0},
+  {mode: 1, q: 0.30000001192092896, dq: 0.0, tau: 0.0, kp: 200.0, kd: 1.0, reserve: 0},
+  {mode: 1, q: -0.25, dq: 0.0, tau: 0.0, kp: 200.0, kd: 1.0, reserve: 0},
+  {mode: 1, q: 0.0, dq: 0.0, tau: 0.0, kp: 200.0, kd: 1.0, reserve: 0},
+  {mode: 1, q: 0.9700000286102295, dq: 0.0, tau: 0.0, kp: 200.0, kd: 1.0, reserve: 0},
+  {mode: 1, q: -0.15000000596046448, dq: 0.0, tau: 0.0, kp: 200.0, kd: 1.0, reserve: 0},
+  {mode: 1, q: 0.0, dq: 0.0, tau: 0.0, kp: 200.0, kd: 1.0, reserve: 0},
+  {mode: 1, q: 0.0, dq: 0.0, tau: 0.0, kp: 200.0, kd: 1.0, reserve: 0},
+  {mode: 0, q: 0.0, dq: 0.0, tau: 0.0, kp: 0.0, kd: 0.0, reserve: 0},
+  {mode: 0, q: 0.0, dq: 0.0, tau: 0.0, kp: 0.0, kd: 0.0, reserve: 0},
+  {mode: 0, q: 0.0, dq: 0.0, tau: 0.0, kp: 0.0, kd: 0.0, reserve: 0},
+  {mode: 0, q: 0.0, dq: 0.0, tau: 0.0, kp: 0.0, kd: 0.0, reserve: 0},
+  {mode: 0, q: 0.0, dq: 0.0, tau: 0.0, kp: 0.0, kd: 0.0, reserve: 0},
+  {mode: 0, q: 0.0, dq: 0.0, tau: 0.0, kp: 0.0, kd: 0.0, reserve: 0}
+]
+reserve: [0, 0, 0, 0]
+crc: 1098765018

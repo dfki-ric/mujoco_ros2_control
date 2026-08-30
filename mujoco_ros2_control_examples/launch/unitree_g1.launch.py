@@ -231,7 +231,7 @@ def create_nodes(context: LaunchContext):
         get_package_share_directory("mujoco_ros2_control_examples"),
         "config",
         "unitree_g1",
-        "hold_start_message.yaml",
+        "hold_start_message_ab.yaml",
     )
 
     # `ros2 topic pub` takes the message as a literal argument, not a file path,

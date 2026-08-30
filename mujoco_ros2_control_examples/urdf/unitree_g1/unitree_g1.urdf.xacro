@@ -28,6 +28,109 @@
   <xacro:include filename="$(find mujoco_ros2_control_examples)/urdf/unitree_g1/ros2_control.urdf.xacro"/>
   <xacro:unitree_g1_ros2_control mujoco="$(arg mujoco)" low_level="$(arg low_level)"/>
 
+  <!-- ==================== Optional parallel ankle mechanism ==================== -->
+  <xacro:macro name="unitree_g1_ankle_rod"
+               params="suffix knee_link revolute_xyz swing_xyz swing_rpy rod_length">
+    <!-- The real motor: a revolute joint on the shank driving a short, fixed
+         crank arm (measured from the real CAD assembly, unitree_ankle.blend/
+         G1 ankle STEP - see swing_xyz below for the tip offset, which is not
+         purely radial) whose tip is where the connecting rod attaches. -->
+    <link name="${suffix}_crank_link">
+      <inertial>
+        <mass value="0.05"/>
+        <origin xyz="0.0075 0 0" rpy="0 0 0"/>
+        <inertia ixx="1e-6" iyy="1e-6" izz="1e-6" ixy="0" ixz="0" iyz="0"/>
+      </inertial>
+      <visual>
+        <origin xyz="0.0075 0 0" rpy="0 1.5707963267948966 0"/>
+        <geometry><cylinder radius="0.001" length="0.015"/></geometry>
+      </visual>
+      <collision>
+        <origin xyz="0.0075 0 0" rpy="0 1.5707963267948966 0"/>
+        <geometry><cylinder radius="0.001" length="0.015"/></geometry>
+      </collision>
+    </link>
+    <joint name="${suffix}_motor_joint" type="revolute">
+      <parent link="${knee_link}"/>
+      <child link="${suffix}_crank_link"/>
+      <origin xyz="${revolute_xyz}" rpy="0 0 0"/>
+      <axis xyz="0 1 0"/>
+      <!-- Real range measured from Unitree's own G1 ankle demo (A/B motor
+           telemetry sweeps roughly -0.67..+0.97 / -0.6..+0.57 rad) - the
+           15mm-crank-arm placeholder this used to be tuned against only
+           supported +-0.5 rad and could not reach a normal standing pose. -->
+      <limit lower="-0.8" upper="1.1" effort="20" velocity="10"/>
+      <dynamics damping="3.0" friction="0.05"/>
+    </joint>
+    <link name="${suffix}_swing1_link">
+      <inertial>
+        <mass value="0.01"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <inertia ixx="1e-7" iyy="1e-7" izz="1e-7" ixy="0" ixz="0" iyz="0"/>
+      </inertial>
+    </link>
+    <joint name="${suffix}_swing1_joint" type="continuous">
+      <parent link="${suffix}_crank_link"/>
+      <child link="${suffix}_swing1_link"/>
+      <origin xyz="${swing_xyz}" rpy="${swing_rpy}"/>
+      <axis xyz="1 0 0"/>
+    </joint>
+
+    <link name="${suffix}_swing2_link">
+      <inertial>
+        <mass value="0.01"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <inertia ixx="1e-7" iyy="1e-7" izz="1e-7" ixy="0" ixz="0" iyz="0"/>
+      </inertial>
+    </link>
+    <joint name="${suffix}_swing2_joint" type="continuous">
+      <parent link="${suffix}_swing1_link"/>
+      <child link="${suffix}_swing2_link"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <axis xyz="0 1 0"/>
+    </joint>
+    <link name="${suffix}_rod_link">
+      <inertial>
+        <mass value="0.03"/>
+        <origin xyz="0 0 ${rod_length/2}" rpy="0 0 0"/>
+        <inertia ixx="1e-6" iyy="1e-6" izz="1e-8" ixy="0" ixz="0" iyz="0"/>
+      </inertial>
+      <visual>
+        <origin xyz="0 0 ${rod_length/2}" rpy="0 0 0"/>
+        <geometry><cylinder radius="0.001" length="${rod_length}"/></geometry>
+      </visual>
+      <collision>
+        <origin xyz="0 0 ${rod_length/2}" rpy="0 0 0"/>
+        <geometry><cylinder radius="0.001" length="${rod_length}"/></geometry>
+      </collision>
+    </link>
+    <joint name="${suffix}_rod_weld_joint" type="fixed">
+      <parent link="${suffix}_swing2_link"/>
+      <child link="${suffix}_rod_link"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </joint>
+  </xacro:macro>
+
+  <xacro:if value="$(arg low_level)">
+    <!-- Geometry measured directly from the real CAD assembly (Unitree's
+         G1 ankle STEP model, unitree_ankle.blend) rather than assumed: the
+         swing_xyz tip offset is not purely radial (part of it lies along
+         the crank's own rotation axis), so unlike the old 15mm-arm
+         placeholder it is given as a full xyz vector, not "arm 0 0". -->
+    <xacro:unitree_g1_ankle_rod suffix="left_rodA" knee_link="left_knee_link"
+        revolute_xyz="0.028017 0.0000816 -0.149261" swing_xyz="0.007631 0.016661 -0.003724"
+        swing_rpy="3.10071807 -0.11497669 -2.45906242" rod_length="0.157021"/>
+    <xacro:unitree_g1_ankle_rod suffix="left_rodB" knee_link="left_knee_link"
+        revolute_xyz="0.029387 0.0001696 -0.084324" swing_xyz="0.014715 -0.016386 -0.00465"
+        swing_rpy="3.12888053 -0.04891438 -2.63316226" rod_length="0.221363"/>
+    <xacro:unitree_g1_ankle_rod suffix="right_rodA" knee_link="right_knee_link"
+        revolute_xyz="0.028017 -0.0000816 -0.149261" swing_xyz="0.007631 -0.016661 -0.003724"
+        swing_rpy="-3.10071807 -0.11497669 2.45906242" rod_length="0.157021"/>
+    <xacro:unitree_g1_ankle_rod suffix="right_rodB" knee_link="right_knee_link"
+        revolute_xyz="0.029387 -0.0001696 -0.084324" swing_xyz="0.014715 0.016386 -0.00465"
+        swing_rpy="-3.12888053 -0.04891438 2.63316226" rod_length="0.221363"/>
+  </xacro:if>
+
   <!-- ROS optical frame for the d435 depth camera (REP-103: x-right, y-down, z-forward) -->
   <link name="d435_depth_optical_frame"/>
   <joint name="d435_depth_optical_joint" type="fixed">
@@ -57,14 +160,14 @@
       <reference name="left_hip_roll_link"><joint name="left_hip_roll_joint" armature="0.0994" damping="0.05" frictionloss="1.0"/></reference>
       <reference name="left_hip_yaw_link"><joint name="left_hip_yaw_joint" armature="0.2408" damping="0.05" frictionloss="1.0"/></reference>
       <reference name="left_knee_link"><joint name="left_knee_joint" armature="0.3681" damping="0.05" frictionloss="1.0"/></reference>
-      <reference name="left_ankle_pitch_link"><joint name="left_ankle_pitch_joint" armature="0.1039" damping="0.05" frictionloss="0.5"/></reference>
-      <reference name="left_ankle_roll_link"><joint name="left_ankle_roll_joint" armature="0.0037" damping="0.05" frictionloss="0.5"/></reference>
+      <!-- <reference name="left_ankle_pitch_link"><joint name="left_ankle_pitch_joint" armature="0.1039" damping="2.0" frictionloss="0.5"/></reference>
+      <reference name="left_ankle_roll_link"><joint name="left_ankle_roll_joint" armature="0.0037" damping="2.0" frictionloss="0.5"/></reference> -->
       <reference name="right_hip_pitch_link"><joint name="right_hip_pitch_joint" armature="0.0398" damping="0.05" frictionloss="1.0"/></reference>
       <reference name="right_hip_roll_link"><joint name="right_hip_roll_joint" armature="0.0994" damping="0.05" frictionloss="1.0"/></reference>
       <reference name="right_hip_yaw_link"><joint name="right_hip_yaw_joint" armature="0.2408" damping="0.05" frictionloss="1.0"/></reference>
       <reference name="right_knee_link"><joint name="right_knee_joint" armature="0.3681" damping="0.05" frictionloss="1.0"/></reference>
-      <reference name="right_ankle_pitch_link"><joint name="right_ankle_pitch_joint" armature="0.1039" damping="0.05" frictionloss="0.5"/></reference>
-      <reference name="right_ankle_roll_link"><joint name="right_ankle_roll_joint" armature="0.0037" damping="0.05" frictionloss="0.5"/></reference>
+      <!-- <reference name="right_ankle_pitch_link"><joint name="right_ankle_pitch_joint" armature="0.1039" damping="2.0" frictionloss="0.5"/></reference>
+      <reference name="right_ankle_roll_link"><joint name="right_ankle_roll_joint" armature="0.0037" damping="2.0" frictionloss="0.5"/></reference> -->
       <reference name="waist_yaw_link"><joint name="waist_yaw_joint" armature="0.0443" damping="0.05" frictionloss="1.0"/></reference>
       <reference name="waist_roll_link"><joint name="waist_roll_joint" armature="0.0863" damping="0.05" frictionloss="0.5"/></reference>
       <reference name="torso_link"><joint name="waist_pitch_joint" armature="0.0844" damping="0.05" frictionloss="0.5"/></reference>
@@ -118,6 +221,38 @@
       <reference name="mid360_link">
         <site name="lidar_head_mount" pos="0 0 0" euler="0 0 0"/>
       </reference>
+
+      <!-- Parallel ankle mechanism: one site per rod's far end and one on
+           the foot plate it targets, equality/connect closing that one
+           loop, and jointpos sensors so the crank angle - the real
+           motor-space value for the commanded ankle pose - is observable. -->
+      <xacro:if value="$(arg low_level)">
+        <reference name="left_rodA_rod_link"><site name="left_rodA_rod_bottom" pos="0 0 0.157021" size="0.003"/></reference>
+        <reference name="left_ankle_roll_link"><site name="left_rodA_plate_target" pos="0.022041 0.015061 0.008163" size="0.003"/></reference>
+
+        <reference name="left_rodB_rod_link"><site name="left_rodB_rod_bottom" pos="0 0 0.221363" size="0.003"/></reference>
+        <reference name="left_ankle_roll_link"><site name="left_rodB_plate_target" pos="0.022123 -0.015012 0.008328" size="0.003"/></reference>
+
+        <reference name="right_rodA_rod_link"><site name="right_rodA_rod_bottom" pos="0 0 0.157021" size="0.003"/></reference>
+        <reference name="right_ankle_roll_link"><site name="right_rodA_plate_target" pos="0.022041 -0.015061 0.008163" size="0.003"/></reference>
+
+        <reference name="right_rodB_rod_link"><site name="right_rodB_rod_bottom" pos="0 0 0.221363" size="0.003"/></reference>
+        <reference name="right_ankle_roll_link"><site name="right_rodB_plate_target" pos="0.022123 0.015012 0.008328" size="0.003"/></reference>
+
+        <equality>
+          <connect name="left_rodA_loop" site1="left_rodA_rod_bottom" site2="left_rodA_plate_target"   solref="0.001 1" solimp="0.999 0.99 0.001"/>
+          <connect name="left_rodB_loop" site1="left_rodB_rod_bottom" site2="left_rodB_plate_target"   solref="0.001 1" solimp="0.999 0.99 0.001"/>
+          <connect name="right_rodA_loop" site1="right_rodA_rod_bottom" site2="right_rodA_plate_target"   solref="0.001 1" solimp="0.999 0.99 0.001"/>
+          <connect name="right_rodB_loop" site1="right_rodB_rod_bottom" site2="right_rodB_plate_target"   solref="0.001 1" solimp="0.999 0.99 0.001"/>
+        </equality>
+
+        <sensor>
+          <jointpos name="left_rodA_motor_joint_pos" joint="left_rodA_motor_joint"/>
+          <jointpos name="left_rodB_motor_joint_pos" joint="left_rodB_motor_joint"/>
+          <jointpos name="right_rodA_motor_joint_pos" joint="right_rodA_motor_joint"/>
+          <jointpos name="right_rodB_motor_joint_pos" joint="right_rodB_motor_joint"/>
+        </sensor>
+      </xacro:if>
     </mujoco>
 
     <!-- Declared here rather than found by a site-name convention. The
@@ -136,25 +271,30 @@
          unitree_hg/LowState out, and the per-motor PD loop closed on every
          physics step instead of once per controller-manager period.
 
-         The joints are listed in LowCmd motor order (0..28 for the 29-DOF G1),
-         which is the order they are declared in above, so the default
+         No 'joints' param here: unitree_g1_controllers.yaml sets mode_machine
+         to 2 (this is the 29-DOF G1), so UnitreeHgLowLevel uses its built-in
+         LowCmd motor order for that machine instead, in which the default
          motor_indices of 0..N-1 are already right. Everything else (the
-         gamepad mapping, the publish rate, torque clamps) is a parameter of the
-         "unitree_g1_low_level" node in unitree_g1_controllers.yaml. -->
+         gamepad mapping, the publish rate, torque clamps) is also a parameter
+         of the "unitree_g1_low_level" node in that same YAML. -->
     <xacro:if value="$(arg low_level)">
       <mujoco_ros2_plugin name="unitree_g1_low_level"
                           plugin="mujoco_ros2_control_examples/UnitreeHgLowLevel">
-        <param name="joints">
-          left_hip_pitch_joint left_hip_roll_joint left_hip_yaw_joint
-          left_knee_joint left_ankle_pitch_joint left_ankle_roll_joint
-          right_hip_pitch_joint right_hip_roll_joint right_hip_yaw_joint
-          right_knee_joint right_ankle_pitch_joint right_ankle_roll_joint
-          waist_yaw_joint waist_roll_joint waist_pitch_joint
-          left_shoulder_pitch_joint left_shoulder_roll_joint left_shoulder_yaw_joint
-          left_elbow_joint left_wrist_roll_joint left_wrist_pitch_joint left_wrist_yaw_joint
-          right_shoulder_pitch_joint right_shoulder_roll_joint right_shoulder_yaw_joint
-          right_elbow_joint right_wrist_roll_joint right_wrist_pitch_joint right_wrist_yaw_joint
-        </param>
+        <xacro:if value="$(arg low_level)">
+          <param name="motor_joints">
+            - - -
+            - left_rodB_motor_joint left_rodA_motor_joint
+            - - -
+            - right_rodB_motor_joint right_rodA_motor_joint
+            - - -
+            - - -
+            - - -
+            -
+            - - -
+            - - -
+            -
+          </param>
+        </xacro:if>
         <param name="imu_sensor_name">imu_in_pelvis</param>
       </mujoco_ros2_plugin>
     </xacro:if>
