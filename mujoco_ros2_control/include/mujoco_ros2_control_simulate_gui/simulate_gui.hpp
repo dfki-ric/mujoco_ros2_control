@@ -103,6 +103,13 @@ namespace mujoco_simulate_gui {
         void setResetFlag(std::atomic<bool> *flag) { reset_requested_ = flag; }
 
         /**
+         * @brief Set the path of the already-compiled MJCF this model was loaded from.
+         * "Save xml" copies this file instead of calling mj_saveLastXML -- see the note
+         * on source_model_path_ for why.
+         */
+        void setSourceModelPath(const std::string &path) { source_model_path_ = path; }
+
+        /**
          * Get the instance of the MujocoSimulateGui class.
          * This method returns the singleton instance of the class.
          *
@@ -160,6 +167,13 @@ namespace mujoco_simulate_gui {
         mjvPerturb pert;
 
         std::atomic<bool> *reset_requested_ = nullptr;
+
+        // Path of the MJCF this model was compiled from. "Save xml" (mj_saveLastXML)
+        // reliably segfaults inside libmujoco's own tinyxml2-based writer whenever a
+        // live rclcpp executor thread is running in this process; copying this
+        // already-on-disk file sidesteps the writer entirely. Doesn't reflect
+        // in-GUI edits (joint/control sliders, etc.), only the model as loaded.
+        std::string source_model_path_;
 
         // Monotonic wall-clock epoch for the real-time-factor measurement.
         std::chrono::steady_clock::time_point wall_start_ = std::chrono::steady_clock::now();

@@ -48,8 +48,38 @@
 #include "mujoco_ros2_control_simulate_gui/simulate_gui.hpp"
 #include "simulate.cc"
 
+#include <fstream>
+#include <regex>
+#include <iterator>
+
 
 namespace mujoco_simulate_gui {
+    namespace {
+        std::string FlattenMjcfIncludes(const std::string &path) {
+            std::ifstream in(path, std::ios::binary);
+            std::string content((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+
+            const std::string dir = path.substr(0, path.find_last_of('/') + 1);
+            static const std::regex kIncludeRe(R"pat(<include\s+file\s*=\s*"([^"]+)"\s*/>)pat");
+            std::smatch match;
+            while (std::regex_search(content, match, kIncludeRe)) {
+                std::string included = FlattenMjcfIncludes(dir + match[1].str());
+
+                // strip the included file's own <mujoco ...> ... </mujoco> wrapper
+                const size_t open_end = included.find('>');
+                const size_t close_start = included.rfind("</mujoco>");
+                std::string inner = included;
+                if (open_end != std::string::npos && close_start != std::string::npos && close_start > open_end) {
+                    inner = included.substr(open_end + 1, close_start - open_end - 1);
+                }
+
+                content = content.substr(0, match.position(0)) + inner
+                    + content.substr(match.position(0) + match.length(0));
+            }
+            return content;
+        }
+    }
+
     void MujocoSimulateGui::init(mjModel_ *model, mjData_ *data) {
         m = model;
         d = data;
@@ -158,6 +188,14 @@ namespace mujoco_simulate_gui {
             if (sim->pending_.reset && reset_requested_) {
                 sim->pending_.reset = false;
                 reset_requested_->store(true, std::memory_order_release);
+            }
+
+            if (sim->pending_.save_xml && !sim->pending_.save_xml->empty()) {
+                std::ofstream dst(*sim->pending_.save_xml, std::ios::binary);
+                if (dst) {
+                    dst << FlattenMjcfIncludes(source_model_path_);
+                }
+                sim->pending_.save_xml = std::nullopt;
             }
 
             sim->Sync();
