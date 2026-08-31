@@ -328,6 +328,12 @@ void MujocoRos2Control::resetSimulation() {
     last_update_sim_time_ros_ = rclcpp::Time(
       static_cast<int64_t>(mujoco_data_->time * 1e9), RCL_ROS_TIME);
     last_pub_clock_time_ = -1.0;
+    if (show_gui_) {
+      // Without this, the paused-GUI sync below immediately copies the
+      // stale pre-reset mjdata_to_render_ back over the reset we just did.
+      mujoco::MutexLock lock(mj_vis_.sim->mtx);
+      mj_copyData(mjdata_to_render_, mujoco_model_, mujoco_data_);
+    }
   }
   clock_gettime(CLOCK_MONOTONIC, &startTime_);
   publish_sim_time();
