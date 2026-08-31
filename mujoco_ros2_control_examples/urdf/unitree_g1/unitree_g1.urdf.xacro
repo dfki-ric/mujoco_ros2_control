@@ -30,36 +30,54 @@
 
   <!-- ==================== Optional parallel ankle mechanism ==================== -->
   <xacro:macro name="unitree_g1_ankle_rod"
-               params="suffix knee_link revolute_xyz swing_xyz swing_rpy rod_length">
+               params="suffix knee_link revolute_xyz swing_xyz swing_rpy rod_length crank_mid crank_rpy crank_len">
     <!-- The real motor: a revolute joint on the shank driving a short, fixed
          crank arm (measured from the real CAD assembly, unitree_ankle.blend/
          G1 ankle STEP - see swing_xyz below for the tip offset, which is not
-         purely radial) whose tip is where the connecting rod attaches. -->
+         purely radial) whose tip is where the connecting rod attaches.
+         The crank_link visual/collision cylinder below runs from the joint
+         origin out to that measured tip (crank_mid/crank_rpy/crank_len,
+         precomputed so the cylinder's own Z-axis lands exactly on
+         swing_xyz) - previously this was a fixed 15mm stub along local X
+         that did not represent the true crank geometry. -->
     <link name="${suffix}_crank_link">
       <inertial>
         <mass value="0.05"/>
-        <origin xyz="0.0075 0 0" rpy="0 0 0"/>
+        <origin xyz="${crank_mid}" rpy="0 0 0"/>
         <inertia ixx="1e-6" iyy="1e-6" izz="1e-6" ixy="0" ixz="0" iyz="0"/>
       </inertial>
       <visual>
-        <origin xyz="0.0075 0 0" rpy="0 1.5707963267948966 0"/>
-        <geometry><cylinder radius="0.001" length="0.015"/></geometry>
+        <origin xyz="${crank_mid}" rpy="${crank_rpy}"/>
+        <geometry><cylinder radius="0.0015" length="${crank_len}"/></geometry>
       </visual>
       <collision>
-        <origin xyz="0.0075 0 0" rpy="0 1.5707963267948966 0"/>
-        <geometry><cylinder radius="0.001" length="0.015"/></geometry>
+        <origin xyz="${crank_mid}" rpy="${crank_rpy}"/>
+        <geometry><cylinder radius="0.0015" length="${crank_len}"/></geometry>
       </collision>
     </link>
     <joint name="${suffix}_motor_joint" type="revolute">
       <parent link="${knee_link}"/>
       <child link="${suffix}_crank_link"/>
       <origin xyz="${revolute_xyz}" rpy="0 0 0"/>
-      <axis xyz="0 1 0"/>
+      <!-- Axis measured/verified directly in the CAD assembly
+           (unitree_ankle.blend, joint_motor_1/joint_motor_b) as local X -
+           not Y, which this used to be set to. -->
+      <axis xyz="1 0 0"/>
       <!-- Real range measured from Unitree's own G1 ankle demo (A/B motor
            telemetry sweeps roughly -0.67..+0.97 / -0.6..+0.57 rad) - the
            15mm-crank-arm placeholder this used to be tuned against only
-           supported +-0.5 rad and could not reach a normal standing pose. -->
-      <limit lower="-0.8" upper="1.1" effort="20" velocity="10"/>
+           supported +-0.5 rad and could not reach a normal standing pose.
+           effort raised from a 20 N*m placeholder to 35: Unitree's own
+           g1_29dof_rev_1_0.urdf rates left/right_ankle_pitch/roll_joint at
+           35 N*m each (the ankle-output torque, since that URDF models the
+           ankle as a plain 2-DOF joint rather than this parallel linkage).
+           Converting that through this linkage's Jacobian at the standing
+           pose (d(ankle_pitch,roll)/d(motor_A,motor_B)) gives ~33 N*m of
+           required crank torque to reach the same ankle-output envelope -
+           20 N*m was saturating well before that, which was a real
+           contributor to both the standing droop and the PD oscillation
+           (a torque-clamped PD behaves like a relay near saturation). -->
+      <limit lower="-0.8" upper="1.1" effort="35" velocity="10"/>
       <dynamics damping="3.0" friction="0.05"/>
     </joint>
     <link name="${suffix}_swing1_link">
@@ -68,6 +86,10 @@
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <inertia ixx="1e-7" iyy="1e-7" izz="1e-7" ixy="0" ixz="0" iyz="0"/>
       </inertial>
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry><sphere radius="0.003"/></geometry>
+      </visual>
     </link>
     <joint name="${suffix}_swing1_joint" type="continuous">
       <parent link="${suffix}_crank_link"/>
@@ -82,6 +104,10 @@
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <inertia ixx="1e-7" iyy="1e-7" izz="1e-7" ixy="0" ixz="0" iyz="0"/>
       </inertial>
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry><sphere radius="0.003"/></geometry>
+      </visual>
     </link>
     <joint name="${suffix}_swing2_joint" type="continuous">
       <parent link="${suffix}_swing1_link"/>
@@ -119,16 +145,20 @@
          placeholder it is given as a full xyz vector, not "arm 0 0". -->
     <xacro:unitree_g1_ankle_rod suffix="left_rodA" knee_link="left_knee_link"
         revolute_xyz="0.028017 0.0000816 -0.149261" swing_xyz="0.007631 0.016661 -0.003724"
-        swing_rpy="3.10071807 -0.11497669 -2.45906242" rod_length="0.157021"/>
+        swing_rpy="3.09582687 -0.07460496 -2.4608202" rod_length="0.157021"
+        crank_mid="0.003815 0.008330 -0.001862" crank_rpy="-1.790698 0.420345 -0.520459" crank_len="0.018700"/>
     <xacro:unitree_g1_ankle_rod suffix="left_rodB" knee_link="left_knee_link"
         revolute_xyz="0.029387 0.0001696 -0.084324" swing_xyz="0.014715 -0.016386 -0.00465"
-        swing_rpy="3.12888053 -0.04891438 -2.63316226" rod_length="0.221363"/>
+        swing_rpy="3.08875477 -0.0844462 -2.63199475" rod_length="0.221363"
+        crank_mid="0.007358 -0.008193 -0.002325" crank_rpy="1.847306 0.712515 0.915153" crank_len="0.022509"/>
     <xacro:unitree_g1_ankle_rod suffix="right_rodA" knee_link="right_knee_link"
         revolute_xyz="0.028017 -0.0000816 -0.149261" swing_xyz="0.007631 -0.016661 -0.003724"
-        swing_rpy="-3.10071807 -0.11497669 2.45906242" rod_length="0.157021"/>
+        swing_rpy="-3.09582687 -0.07460496 2.4608202" rod_length="0.157021"
+        crank_mid="0.003815 -0.008330 -0.001862" crank_rpy="1.790698 0.420345 0.520459" crank_len="0.018700"/>
     <xacro:unitree_g1_ankle_rod suffix="right_rodB" knee_link="right_knee_link"
         revolute_xyz="0.029387 -0.0001696 -0.084324" swing_xyz="0.014715 0.016386 -0.00465"
-        swing_rpy="-3.12888053 -0.04891438 2.63316226" rod_length="0.221363"/>
+        swing_rpy="-3.08875477 -0.0844462 2.63199475" rod_length="0.221363"
+        crank_mid="0.007358 0.008193 -0.002325" crank_rpy="-1.847306 0.712515 -0.915153" crank_len="0.022509"/>
   </xacro:if>
 
   <!-- ROS optical frame for the d435 depth camera (REP-103: x-right, y-down, z-forward) -->
@@ -240,10 +270,10 @@
         <reference name="right_ankle_roll_link"><site name="right_rodB_plate_target" pos="0.022123 0.015012 0.008328" size="0.003"/></reference>
 
         <equality>
-          <connect name="left_rodA_loop" site1="left_rodA_rod_bottom" site2="left_rodA_plate_target"   solref="0.001 1" solimp="0.999 0.99 0.001"/>
-          <connect name="left_rodB_loop" site1="left_rodB_rod_bottom" site2="left_rodB_plate_target"   solref="0.001 1" solimp="0.999 0.99 0.001"/>
-          <connect name="right_rodA_loop" site1="right_rodA_rod_bottom" site2="right_rodA_plate_target"   solref="0.001 1" solimp="0.999 0.99 0.001"/>
-          <connect name="right_rodB_loop" site1="right_rodB_rod_bottom" site2="right_rodB_plate_target"   solref="0.001 1" solimp="0.999 0.99 0.001"/>
+          <connect name="left_rodA_loop" site1="left_rodA_rod_bottom" site2="left_rodA_plate_target"   solref="0.001 0.5" solimp="0.999 0.99 0.001"/>
+          <connect name="left_rodB_loop" site1="left_rodB_rod_bottom" site2="left_rodB_plate_target"   solref="0.001 0.5" solimp="0.999 0.99 0.001"/>
+          <connect name="right_rodA_loop" site1="right_rodA_rod_bottom" site2="right_rodA_plate_target"   solref="0.001 0.5" solimp="0.999 0.99 0.001"/>
+          <connect name="right_rodB_loop" site1="right_rodB_rod_bottom" site2="right_rodB_plate_target"   solref="0.001 0.5" solimp="0.999 0.99 0.001"/>
         </equality>
 
         <sensor>

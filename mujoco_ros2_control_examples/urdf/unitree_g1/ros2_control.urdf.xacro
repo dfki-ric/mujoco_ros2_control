@@ -59,19 +59,27 @@
           </joint>
         </xacro:if>
       </xacro:macro>
-      <xacro:g1_passive_joint name="left_rodA_motor_joint"  initial_position="-0.5596"/>
-      <xacro:g1_passive_joint name="left_rodB_motor_joint"  initial_position="-0.3058"/>
-      <xacro:g1_passive_joint name="right_rodA_motor_joint" initial_position="-0.5596"/>
-      <xacro:g1_passive_joint name="right_rodB_motor_joint" initial_position="-0.3058"/>
+      <!-- Solved (not hand-tuned): the crank/swing angles that close each
+           rod's loop-closure constraint (rod tip == its ankle_roll_link
+           plate site) with left/right_ankle_pitch/roll_joint sitting at
+           their own initial pose (-0.2/0.0), via a 3-equation/3-unknown
+           forward-kinematics root-find in the corrected geometry (motor
+           axis local X, tightened swing_rpy - see unitree_g1.urdf.xacro's
+           unitree_g1_ankle_rod macro). Re-solve if revolute_xyz/swing_xyz/
+           swing_rpy/rod_length or the ankle's own initial_position change. -->
+      <xacro:g1_passive_joint name="left_rodA_motor_joint"  initial_position="0.275878"/>
+      <xacro:g1_passive_joint name="left_rodB_motor_joint"  initial_position="-0.280022"/>
+      <xacro:g1_passive_joint name="right_rodA_motor_joint" initial_position="-0.275878"/>
+      <xacro:g1_passive_joint name="right_rodB_motor_joint" initial_position="0.280022"/>
 
-      <xacro:g1_passive_joint name="left_rodA_swing1_joint"  initial_position="-0.3690"/>
-      <xacro:g1_passive_joint name="left_rodA_swing2_joint"  initial_position="0.3866"/>
-      <xacro:g1_passive_joint name="left_rodB_swing1_joint"  initial_position="-0.1927"/>
-      <xacro:g1_passive_joint name="left_rodB_swing2_joint"  initial_position="0.2985"/>
-      <xacro:g1_passive_joint name="right_rodA_swing1_joint" initial_position="0.3690"/>
-      <xacro:g1_passive_joint name="right_rodA_swing2_joint" initial_position="0.3866"/>
-      <xacro:g1_passive_joint name="right_rodB_swing1_joint" initial_position="0.1927"/>
-      <xacro:g1_passive_joint name="right_rodB_swing2_joint" initial_position="0.2985"/>
+      <xacro:g1_passive_joint name="left_rodA_swing1_joint"  initial_position="0.221627"/>
+      <xacro:g1_passive_joint name="left_rodA_swing2_joint"  initial_position="0.168432"/>
+      <xacro:g1_passive_joint name="left_rodB_swing1_joint"  initial_position="-0.246636"/>
+      <xacro:g1_passive_joint name="left_rodB_swing2_joint"  initial_position="-0.137527"/>
+      <xacro:g1_passive_joint name="right_rodA_swing1_joint" initial_position="-0.221627"/>
+      <xacro:g1_passive_joint name="right_rodA_swing2_joint" initial_position="0.168432"/>
+      <xacro:g1_passive_joint name="right_rodB_swing1_joint" initial_position="0.246636"/>
+      <xacro:g1_passive_joint name="right_rodB_swing2_joint" initial_position="-0.137527"/>
 
       <!-- Waist (kp = base*5.0: yaw 1000, roll/pitch 200) -->
       <xacro:g1_joint name="waist_yaw_joint"   kp="1000" kd="5" initial_position="0.0"/>
