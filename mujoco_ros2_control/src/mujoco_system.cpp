@@ -59,9 +59,6 @@ namespace mujoco_ros2_control {
         this->mujoco_data_ = mujoco_data;
 
         registerJoints(hardware_info, urdf_model_ptr->joints_);
-        sensors_.registerSensors(mujoco_model, hardware_info, state_interfaces_);
-        // Additive: only <sensor> elements naming a "plugin" parameter are taken
-        // here, everything else stays with the built-in classifier above.
 #if defined(ROS_DISTRO_HUMBLE)
         // Humble's SystemInterface has no get_logger() accessor -- it is only
         // populated from HardwareComponentParams.logger, passed to on_init() on
@@ -436,7 +433,6 @@ namespace mujoco_ros2_control {
                          + mujoco_data_->qfrc_applied[joint.mujoco_dofadr];
         }
 
-        sensors_.readSensors(mujoco_data_);
         sensor_plugins_.readSensors(mujoco_data_);
 
         return hardware_interface::return_type::OK;

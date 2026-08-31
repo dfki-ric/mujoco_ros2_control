@@ -34,6 +34,47 @@
 
 namespace mujoco_ros2_control {
 
+namespace {
+
+/**
+ * @brief Guess a sensor's plugin class from its state interface names.
+ *
+ * The fallback for a `<sensor>` that names no plugin: a substring match on
+ * interface names, so it can only ever recognise these three kinds, and
+ * anything whose interface names happen to contain "force", "position" or
+ * "orientation" is misclassified into one of them.
+ *
+ * @return The class to load, or empty when nothing matched.
+ */
+std::string classify(const hardware_interface::ComponentInfo &sensor_info) {
+    bool has_imu_interfaces = false;
+    bool has_ft_interfaces = false;
+    bool has_pose_interfaces = false;
+
+    for (const auto &si : sensor_info.state_interfaces) {
+        if (si.name.find("angular_velocity") != std::string::npos ||
+            si.name.find("linear_acceleration") != std::string::npos) {
+            has_imu_interfaces = true;
+            break;
+        }
+        if (si.name.find("force") != std::string::npos ||
+            si.name.find("torque") != std::string::npos) {
+            has_ft_interfaces = true;
+        }
+        if (si.name.find("position") != std::string::npos ||
+            si.name.find("orientation") != std::string::npos) {
+            has_pose_interfaces = true;
+        }
+    }
+
+    if (has_imu_interfaces) return "mujoco_ros2_control/ImuSensor";
+    if (has_ft_interfaces) return "mujoco_ros2_control/ForceTorqueSensor";
+    if (has_pose_interfaces) return "mujoco_ros2_control/PoseSensor";
+    return "";
+}
+
+}  // namespace
+
 MujocoRos2ControlSensorLoader::MujocoRos2ControlSensorLoader()
     : loader_("mujoco_ros2_control", "mujoco_ros2_control::MujocoRos2ControlSensorInterface") {}
 
@@ -45,12 +86,23 @@ size_t MujocoRos2ControlSensorLoader::registerSensors(
         const rclcpp::Logger &logger) {
 
     for (const auto &sensor_info : hardware_info.sensors) {
+        std::string plugin_class;
         const auto plugin_param = sensor_info.parameters.find(kSensorPluginParam);
-        if (plugin_param == sensor_info.parameters.end()) {
-            // Handled by the built-in classifier in MujocoRos2ControlSensors.
-            continue;
+        if (plugin_param != sensor_info.parameters.end()) {
+            plugin_class = plugin_param->second;
+        } else {
+            plugin_class = classify(sensor_info);
+            if (plugin_class.empty()) {
+                continue;
+            }
+            RCLCPP_WARN(logger,
+                "Sensor '%s' names no plugin, so it was matched to '%s' by its state "
+                "interfaces. This fallback classifier is deprecated and scheduled for "
+                "removal. Add <param name=\"%s\">%s</param> to this <sensor> to make "
+                "the choice explicit.",
+                sensor_info.name.c_str(), plugin_class.c_str(), kSensorPluginParam,
+                plugin_class.c_str());
         }
-        const std::string &plugin_class = plugin_param->second;
 
         std::shared_ptr<MujocoRos2ControlSensorInterface> sensor;
         try {

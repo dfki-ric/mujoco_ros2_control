@@ -44,11 +44,11 @@ namespace mujoco_ros2_plugins {
  * @brief Declares a GL lidar through the robot description instead of a site prefix.
  *
  * A thin adapter: the scanning, rendering and publishing all stay in
- * mujoco_ros2_plugins_lidar::LidarImpl, a standalone copy of
- * mujoco_gl_lidar::MujocoGLLidar kept independent of the folder used by the
- * site-prefix discovery in MujocoRos2Control. This only makes it declarable, so
- * a lidar can be named in the URDF next to the site it is mounted on rather than
- * being found by a naming convention.
+ * mujoco_ros2_plugins_lidar::LidarImpl, kept independent of the node's own
+ * site-prefix discovery in MujocoRos2Control (which, for a lidar it finds that
+ * way, builds a declaration for this same plugin rather than rendering on its
+ * own). This only makes it declarable, so a lidar can be named in the URDF next
+ * to the site it is mounted on rather than being found by a naming convention.
  *
  * Parameters:
  * - `site` : the MuJoCo site the lidar is mounted on. Site +X is the 0-rad scan

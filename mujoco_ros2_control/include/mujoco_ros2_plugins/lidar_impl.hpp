@@ -1,12 +1,11 @@
 /**
  * @file lidar_impl.hpp
  * @brief OpenGL-based lidar rendering/publishing used by the <mujoco_ros2_plugin>
- *        LidarSensor. A standalone copy of mujoco_gl_lidar::MujocoGLLidar so this
- *        plugin does not depend on the mujoco_gl_lidar folder, which is slated
- *        for removal once the node's site-prefix discovery is retired. Renders a
- *        depth image at the lidar site's pose, then samples per-beam ranges from
- *        the depth buffer. Reuses the EGL / mjvScene / mjrContext pattern from
- *        DepthCameraImpl.
+ *        LidarSensor. Kept independent of the node's own site-prefix discovery
+ *        in MujocoRos2Control, which builds a declaration for this same plugin
+ *        rather than rendering on its own. Renders a depth image at the lidar
+ *        site's pose, then samples per-beam ranges from the depth buffer.
+ *        Reuses the EGL / mjvScene / mjrContext pattern from DepthCameraImpl.
  *
  * @author Adrian Danzglock
  * @date 2026

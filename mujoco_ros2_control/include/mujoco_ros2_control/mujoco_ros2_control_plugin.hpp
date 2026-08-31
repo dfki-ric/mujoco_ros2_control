@@ -97,8 +97,8 @@
 #include "mujoco_ros2_control/mujoco_system.hpp"
 #include "mujoco_ros2_control/mujoco_resource_manager.hpp"
 #include "mujoco_ros2_control/mujoco_system_interface.hpp"
-#include "mujoco_rgbd_camera/mujoco_depth_camera.hpp"
-#include "mujoco_gl_lidar/mujoco_gl_lidar.hpp"
+#include <mujoco_ros2_control/mujoco_ros2_plugins_depth_camera_parameters.hpp>
+#include <mujoco_ros2_control/mujoco_ros2_plugins_lidar_parameters.hpp>
 
 // Sensors
 #include "mujoco_ros2_control/mujoco_ros2_plugin_loader.hpp"
@@ -251,15 +251,11 @@ namespace mujoco_ros2_control
         bool load_mujoco_plugins();
 
         /**
-         * Initializes and configures camera objects based on the mujoco_model.
-         * If the mujoco_model contains cameras, it creates and configures the required number of camera objects.
+         * Discovers cameras and lidars from the raw MJCF/URDF (a <camera> element, an
+         * mjCam_/mjCamOpt_/mjCamDepth_/lidar-prefixed site) and loads the top-level
+         * <mujoco_ros2_plugin> declarations, all through ros2_plugins_.
          *
          * @note This method assumes that the MujocoModel (`mujoco_model_`) and MujocoData (`mujoco_data_`) are properly initialized.
-         *
-         * @post The `cameras_` vector will contain initialized camera objects based on the number of cameras in the `mujoco_model_`.
-         *       Each camera object is configured with a resolution of 640x480 pixels and a framerate of 25Hz.
-         *       Camera nodes are also created and stored in the `camera_nodes_` vector.
-         *       Camera threads are spawned to execute the `update()` function of each camera object.
          */
         void registerSensors();
 
@@ -328,31 +324,15 @@ namespace mujoco_ros2_control
         std::shared_ptr<pluginlib::ClassLoader<mujoco_ros2_control::MujocoSystemInterface> > robot_hw_sim_loader_; ///< Plugin loader for RobotHWSimInterface
         std::shared_ptr<mujoco_ros2_control::MujocoSystemInterface> robot_hw_sim_; ///< Robot hardware simulation interface
 
-        /// Camera handling.
-        /// @deprecated Superseded by declaring <mujoco_ros2_plugin
-        ///             plugin="mujoco_ros2_control/DepthCameraSensor">, loaded through
-        ///             ros2_plugins_ below. Still the only way to auto-discover a
-        ///             <camera> element or an mjCam_/mjCamOpt_/mjCamDepth_ site, and
-        ///             scheduled for removal in a future release, along with
-        ///             mujoco_rgbd_camera::MujocoDepthCamera itself.
-        std::vector<std::thread> camera_threads_; ///< Threads for the cameras (one thread per camera)
-        std::vector<rclcpp::Node::SharedPtr> camera_nodes_; ///< Nodes for the cameras (one Node per camera)
-        std::vector<std::shared_ptr<mujoco_rgbd_camera::MujocoDepthCamera>> cameras_; ///< Cameras Object vector
-
-        /// GL lidar handling.
-        /// @deprecated Superseded by declaring <mujoco_ros2_plugin
-        ///             plugin="mujoco_ros2_control/LidarSensor">, loaded through
-        ///             ros2_plugins_ below. Still the only way to auto-discover an
-        ///             mjLidar_-prefixed site, and scheduled for removal in a future
-        ///             release, along with mujoco_gl_lidar::MujocoGLLidar itself.
-        std::vector<std::thread> lidar_threads_;
-        std::vector<rclcpp::Node::SharedPtr> lidar_nodes_;
-        std::vector<std::shared_ptr<mujoco_gl_lidar::MujocoGLLidar>> lidars_;
-
-        // Plugins declared as top-level <mujoco_ros2_plugin> elements: outside
-        // every <ros2_control> block, so owned here rather than by a hardware
-        // component. Owns their nodes, threads and executor; shutdown() has to
-        // run before mjModel/mjData are deleted.
+        // Plugins declared as top-level <mujoco_ros2_plugin> elements, plus every
+        // camera/lidar auto-discovered from a MuJoCo <camera> element or an
+        // mjCam_/mjCamOpt_/mjCamDepth_/lidar-prefixed site: registerSensors()
+        // classifies the latter (deprecated, scheduled for removal) into
+        // synthesized declarations for mujoco_ros2_control/DepthCameraSensor or
+        // LidarSensor and hands them to this loader alongside the explicit ones,
+        // so all of it sits outside every <ros2_control> block and is owned here
+        // rather than by a hardware component. Owns their nodes, threads and
+        // executor; shutdown() has to run before mjModel/mjData are deleted.
         MujocoRos2PluginLoader ros2_plugins_;
 
         // Held by the sim thread around mj_step. Sensors that need a

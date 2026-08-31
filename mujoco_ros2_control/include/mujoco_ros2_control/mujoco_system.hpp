@@ -61,7 +61,6 @@
 
 // Mujoco system interface
 #include "mujoco_ros2_control/mujoco_system_interface.hpp"
-#include "mujoco_ros2_control/mujoco_ros2_control_sensors.hpp"
 #include "mujoco_ros2_control/mujoco_ros2_control_sensor_loader.hpp"
 
 // ROS Hardware Interface
@@ -324,14 +323,9 @@ namespace mujoco_ros2_control {
 
         double pid_control(double kp, double ki, double kd, double error, double last_error, double dt);
 
-        /// Built-in IMU/force-torque/pose handling.
-        /// @deprecated Superseded by MujocoRos2ControlSensorLoader, which loads sensor
-        ///             handlers through pluginlib. Still the default for every
-        ///             <sensor> that does not name a plugin, and scheduled for
-        ///             removal in a future release.
-        MujocoRos2ControlSensors sensors_;
-
-        /// Sensor handlers named by a <sensor> "plugin" parameter.
+        /// Sensor handlers loaded through pluginlib, one per <sensor>: named by a
+        /// "plugin" parameter, or matched by the deprecated built-in classifier
+        /// when it names none.
         MujocoRos2ControlSensorLoader sensor_plugins_;
 
     protected:

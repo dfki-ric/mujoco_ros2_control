@@ -146,12 +146,6 @@ MujocoRos2Control::MujocoRos2Control(rclcpp::Node::SharedPtr &node) : nh_(node) 
 MujocoRos2Control::~MujocoRos2Control()
 {
   stop_.store(true);
-  for (auto &thread : camera_threads_) {
-    thread.join();
-  }
-  for (auto &thread : lidar_threads_) {
-    thread.join();
-  }
   // Joins the sensor threads and stops spinning their nodes. Has to complete
   // before mj_deleteModel/mj_deleteData below: those threads read both.
   ros2_plugins_.shutdown();
@@ -161,7 +155,6 @@ MujocoRos2Control::~MujocoRos2Control()
   if (thread_executor_spin_.joinable()) {
     thread_executor_spin_.join();
   }
-  cameras_.clear();
   // deallocate existing mjModel
   mj_deleteModel(mujoco_model_);
 
@@ -620,8 +613,10 @@ void MujocoRos2Control::registerSensors() {
   // Parsed up front, ahead of the prefix-based discovery below: a MuJoCo site
   // claimed by a <mujoco_ros2_plugin> is skipped there, so declaring a camera or
   // a lidar on a site that also matches a discovery prefix creates one instance
-  // rather than two.
-  const auto ros2_plugin_declarations =
+  // rather than two. The discovery blocks below append their own synthesized
+  // declarations to this same vector, so every camera and lidar -- however it
+  // was found -- ends up loaded and owned the same way, by ros2_plugins_.
+  auto ros2_plugin_declarations =
     MujocoRos2PluginLoader::parse(params_.robot_description, nh_->get_logger());
   std::set<std::string> claimed_sites;
   for (const auto &declaration : ros2_plugin_declarations) {
@@ -650,16 +645,11 @@ void MujocoRos2Control::registerSensors() {
       "<mujoco_ros2_plugin plugin=\"mujoco_ros2_control/DepthCameraSensor\">"
       "<param name=\"camera\">%s</param></mujoco_ros2_plugin>.",
       name.c_str(), name.c_str());
-    auto node = camera_nodes_.emplace_back(rclcpp::Node::make_shared(
-      name, rclcpp::NodeOptions().parameter_overrides({{"use_sim_time", true}})));
-    executor_->add_node(node);
-    // A <camera> serves both color and depth from one viewpoint, so the optical
-    // and depth mount ids are the same camera id (single render pass).
-    auto camera = std::make_shared<mujoco_rgbd_camera::MujocoDepthCamera>(
-      node, mujoco_model_, mujoco_data_, &sim_mutex_, name, &stop_,
-      mujoco_rgbd_camera::MujocoDepthCamera::Mount::FixedCamera, id, id);
-    cameras_.push_back(camera);
-    camera_threads_.emplace_back([ObjectPtr = camera] { ObjectPtr->update(); });
+    MujocoRos2PluginInfo declaration;
+    declaration.name = name;
+    declaration.plugin = "mujoco_ros2_control/DepthCameraSensor";
+    declaration.parameters["camera"] = name;
+    ros2_plugin_declarations.push_back(std::move(declaration));
   }
 
   // Add site-based cameras. Sites are classified by three prefixes and grouped by
@@ -677,14 +667,14 @@ void MujocoRos2Control::registerSensors() {
     auto probe_node = rclcpp::Node::make_shared(
       "_mujoco_rgbd_camera_probe",
       rclcpp::NodeOptions().parameter_overrides({{"use_sim_time", true}}));
-    auto probe_listener = std::make_shared<mujoco_rgbd_camera::ParamListener>(probe_node);
+    auto probe_listener = std::make_shared<mujoco_ros2_plugins_depth_camera::ParamListener>(probe_node);
     const auto cam_params = probe_listener->get_params();
     const std::string both_prefix = cam_params.site_prefix;
     const std::string opt_prefix = cam_params.optical_site_prefix;
     const std::string depth_prefix = cam_params.depth_site_prefix;
 
-    // node name -> (optical site id, depth site id), -1 = absent.
-    struct CamSites { int optical_id = -1; int depth_id = -1; };
+    // node name -> (optical site name, depth site name), empty = absent.
+    struct CamSites { std::string optical_site; std::string depth_site; };
     std::map<std::string, CamSites> cam_sites;
 
     for (int id = 0; id < mujoco_model_->nsite; id++) {
@@ -700,40 +690,48 @@ void MujocoRos2Control::registerSensors() {
       };
       if (matches(opt_prefix)) {
         std::string name = site_name.substr(opt_prefix.size());
-        if (!name.empty()) cam_sites[name].optical_id = id;
+        if (!name.empty()) cam_sites[name].optical_site = site_name;
       } else if (matches(depth_prefix)) {
         std::string name = site_name.substr(depth_prefix.size());
-        if (!name.empty()) cam_sites[name].depth_id = id;
+        if (!name.empty()) cam_sites[name].depth_site = site_name;
       } else if (matches(both_prefix)) {
         std::string name = site_name.substr(both_prefix.size());
-        if (!name.empty()) { cam_sites[name].optical_id = id; cam_sites[name].depth_id = id; }
+        if (!name.empty()) { cam_sites[name].optical_site = site_name; cam_sites[name].depth_site = site_name; }
       }
     }
 
     for (const auto &[node_name, sites] : cam_sites) {
-      auto node = rclcpp::Node::make_shared(
+      // A throwaway node, solely to read whether external YAML enabled this
+      // camera: the same lookup a real node's parameter overrides would answer,
+      // without yet committing to loading the plugin.
+      auto probe_node = rclcpp::Node::make_shared(
         node_name,
         rclcpp::NodeOptions().parameter_overrides({{"use_sim_time", true}}));
 
-      const auto &overrides = node->get_node_parameters_interface()->get_parameter_overrides();
+      const auto &overrides = probe_node->get_node_parameters_interface()->get_parameter_overrides();
       const auto it = overrides.find("enabled");
       if (it == overrides.end() || !it->second.get<bool>()) {
         continue;
       }
 
-      camera_nodes_.push_back(node);
-      executor_->add_node(node);
       RCLCPP_WARN(nh_->get_logger(),
         "Camera '%s' was auto-discovered from a site-prefix (mjCam_/mjCamOpt_/"
         "mjCamDepth_), which is deprecated and scheduled for removal. Declare it "
         "instead with <mujoco_ros2_plugin "
         "plugin=\"mujoco_ros2_control/DepthCameraSensor\">.",
         node_name.c_str());
-      auto camera = std::make_shared<mujoco_rgbd_camera::MujocoDepthCamera>(
-        node, mujoco_model_, mujoco_data_, &sim_mutex_, node_name, &stop_,
-        mujoco_rgbd_camera::MujocoDepthCamera::Mount::Site, sites.optical_id, sites.depth_id);
-      cameras_.push_back(camera);
-      camera_threads_.emplace_back([ObjectPtr = camera] { ObjectPtr->update(); });
+
+      MujocoRos2PluginInfo declaration;
+      declaration.name = node_name;
+      declaration.plugin = "mujoco_ros2_control/DepthCameraSensor";
+      if (!sites.optical_site.empty() && sites.optical_site == sites.depth_site) {
+        // One site serves both streams (mjCam_ prefix): "site" alone.
+        declaration.parameters["site"] = sites.optical_site;
+      } else {
+        if (!sites.optical_site.empty()) declaration.parameters["optical_site"] = sites.optical_site;
+        if (!sites.depth_site.empty()) declaration.parameters["depth_site"] = sites.depth_site;
+      }
+      ros2_plugin_declarations.push_back(std::move(declaration));
     }
   }
 
@@ -744,7 +742,7 @@ void MujocoRos2Control::registerSensors() {
     auto probe_node = rclcpp::Node::make_shared(
       "_mujoco_gl_lidar_probe",
       rclcpp::NodeOptions().parameter_overrides({{"use_sim_time", true}}));
-    auto probe_listener = std::make_shared<mujoco_gl_lidar::ParamListener>(probe_node);
+    auto probe_listener = std::make_shared<mujoco_ros2_plugins_lidar::ParamListener>(probe_node);
     const std::string prefix = probe_listener->get_params().site_prefix;
 
     for (int id = 0; id < mujoco_model_->nsite; id++) {
@@ -759,27 +757,30 @@ void MujocoRos2Control::registerSensors() {
       std::string node_name = site_name.substr(prefix.size());
       if (node_name.empty()) node_name = site_name;
 
-      auto node = rclcpp::Node::make_shared(
+      // A throwaway node, solely to read whether external YAML enabled this
+      // lidar: the same lookup a real node's parameter overrides would answer,
+      // without yet committing to loading the plugin.
+      auto probe_node = rclcpp::Node::make_shared(
         node_name,
         rclcpp::NodeOptions().parameter_overrides({{"use_sim_time", true}}));
 
-      const auto &overrides = node->get_node_parameters_interface()->get_parameter_overrides();
+      const auto &overrides = probe_node->get_node_parameters_interface()->get_parameter_overrides();
       const auto it = overrides.find("enabled");
       if (it == overrides.end() || !it->second.get<bool>()) {
         continue;
       }
 
-      lidar_nodes_.push_back(node);
-      executor_->add_node(node);
       RCLCPP_WARN(nh_->get_logger(),
         "Lidar '%s' was auto-discovered from a site-prefix, which is deprecated "
         "and scheduled for removal. Declare it instead with <mujoco_ros2_plugin "
         "plugin=\"mujoco_ros2_control/LidarSensor\">.",
         node_name.c_str());
-      auto lidar = std::make_shared<mujoco_gl_lidar::MujocoGLLidar>(
-        node, mujoco_model_, mujoco_data_, &sim_mutex_, id, node_name, &stop_);
-      lidars_.push_back(lidar);
-      lidar_threads_.emplace_back([ObjectPtr = lidar] { ObjectPtr->update(); });
+
+      MujocoRos2PluginInfo declaration;
+      declaration.name = node_name;
+      declaration.plugin = "mujoco_ros2_control/LidarSensor";
+      declaration.parameters["site"] = site_name;
+      ros2_plugin_declarations.push_back(std::move(declaration));
     }
   }
 
@@ -846,27 +847,10 @@ void mujoco_ros2_control::MujocoRos2Control::mujocoStepSimulationCallback(
   // batch was advancing. Force one render after the final step and wait until
   // it has been published before returning the authoritative simulation time.
   // The outer step lock freezes reset/teleport/physics throughout this wait.
-  // Cameras reach the simulation two ways -- found by site prefix into cameras_,
-  // or declared as a <mujoco_ros2_plugin> and owned by the plugin -- and both
-  // have to be waited for. Everything is asked before anything is waited on, so
-  // the frames are rendered concurrently.
-  std::vector<std::pair<
-      std::shared_ptr<mujoco_rgbd_camera::MujocoDepthCamera>, std::uint64_t>>
-      camera_requests;
-  camera_requests.reserve(cameras_.size());
-  for (const auto &camera : cameras_) {
-    camera_requests.emplace_back(camera, camera->request_synchronous_frame());
-  }
+  // Every plugin is asked before any is waited on, so the frames are rendered
+  // concurrently.
   const auto plugin_requests = ros2_plugins_.requestSynchronousFrames();
 
-  for (const auto &[camera, sequence] : camera_requests) {
-    if (!camera->wait_for_synchronous_frame(
-        sequence, std::chrono::seconds(5))) {
-      response->success = false;
-      response->message = "Timed out waiting for post-step RGB-D frame.";
-      return;
-    }
-  }
   std::string stalled_plugin;
   if (!ros2_plugins_.waitForSynchronousFrames(
       plugin_requests, std::chrono::seconds(5), &stalled_plugin)) {

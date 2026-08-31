@@ -1,9 +1,8 @@
 /**
  * @file lidar_impl.cpp
- * @brief Implementation of LidarImpl (OpenGL depth-buffer lidar). A standalone
- *        copy of mujoco_gl_lidar::MujocoGLLidar so this plugin does not depend
- *        on the mujoco_gl_lidar folder, which is slated for removal once the
- *        node's site-prefix discovery is retired.
+ * @brief Implementation of LidarImpl (OpenGL depth-buffer lidar), kept
+ *        independent of the node's own site-prefix discovery in
+ *        MujocoRos2Control.
  *
  * @author Adrian Danzglock
  * @date 2026

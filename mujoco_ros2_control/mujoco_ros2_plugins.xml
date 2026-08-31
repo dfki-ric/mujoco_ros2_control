@@ -4,10 +4,9 @@
             type="mujoco_ros2_plugins::DepthCameraSensor"
             base_class_type="mujoco_ros2_control::MujocoRos2PluginInterface">
         <description>
-            Declares a mujoco_rgbd_camera::MujocoDepthCamera through a
-            &lt;mujoco_ros2_plugin&gt; element, mounted on a MuJoCo camera
-            element or on one or two sites, instead of being found by a site
-            prefix.
+            Declares an RGB-D camera through a &lt;mujoco_ros2_plugin&gt;
+            element, mounted on a MuJoCo camera element or on one or two
+            sites, instead of being found by a site prefix.
         </description>
     </class>
     <class
@@ -15,9 +14,9 @@
             type="mujoco_ros2_plugins::LidarSensor"
             base_class_type="mujoco_ros2_control::MujocoRos2PluginInterface">
         <description>
-            Declares a mujoco_gl_lidar::MujocoGLLidar through a
-            &lt;mujoco_ros2_plugin&gt; element, mounted on a named site, instead
-            of being found by a site prefix.
+            Declares a GL-rendered lidar through a &lt;mujoco_ros2_plugin&gt;
+            element, mounted on a named site, instead of being found by a site
+            prefix.
         </description>
     </class>
 </library>

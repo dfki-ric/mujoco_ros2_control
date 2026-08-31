@@ -43,9 +43,9 @@ namespace mujoco_ros2_control_plugins {
 /**
  * @brief Exports a MuJoCo force/torque sensor pair as wrench state interfaces.
  *
- * The plugin equivalent of the force/torque branch of the deprecated
- * MujocoRos2ControlSensors classifier, and interface-compatible with it, so
- * force_torque_sensor_broadcaster works unchanged. Either sensor may be absent.
+ * The plugin equivalent of the force/torque branch of the deprecated built-in
+ * classifier in MujocoRos2ControlSensorLoader, and interface-compatible with it,
+ * so force_torque_sensor_broadcaster works unchanged. Either sensor may be absent.
  *
  * @code{.xml}
  * <sensor name="link3_wrench">

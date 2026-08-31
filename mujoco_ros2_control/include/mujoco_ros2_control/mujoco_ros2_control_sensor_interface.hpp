@@ -51,24 +51,18 @@ namespace mujoco_ros2_control {
  * An XML attribute cannot be used: ros2_control's parser drops unknown
  * attributes on `<sensor>` without error.
  *
- * Its presence is also what makes the two sensor paths exclusive -- it opts the
- * `<sensor>` in to MujocoRos2ControlSensorLoader and, by the same token, out of the
- * built-in classifier in MujocoRos2ControlSensors. Both consult this one name, so a sensor
- * is never registered twice.
+ * Its absence is what falls a `<sensor>` back to MujocoRos2ControlSensorLoader's
+ * deprecated built-in classifier, which guesses a plugin from state interface
+ * names instead of being told one explicitly.
  */
 constexpr const char *kSensorPluginParam = "plugin";
 
 /**
  * @brief Base class for sensor handlers loaded through pluginlib.
  *
- * This is the extensible counterpart to MujocoRos2ControlSensors, which classifies IMU,
- * force/torque and pose sensors by inspecting their state interface names. That
- * built-in path is unchanged and still runs for every `<sensor>` that does not
- * name a plugin; this one is additive.
- *
- * A `<sensor>` opts in through the @ref kSensorPluginParam parameter, which also
- * opts it out of that classifier. It has to be a `<param>` rather than an
- * attribute, and ComponentInfo::type is always "sensor".
+ * A `<sensor>` names its plugin through the @ref kSensorPluginParam parameter.
+ * It has to be a `<param>` rather than an attribute, and ComponentInfo::type is
+ * always "sensor".
  *
  * @code{.xml}
  * <sensor name="fingertip_touch">
@@ -77,11 +71,11 @@ constexpr const char *kSensorPluginParam = "plugin";
  * </sensor>
  * @endcode
  *
- * Two capabilities motivate this over the built-in classifier:
+ * Two capabilities motivate a plugin over the built-in IMU/ForceTorque/Pose
+ * classes:
  *
- * - Sensor types the classifier cannot express. Its dispatch is a substring
- *   match on interface names, so anything that is not an IMU, a force/torque or
- *   a pose sensor cannot be added without editing this package.
+ * - Sensor types those cannot express: anything beyond an IMU, a force/torque
+ *   or a pose sensor needs a plugin of its own.
  * - Outputs that do not fit ros2_control's scalar StateInterface model. A MuJoCo
  *   `touch_grid` yields `nchannel * width * height` values per step, which is far
  *   more natural on a topic than as several hundred interfaces. Hence the node

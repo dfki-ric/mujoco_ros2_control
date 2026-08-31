@@ -46,10 +46,6 @@ namespace mujoco_ros2_control {
 /**
  * @brief Owns the MujocoRos2ControlSensorInterface instances declared in the URDF.
  *
- * Runs alongside MujocoRos2ControlSensors rather than replacing it: only `<sensor>`
- * elements carrying a `plugin` parameter are handled here, and everything else
- * is left to the built-in classifier.
- *
  * @par Destruction order
  * `loader_` is declared before `sensors_` so the instances are destroyed before
  * the class loader unloads their libraries. Reversing these two members unloads
@@ -61,10 +57,12 @@ public:
     MujocoRos2ControlSensorLoader();
 
     /**
-     * @brief Instantiate a plugin for every `<sensor>` that names one.
+     * @brief Instantiate a plugin for every `<sensor>`.
      *
-     * Sensors without a `plugin` parameter are skipped, leaving them to
-     * MujocoRos2ControlSensors. A sensor whose plugin fails to load or fails its own
+     * A `<sensor>` names its plugin with a `plugin` parameter. One that does not
+     * falls back to a deprecated classifier that guesses IMU, ForceTorque or Pose
+     * from its state interface names; a `<sensor>` matching none of those is
+     * skipped. A sensor whose plugin fails to load or fails its own
      * registerSensor() is reported and skipped; the simulation still comes up
      * with the remaining sensors.
      *

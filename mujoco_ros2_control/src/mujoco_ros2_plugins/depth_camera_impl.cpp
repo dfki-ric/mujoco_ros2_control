@@ -1,10 +1,8 @@
 /**
  * @file depth_camera_impl.cpp
  *
- * @brief Implementation of DepthCameraImpl. A standalone copy of
- *        mujoco_rgbd_camera::MujocoDepthCamera so this plugin does not depend on
- *        the mujoco_rgbd_camera folder, which is slated for removal once the
- *        node's site-prefix discovery is retired.
+ * @brief Implementation of DepthCameraImpl, kept independent of the node's own
+ *        site-prefix discovery in MujocoRos2Control.
  *
  * @author Adrian Danzglock
  * @date 2023

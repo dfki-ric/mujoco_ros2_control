@@ -47,11 +47,12 @@ namespace mujoco_ros2_plugins {
  *        `<camera>` element or a site prefix.
  *
  * A thin adapter: the rendering and publishing all stay in
- * mujoco_ros2_plugins_depth_camera::DepthCameraImpl, a standalone copy of
- * mujoco_rgbd_camera::MujocoDepthCamera kept independent of the folder used by
- * the site-prefix discovery in MujocoRos2Control. This only makes it declarable,
- * so a camera can be named in the URDF next to the frame it looks from rather
- * than being found by a naming convention.
+ * mujoco_ros2_plugins_depth_camera::DepthCameraImpl, kept independent of the
+ * node's own site-prefix discovery in MujocoRos2Control (which, for a camera it
+ * finds that way, builds a declaration for this same plugin rather than
+ * rendering on its own). This only makes it declarable, so a camera can be
+ * named in the URDF next to the frame it looks from rather than being found by
+ * a naming convention.
  *
  * Exactly one mount has to be named:
  * - `camera`       : a MuJoCo `<camera>` element. Pose and vertical FOV come

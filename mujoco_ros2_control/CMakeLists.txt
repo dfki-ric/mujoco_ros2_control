@@ -144,24 +144,12 @@ generate_parameter_library(${PROJECT_NAME}_parameters
     src/${PROJECT_NAME}_parameters.yaml
 )
 
-generate_parameter_library(mujoco_rgbd_camera_parameters
-    src/mujoco_rgbd_camera_parameters.yaml
-)
-
-generate_parameter_library(mujoco_gl_lidar_parameters
-    src/mujoco_gl_lidar_parameters.yaml
-)
-
-# Parameter libraries for the <mujoco_ros2_plugin> depth camera and lidar,
-# kept separate from mujoco_rgbd_camera_parameters/mujoco_gl_lidar_parameters
-# above so the plugin does not depend on those folders, which are slated for
-# removal once the node's site-prefix discovery is retired.
 generate_parameter_library(mujoco_ros2_plugins_depth_camera_parameters
-    src/mujoco_ros2_plugins/mujoco_ros2_plugins_depth_camera_parameters.yaml
+    src/mujoco_ros2_plugins/depth_camera_parameters.yaml
 )
 
 generate_parameter_library(mujoco_ros2_plugins_lidar_parameters
-    src/mujoco_ros2_plugins/mujoco_ros2_plugins_lidar_parameters.yaml
+    src/mujoco_ros2_plugins/lidar_parameters.yaml
 )
 
 rosidl_generate_interfaces(${PROJECT_NAME}
@@ -177,7 +165,6 @@ rosidl_get_typesupport_target(cpp_typesupport_target
 # Add system plugin
 add_library(mujoco_system_plugins SHARED
     src/mujoco_system.cpp
-    src/mujoco_ros2_control_sensors.cpp
     src/mujoco_ros2_control_sensor_loader.cpp
 )
 ament_target_dependencies(mujoco_system_plugins
@@ -187,9 +174,9 @@ ament_target_dependencies(mujoco_system_plugins
     urdf
 )
 
-# mujoco_system.cpp and mujoco_ros2_control_sensors.cpp call mj_name2id(), mj_id2name() and
-# mj_forward(), so this plugin library has to carry libmujoco itself rather
-# than relying on whichever process happens to dlopen it.
+# mujoco_system.cpp calls mj_name2id(), mj_id2name() and mj_forward(), so this
+# plugin library has to carry libmujoco itself rather than relying on whichever
+# process happens to dlopen it.
 target_link_libraries(mujoco_system_plugins
     mujoco::mujoco
 )
@@ -221,41 +208,11 @@ set(MUJOCO_ROS2_CONTROL_NODE_TARGET ${PROJECT_NAME}_node)
 # Add executable for the main ROS2 control node.
 # The CMake target name must differ from PROJECT_NAME because rosidl creates a
 # generated interface target with the package name.
-# The camera and lidar implementations used by the node's site-prefix
-# discovery. A library of its own because compiling these into the executable
-# would leave the node with no way to share them with anything else that might
-# dlopen it. The <mujoco_ros2_plugin> depth camera and lidar plugins keep their
-# own copies (depth_camera_impl.cpp, lidar_impl.cpp) instead of linking this,
-# so they do not depend on this folder pairing, which is slated for removal
-# once the site-prefix discovery below is retired.
-add_library(mujoco_sensor_implementations SHARED
-    src/mujoco_depth_camera.cpp
-    src/mujoco_gl_lidar.cpp
-)
-ament_target_dependencies(mujoco_sensor_implementations
-    rclcpp
-    cv_bridge
-    PCL
-    pcl_conversions
-    sensor_msgs
-)
-target_link_libraries(mujoco_sensor_implementations
-    mujoco::mujoco
-    OpenGL::EGL
-    ${PCL_LIBRARIES}
-    ${OpenCV_LIBS}
-    mujoco_rgbd_camera_parameters
-    mujoco_gl_lidar_parameters
-)
 
 # The MujocoRos2PluginInterface implementations shipped with this package: thin
-# adapters that let the camera and lidar above be declared as
-# <mujoco_ros2_plugin> instead of found by a site prefix.
-# The rendering/publishing logic (depth_camera_impl.cpp, lidar_impl.cpp) is
-# built directly into this library rather than linking mujoco_sensor_implementations,
-# so this plugin does not depend on the mujoco_rgbd_camera/mujoco_gl_lidar
-# folders, which are slated for removal once the node's site-prefix discovery
-# is retired.
+# adapters that declare a camera or lidar as a <mujoco_ros2_plugin>. The
+# rendering/publishing logic (depth_camera_impl.cpp, lidar_impl.cpp) is a
+# standalone copy, independent of the node's own site-prefix discovery below.
 # Nothing may link this library: pluginlib has to be the one that dlopens it.
 add_library(mujoco_ros2_plugins SHARED
     src/mujoco_ros2_plugins/depth_camera_sensor.cpp
@@ -299,26 +256,17 @@ ament_target_dependencies(${MUJOCO_ROS2_CONTROL_NODE_TARGET}
     urdf
     ament_index_cpp
     realtime_tools
-    cv_bridge
-    PCL
-    pcl_conversions
-    sensor_msgs
     std_srvs
-    tf2_ros
 )
 
 # Link libraries to the main executable
 target_link_libraries(${MUJOCO_ROS2_CONTROL_NODE_TARGET}
     mujoco::mujoco
-    mujoco_sensor_implementations
     tinyxml2::tinyxml2
     glfw
-    OpenGL::EGL
-    ${PCL_LIBRARIES}
-    ${OpenCV_LIBS}
     ${PROJECT_NAME}_parameters
-    mujoco_rgbd_camera_parameters
-    mujoco_gl_lidar_parameters
+    mujoco_ros2_plugins_depth_camera_parameters
+    mujoco_ros2_plugins_lidar_parameters
     "${cpp_typesupport_target}"
 )
 
@@ -349,7 +297,6 @@ install(TARGETS
 install(TARGETS
     mujoco_system_plugins
     mujoco_ros2_control_plugins
-    mujoco_sensor_implementations
     mujoco_ros2_plugins
     ARCHIVE DESTINATION lib
     LIBRARY DESTINATION lib
@@ -406,7 +353,6 @@ ament_export_dependencies(hardware_interface)
 ament_export_dependencies(pluginlib)
 ament_export_libraries(
     mujoco_system_plugins
-    mujoco_sensor_implementations
 )
 
 pluginlib_export_plugin_description_file(mujoco_ros2_control mujoco_system_plugins.xml)

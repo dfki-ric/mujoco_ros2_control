@@ -43,9 +43,10 @@ namespace mujoco_ros2_control_plugins {
 /**
  * @brief Exports a MuJoCo gyro/accelerometer/framequat triple as IMU state interfaces.
  *
- * The plugin equivalent of the IMU branch of the deprecated MujocoRos2ControlSensors
- * classifier, and interface-compatible with it, so imu_sensor_broadcaster works
- * unchanged. Each of the three MuJoCo sensors is optional: whichever the model
+ * The plugin equivalent of the IMU branch of the deprecated built-in classifier
+ * in MujocoRos2ControlSensorLoader, and interface-compatible with it, so
+ * imu_sensor_broadcaster works unchanged. Each of the three MuJoCo sensors is
+ * optional: whichever the model
  * declares against the named object is picked up, the rest stay at their
  * defaults.
  *

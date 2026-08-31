@@ -2,9 +2,9 @@
  * @file depth_camera_impl.hpp
  *
  * @brief RGB-D camera rendering/publishing used by the <mujoco_ros2_plugin>
- *        DepthCameraSensor. A standalone copy of mujoco_rgbd_camera::MujocoDepthCamera
- *        so this plugin does not depend on the mujoco_rgbd_camera folder, which is
- *        slated for removal once the node's site-prefix discovery is retired.
+ *        DepthCameraSensor. Kept independent of the node's own site-prefix
+ *        discovery in MujocoRos2Control, which builds a declaration for this
+ *        same plugin rather than rendering on its own.
  *
  * @author Adrian Danzglock
  * @date 2026

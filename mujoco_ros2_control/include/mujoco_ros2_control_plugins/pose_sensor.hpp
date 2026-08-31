@@ -43,9 +43,9 @@ namespace mujoco_ros2_control_plugins {
 /**
  * @brief Exports a MuJoCo framepos/framequat pair as pose state interfaces.
  *
- * The plugin equivalent of the pose branch of the deprecated MujocoRos2ControlSensors
- * classifier, and interface-compatible with it, so pose_broadcaster works
- * unchanged. Either sensor may be absent.
+ * The plugin equivalent of the pose branch of the deprecated built-in classifier
+ * in MujocoRos2ControlSensorLoader, and interface-compatible with it, so
+ * pose_broadcaster works unchanged. Either sensor may be absent.
  *
  * @code{.xml}
  * <sensor name="probe_pose">
