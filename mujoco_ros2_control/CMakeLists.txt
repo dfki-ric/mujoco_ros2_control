@@ -69,10 +69,16 @@ set(EIGEN3_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIR})
 
 # Fetch MuJoCo
 include(FetchContent)
+# A plain source-tarball GET, not a git clone: on this network, GitHub answers
+# the git-upload-pack POST that `git clone` (even --depth 1) needs with a bare
+# 401 Basic-auth challenge (confirmed: `git ls-remote`, a GET-only ref
+# listing, succeeds fine; the clone's POST does not) - some proxy/gateway
+# between here and github.com apparently gates POSTs, not GETs. The release
+# archive endpoint is itself a plain GET like any other, so it isn't affected.
 FetchContent_Declare(
   mujoco
-  GIT_REPOSITORY https://github.com/google-deepmind/mujoco.git
-  GIT_TAG 3.12.0  # MuJoCo version
+  URL https://github.com/google-deepmind/mujoco/archive/refs/tags/3.12.0.tar.gz
+  URL_HASH SHA256=9faa979982c3e924e8aaff3b16983bba3a1ab19c81f4f73178ae9c2ea25e467d
 )
 
 # Optionally set MuJoCo build options.
