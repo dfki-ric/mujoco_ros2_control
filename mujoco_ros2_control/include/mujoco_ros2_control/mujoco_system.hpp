@@ -54,6 +54,7 @@
 // std libraries
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 #include <utility>
@@ -61,7 +62,7 @@
 
 // Mujoco system interface
 #include "mujoco_ros2_control/mujoco_system_interface.hpp"
-#include "mujoco_ros2_control/mujoco_ros2_control_sensor_loader.hpp"
+#include "mujoco_ros2_control/mujoco_ros2_control_plugin_loader.hpp"
 
 // ROS Hardware Interface
 #include "hardware_interface/hardware_info.hpp"
@@ -210,11 +211,33 @@ namespace mujoco_ros2_control {
          * This method registers the joints in the Mujoco simulation by creating a JointData struct for each joint,
          * setting the necessary joint information, and populating the joint limits.
          *
+         * Every joint still gets a JointData entry, even one naming a plugin: a
+         * MujocoRos2ControlPluginInterface plugin only claims specific interfaces
+         * (see @p claimed_interfaces), never a whole joint, so this only skips
+         * creating a state/command interface (and, for a command interface, the
+         * corresponding ControlMethod) for a name the plugin already claimed.
+         * Everything else about that joint -- limits, mimic wiring, actuator
+         * detection for its other control methods -- proceeds as normal.
+         *
          * @param hardware_info Hardware information.
          * @param joints A map of joint names to URDF joint pointers.
+         * @param claimed_interfaces Per joint naming a plugin, the interfaces it claimed.
          */
         void registerJoints(const hardware_interface::HardwareInfo &hardware_info,
-                            const std::map<std::string, std::shared_ptr<urdf::Joint>> &joints);
+                            const std::map<std::string, std::shared_ptr<urdf::Joint>> &joints,
+                            const std::map<std::string, ClaimedInterfaces> &claimed_interfaces);
+
+        /**
+         * @brief Resolves each joint's URDF-derived limits, ahead of anything else.
+         *
+         * A plugin needs its joint's limits at registerComponent() time -- before
+         * registerJoints() would otherwise resolve them -- so this is run first,
+         * from initSim(), duplicating the small amount of URDF-limit-reading logic
+         * registerJoints() also does for its own JointData fields.
+         */
+        std::map<std::string, JointLimits> resolveJointLimits(
+                const hardware_interface::HardwareInfo &hardware_info,
+                const std::map<std::string, std::shared_ptr<urdf::Joint>> &joints);
 
         // Variables
         mjModel *mujoco_model_;  ///< Pointer to the Mujoco model.
@@ -235,21 +258,6 @@ namespace mujoco_ros2_control {
         };
 
         // Structs
-        /**
-         * @brief Struct representing the data for a pid controller of a joint
-         */
-        struct PIDConfig {
-            double kp{0.0}; ///< Proportional Gain
-            double ki{0.0}; ///< Integral Gain
-            double kd{0.0}; ///< Derivative Gain
-            double kvff{0.0};  ///< Velocity Feedforward Gain
-            double kaff{0.0};  ///< Acceleration Feedforward Gain
-            double integral{0.0}; ///< Actual integral value
-            double prev_error{0.0}; ///< Previous error
-            bool position{false}; ///< Was tau calculated for position command
-            bool velocity{false}; ///< Was tau calculated for velocity command
-        };
-
         /**
          * @brief Struct representing joint data.
          *
@@ -280,7 +288,13 @@ namespace mujoco_ros2_control {
             int mujoco_qpos_addr;  ///< Address of the joint position in the Mujoco data structure.
             int mujoco_dofadr;  ///< Degree-of-freedom (DOF) address of the joint in the Mujoco data structure.
             int type; ///< Type of the joint
-            PIDConfig pid; ///< Gains for pid control when input command is position or velocity
+            /// Command interface names a MujocoRos2ControlPluginInterface plugin
+            /// claimed for this joint (e.g. "position"); empty unless one names a
+            /// plugin. write()/perform_command_mode_switch() skip a name in here
+            /// entirely -- the plugin, driven via plugins_.writeAll(), owns it.
+            std::set<std::string> claimed_command_interfaces;
+            bool warned_no_position_control = false;  ///< One-shot latch: logged once, not every write() cycle.
+            bool warned_no_velocity_control = false;  ///< One-shot latch: logged once, not every write() cycle.
         };
 
         /**
@@ -321,12 +335,12 @@ namespace mujoco_ros2_control {
          */
         std::vector<hardware_interface::CommandInterface> command_interfaces_;
 
-        double pid_control(double kp, double ki, double kd, double error, double last_error, double dt);
-
-        /// Sensor handlers loaded through pluginlib, one per <sensor>: named by a
-        /// "plugin" parameter, or matched by the deprecated built-in classifier
-        /// when it names none.
-        MujocoRos2ControlSensorLoader sensor_plugins_;
+        /// Sensor/GPIO/joint handlers loaded through pluginlib, one per <sensor>,
+        /// <gpio> or plugin-owning <joint>. A <sensor> naming no "plugin" param
+        /// is matched by the deprecated built-in classifier; a <joint> naming
+        /// none is left to this class's own built-in joint logic instead (see
+        /// joints_); a <gpio> naming none is skipped with an error.
+        MujocoRos2ControlPluginLoader plugins_;
 
     protected:
         std::map<std::string, JointData> joints_; ///< Map of joint names to JointData structs.

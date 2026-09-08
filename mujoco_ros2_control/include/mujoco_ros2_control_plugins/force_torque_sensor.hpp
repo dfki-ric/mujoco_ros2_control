@@ -36,7 +36,7 @@
 #include <string>
 #include <vector>
 
-#include "mujoco_ros2_control/mujoco_ros2_control_sensor_interface.hpp"
+#include "mujoco_ros2_control/mujoco_ros2_control_plugin_interface.hpp"
 
 namespace mujoco_ros2_control_plugins {
 
@@ -44,7 +44,7 @@ namespace mujoco_ros2_control_plugins {
  * @brief Exports a MuJoCo force/torque sensor pair as wrench state interfaces.
  *
  * The plugin equivalent of the force/torque branch of the deprecated built-in
- * classifier in MujocoRos2ControlSensorLoader, and interface-compatible with it,
+ * classifier in MujocoRos2ControlPluginLoader, and interface-compatible with it,
  * so force_torque_sensor_broadcaster works unchanged. Either sensor may be absent.
  *
  * @code{.xml}
@@ -56,13 +56,15 @@ namespace mujoco_ros2_control_plugins {
  * </sensor>
  * @endcode
  */
-class ForceTorqueSensor : public mujoco_ros2_control::MujocoRos2ControlSensorInterface {
+class ForceTorqueSensor : public mujoco_ros2_control::MujocoRos2ControlPluginInterface {
 public:
-    bool registerSensor(
+    bool registerComponent(
             const rclcpp::Node::SharedPtr &node,
             const mjModel *mujoco_model,
             const hardware_interface::ComponentInfo &sensor_info,
-            std::vector<hardware_interface::StateInterface> &state_interfaces) override;
+            const mujoco_ros2_control::JointLimits &joint_limits,
+            std::vector<hardware_interface::StateInterface> &state_interfaces,
+            std::vector<hardware_interface::CommandInterface> &command_interfaces) override;
 
     void read(const mjData *mujoco_data) override;
 

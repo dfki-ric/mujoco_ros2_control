@@ -300,8 +300,8 @@ Three `ros2_control` state-interface sensor types ship as `pluginlib` plugins, n
 ```
 
 A `<sensor>` with no plugin param falls back to a built-in classifier that infers the same three types from the state interface names (deprecated, but still supported). Other sensor types are added by implementing
-[`MujocoRos2ControlSensorInterface`](./mujoco_ros2_control/include/mujoco_ros2_control/mujoco_ros2_control_sensor_interface.hpp)
-in a package of your own, no change to `mujoco_ros2_control` needed. See the [URDF Configuration](./mujoco_ros2_control/README.md#ros-2-control-sensor-interfaces) guide for details, and [Writing a Sensor Plugin](./mujoco_ros2_control/README.md#writing-a-sensor-plugin) for the plugin side.
+[`MujocoRos2ControlPluginInterface`](./mujoco_ros2_control/include/mujoco_ros2_control/mujoco_ros2_control_plugin_interface.hpp)
+in a package of your own, no change to `mujoco_ros2_control` needed. The same interface also backs `<gpio>` plugins (always required, no built-in fallback) and `<joint>` plugins, which claim only the specific command/state interfaces they export (e.g. `mujoco_ros2_control/PidJointController` claims just "position" on a joint that also has a real actuator for "velocity") -- every other interface on that joint keeps going through MujocoSystem's built-in logic unaffected. See the [URDF Configuration](./mujoco_ros2_control/README.md#ros-2-control-sensor-interfaces) guide for details, and [Writing a Sensor Plugin](./mujoco_ros2_control/README.md#writing-a-sensor-plugin) for the plugin side.
 
 Depth cameras and lidars (as used in the [Franka](#franka) and [Unitree](#unitree) examples above) are a separate, sibling `pluginlib` mechanism: each runs as its own ROS node outside `<ros2_control>`, so it doesn't appear in this table. See [Side-Channel Sensors](./mujoco_ros2_control/README.md#side-channel-sensors-cameras-and-lidars) for details.
 

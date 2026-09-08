@@ -58,7 +58,6 @@ namespace mujoco_ros2_control {
         this->mujoco_model_ = mujoco_model;
         this->mujoco_data_ = mujoco_data;
 
-        registerJoints(hardware_info, urdf_model_ptr->joints_);
 #if defined(ROS_DISTRO_HUMBLE)
         // Humble's SystemInterface has no get_logger() accessor -- it is only
         // populated from HardwareComponentParams.logger, passed to on_init() on
@@ -67,14 +66,24 @@ namespace mujoco_ros2_control {
 #else
         const rclcpp::Logger logger = get_logger();
 #endif
+        const std::map<std::string, JointLimits> joint_limits =
+            resolveJointLimits(hardware_info, urdf_model_ptr->joints_);
+
+        std::map<std::string, ClaimedInterfaces> claimed_interfaces;
         if (sim_node_) {
-            sensor_plugins_.registerSensors(
-                sim_node_, mujoco_model, hardware_info, state_interfaces_, logger);
+            plugins_.registerSensors(
+                sim_node_, mujoco_model, hardware_info, state_interfaces_, command_interfaces_, logger);
+            plugins_.registerGpios(
+                sim_node_, mujoco_model, hardware_info, state_interfaces_, command_interfaces_, logger);
+            claimed_interfaces = plugins_.registerJoints(
+                sim_node_, mujoco_model, hardware_info, joint_limits, state_interfaces_, command_interfaces_, logger);
         } else {
             RCLCPP_ERROR(logger,
-                "No simulation node was provided, so <sensor> plugins cannot be loaded. "
-                "MujocoResourceManager::setSimNode() was not called.");
+                "No simulation node was provided, so <sensor>/<gpio>/<joint> plugins cannot "
+                "be loaded. MujocoResourceManager::setSimNode() was not called.");
         }
+
+        registerJoints(hardware_info, urdf_model_ptr->joints_, claimed_interfaces);
 
         std::vector<std::string> joints_to_remove = {};
         for (const auto &joint : joints_) {
@@ -88,7 +97,37 @@ namespace mujoco_ros2_control {
         return true;
     }
 
-    void MujocoSystem::registerJoints(const hardware_interface::HardwareInfo &hardware_info, const std::map<std::string, std::shared_ptr<urdf::Joint>> &joints) {
+    std::map<std::string, JointLimits> MujocoSystem::resolveJointLimits(
+            const hardware_interface::HardwareInfo &hardware_info,
+            const std::map<std::string, std::shared_ptr<urdf::Joint>> &joints) {
+        std::map<std::string, JointLimits> limits;
+        for (const auto &joint_info : hardware_info.joints) {
+            const auto urdf_joint_it = joints.find(joint_info.name);
+            if (urdf_joint_it == joints.end()) {
+                continue;
+            }
+            const urdf::Joint &urdf_joint = *urdf_joint_it->second;
+
+            JointLimits joint_limits;
+            if (urdf_joint.type == urdf::Joint::REVOLUTE || urdf_joint.type == urdf::Joint::PRISMATIC) {
+                joint_limits.upper = urdf_joint.limits->upper;
+                joint_limits.lower = urdf_joint.limits->lower;
+            }
+            if (urdf_joint.type == urdf::Joint::REVOLUTE || urdf_joint.type == urdf::Joint::PRISMATIC ||
+                urdf_joint.type == urdf::Joint::CONTINUOUS) {
+                if (urdf_joint.limits != nullptr) {
+                    joint_limits.velocity = urdf_joint.limits->velocity;
+                    joint_limits.effort = urdf_joint.limits->effort;
+                }
+            }
+            limits[joint_info.name] = joint_limits;
+        }
+        return limits;
+    }
+
+    void MujocoSystem::registerJoints(const hardware_interface::HardwareInfo &hardware_info,
+                                       const std::map<std::string, std::shared_ptr<urdf::Joint>> &joints,
+                                       const std::map<std::string, ClaimedInterfaces> &claimed_interfaces) {
         auto string_to_double = [this](const std::string & input, double default_value=0.0) {
             if (!input.empty()) {
                 double value = std::stod(input);
@@ -100,9 +139,14 @@ namespace mujoco_ros2_control {
         };
         name_ = hardware_info.name;
 
+        static const ClaimedInterfaces kNoClaims{};
+
         RCLCPP_INFO(rclcpp::get_logger(hardware_info.name.c_str()), "Initializing Hardware Interface");
         for (auto& joint_info : hardware_info.joints) {
             RCLCPP_INFO(rclcpp::get_logger(hardware_info.name.c_str()), "  %s", joint_info.name.c_str());
+            const auto claims_it = claimed_interfaces.find(joint_info.name);
+            const ClaimedInterfaces &claims =
+                (claims_it != claimed_interfaces.end()) ? claims_it->second : kNoClaims;
             if (joints.find(joint_info.name) == joints.end()) {
                 RCLCPP_WARN(rclcpp::get_logger("mujoco_system"),
                             "Joint %s was not found in the URDF, registration of joint failed", joint_info.name.c_str());
@@ -117,6 +161,7 @@ namespace mujoco_ros2_control {
             // Create struct for joint with joint related datas
             JointData& joint = joints_.at(joint_info.name);
             joint.name = joint_info.name;
+            joint.claimed_command_interfaces = claims.command;
 
             joint.mujoco_joint_id = mj_joint_id;
             joint.mujoco_qpos_addr = mujoco_model_->jnt_qposadr[joint.mujoco_joint_id];
@@ -136,20 +181,6 @@ namespace mujoco_ros2_control {
                 if (joints.at(joint.name)->limits != nullptr) {
                     joint.velocity_limit = joints.at(joint.name)->limits->velocity;
                     joint.effort_limit = joints.at(joint.name)->limits->effort;
-                }
-            }
-
-            for (auto& param : joint_info.parameters) {
-                if (param.first == "p" || param.first == "kp") {
-                    joint.pid.kp = string_to_double(param.second);
-                } else if (param.first == "i" || param.first == "ki") {
-                    joint.pid.ki = string_to_double(param.second);
-                } else if (param.first == "d" || param.first == "kd") {
-                    joint.pid.kd = string_to_double(param.second);
-                } else if (param.first == "aff" || param.first == "kaff") {
-                    joint.pid.kaff = string_to_double(param.second);
-                } else if (param.first == "vff" || param.first == "kvff") {
-                    joint.pid.kvff = string_to_double(param.second);
                 }
             }
 
@@ -184,6 +215,10 @@ namespace mujoco_ros2_control {
 
             // Setup State Interfaces
             for(auto& state_interface : joint_info.state_interfaces) {
+                if (claims.state.count(state_interface.name)) {
+                    // Claimed by a plugin; it exported this interface itself.
+                    continue;
+                }
                 if (state_interface.name == "position") {
                     joint.state_interfaces.emplace_back(&state_interfaces_.emplace_back(
                             joint.name,
@@ -212,6 +247,11 @@ namespace mujoco_ros2_control {
             }
             // Setup Command Interfaces
             for(auto& command_interface : joint_info.command_interfaces) {
+                if (claims.command.count(command_interface.name)) {
+                    // Claimed by a plugin; it exported this interface (and drives
+                    // its control method) itself -- see MujocoRos2ControlPluginLoader.
+                    continue;
+                }
                 if (command_interface.name == "position") {
                     joint.command_interfaces.emplace_back(&command_interfaces_.emplace_back(
                             joint.name,
@@ -362,12 +402,12 @@ namespace mujoco_ros2_control {
     }
 
     CallbackReturn MujocoSystem::on_activate(const rclcpp_lifecycle::State &previous_state) {
-        sensor_plugins_.activate();
+        plugins_.activate();
         return CallbackReturn::SUCCESS;
     }
 
     CallbackReturn MujocoSystem::on_deactivate(const rclcpp_lifecycle::State &previous_state) {
-        sensor_plugins_.deactivate();
+        plugins_.deactivate();
         return CallbackReturn::SUCCESS;
     }
 
@@ -377,18 +417,22 @@ namespace mujoco_ros2_control {
             const std::vector<std::string> &stop_interfaces) {
         for (auto& joint : joints_) {
             std::vector<ControlMethod> & control_methods = joint.second.control_methods;
+            const auto &claimed = joint.second.claimed_command_interfaces;
             for (const std::string &interface_name : stop_interfaces) {
-                if (interface_name == joint.first + "/" + hardware_interface::HW_IF_POSITION) {
+                if (interface_name == joint.first + "/" + hardware_interface::HW_IF_POSITION &&
+                    !claimed.count(hardware_interface::HW_IF_POSITION)) {
                     if (!control_methods.empty()) {
                         control_methods.erase(std::find(control_methods.begin(), control_methods.end(), POSITION));
                     }
                     RCLCPP_DEBUG(rclcpp::get_logger("mujoco_system"), "command_mode_stop_position");
-                } else if (interface_name == joint.first + "/" + hardware_interface::HW_IF_VELOCITY) {
+                } else if (interface_name == joint.first + "/" + hardware_interface::HW_IF_VELOCITY &&
+                    !claimed.count(hardware_interface::HW_IF_VELOCITY)) {
                     if (!control_methods.empty()) {
                         control_methods.erase(std::find(control_methods.begin(), control_methods.end(), VELOCITY));
                     }
                     RCLCPP_DEBUG(rclcpp::get_logger("mujoco_system"), "command_mode_stop_velocity");
-                } else if (interface_name == joint.first + "/" + hardware_interface::HW_IF_EFFORT) {
+                } else if (interface_name == joint.first + "/" + hardware_interface::HW_IF_EFFORT &&
+                    !claimed.count(hardware_interface::HW_IF_EFFORT)) {
                     if (!control_methods.empty()) {
                         control_methods.erase(std::find(control_methods.begin(), control_methods.end(), EFFORT));
                     }
@@ -396,19 +440,22 @@ namespace mujoco_ros2_control {
                 }
             }
             for (const std::string &interface_name : start_interfaces) {
-                if (interface_name == joint.first + "/" + hardware_interface::HW_IF_POSITION) {
+                if (interface_name == joint.first + "/" + hardware_interface::HW_IF_POSITION &&
+                    !claimed.count(hardware_interface::HW_IF_POSITION)) {
                     if (!control_methods.empty()) {
                         control_methods.erase(std::find(control_methods.begin(), control_methods.end(), POSITION));
                     }
                     control_methods.push_back(POSITION);
                     RCLCPP_DEBUG(rclcpp::get_logger("mujoco_system"), "command_mode_start_position for: %s", interface_name.c_str());
-                } else if (interface_name == joint.first + "/" + hardware_interface::HW_IF_VELOCITY) {
+                } else if (interface_name == joint.first + "/" + hardware_interface::HW_IF_VELOCITY &&
+                    !claimed.count(hardware_interface::HW_IF_VELOCITY)) {
                     if (!control_methods.empty()) {
                         control_methods.erase(std::find(control_methods.begin(), control_methods.end(), VELOCITY));
                     }
                     control_methods.push_back(VELOCITY);
                     RCLCPP_DEBUG(rclcpp::get_logger("mujoco_system"), "command_mode_start_velocity for: %s", interface_name.c_str());
-                } else if (interface_name == joint.first + "/" + hardware_interface::HW_IF_EFFORT) {
+                } else if (interface_name == joint.first + "/" + hardware_interface::HW_IF_EFFORT &&
+                    !claimed.count(hardware_interface::HW_IF_EFFORT)) {
                     if (!control_methods.empty()) {
                         control_methods.clear();
                     }
@@ -416,6 +463,10 @@ namespace mujoco_ros2_control {
                     RCLCPP_DEBUG(rclcpp::get_logger("mujoco_system"), "command_mode_start_effort for: %s", interface_name.c_str());
                 }
             }
+        }
+
+        if (!plugins_.performCommandModeSwitch(start_interfaces, stop_interfaces)) {
+            return hardware_interface::return_type::ERROR;
         }
 
         return hardware_interface::return_type::OK;
@@ -433,7 +484,7 @@ namespace mujoco_ros2_control {
                          + mujoco_data_->qfrc_applied[joint.mujoco_dofadr];
         }
 
-        sensor_plugins_.readSensors(mujoco_data_);
+        plugins_.readAll(mujoco_data_);
 
         return hardware_interface::return_type::OK;
     }
@@ -455,10 +506,6 @@ namespace mujoco_ros2_control {
             auto &joint = joint_data.second;
             auto & actuators = joint.actuators;
             auto & control_methods = joint.control_methods;
-            auto &pid = joint.pid;
-            double tau = 0.0;
-            pid.position = false;
-            pid.velocity = false;
 
             // Position Control
             if (std::find(control_methods.begin(), control_methods.end(), POSITION) != control_methods.end()) {
@@ -474,18 +521,15 @@ namespace mujoco_ros2_control {
                         joint.last_command = position;
                         mujoco_data_->ctrl[actuators[POSITION]] = position;
                     }
-                } else {
-                    pid.position = true;
-                    double position_error = position - mujoco_data_->qpos[joint.mujoco_qpos_addr];
-                    if (joint.last_command != position) {
-                        joint.last_command = position;
-                        pid.integral = position_error;
-                    } else {
-                        pid.integral += position_error;
-                    }
-                    double derivative = (position_error - pid.prev_error) / period.seconds();
-                    tau = pid.kp * position_error + pid.ki * pid.integral + pid.kd * derivative;
-                    pid.prev_error = position_error;
+                } else if (!joint.warned_no_position_control) {
+                    // No actuator, and (since it would otherwise have been excluded
+                    // from control_methods entirely, see registerJoints()) no plugin
+                    // claiming "position" either -- nothing drives this command.
+                    RCLCPP_ERROR(rclcpp::get_logger("mujoco_system"),
+                        "Joint '%s' has an active position command with no matching "
+                        "actuator and no <param name=\"plugin\"> claiming it; this "
+                        "command is being ignored.", joint.name.c_str());
+                    joint.warned_no_position_control = true;
                 }
             }
 
@@ -501,45 +545,13 @@ namespace mujoco_ros2_control {
                     if (velocity != joint.last_command) {
                         mujoco_data_->ctrl[actuators[VELOCITY]] = velocity;
                     }
-                } else {
-                    pid.velocity = true;
-                    if (pid.position) {
-                        // add velocity feed forward term to tau
-                        tau += pid.kvff * velocity;
-                    } else {
-                        double velocity_error = velocity - mujoco_data_->qvel[joint.mujoco_dofadr];
-                        if (joint.last_command != velocity) {
-                            joint.last_command = velocity;
-                            pid.integral = velocity_error;
-                        } else {
-                            pid.integral += velocity_error;
-                        }
-                        double derivative = (velocity_error - pid.prev_error) / period.seconds();
-                        tau = pid.kp * velocity_error + pid.ki * pid.integral + pid.kd * derivative;
-                        pid.prev_error = velocity_error;
-                    }
+                } else if (!joint.warned_no_velocity_control) {
+                    RCLCPP_ERROR(rclcpp::get_logger("mujoco_system"),
+                        "Joint '%s' has an active velocity command with no matching "
+                        "actuator and no <param name=\"plugin\"> claiming it; this "
+                        "command is being ignored.", joint.name.c_str());
+                    joint.warned_no_velocity_control = true;
                 }
-            }
-
-            // Acceleration Control (Only when also Position and Velocity)
-            if (pid.position && pid.velocity && std::find(control_methods.begin(), control_methods.end(), ACCELERATION) != control_methods.end()) {
-                // get velocity command inside the limits
-                double acceleration = std::clamp(joint.acceleration_command,
-                                             -joint.acceleration_limit,
-                                             joint.acceleration_limit);
-                // add acceleration feed forward term to tau
-                tau += pid.kaff * acceleration;
-            }
-
-            // Write the calculated clamped tau to the mujoco joint
-            if (pid.position || pid.velocity) {
-                double tau_cmd = std::clamp(tau, -joint.effort_limit, joint.effort_limit);
-
-                // write to effort address from the joint
-                mujoco_data_->qfrc_applied[joint.mujoco_dofadr] = tau_cmd;
-
-                // Reset flags for used input commands to calculate tau
-                pid.position = pid.velocity = false;
             }
 
             // Effort Control
@@ -558,6 +570,8 @@ namespace mujoco_ros2_control {
                 }
             }
         }
+
+        plugins_.writeAll(mujoco_data_, period.seconds());
 
         return hardware_interface::return_type::OK;
     }

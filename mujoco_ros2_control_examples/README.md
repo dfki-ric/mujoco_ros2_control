@@ -237,7 +237,7 @@ The scene it writes stands in for `mujoco_ros2_control`'s `mjcf/scene.xml`; pass
 
 ### Tactile pad (touch_grid)
 
-A 6 cm pad on a prismatic joint, resting on the ground plane, with a MuJoCo `touch_grid` sensor imaging its contact face. This example is about the sensor rather than the robot: a worked example of a `MujocoRos2ControlSensorInterface` plugin living **outside** `mujoco_ros2_control`.
+A 6 cm pad on a prismatic joint, resting on the ground plane, with a MuJoCo `touch_grid` sensor imaging its contact face. This example is about the sensor rather than the robot: a worked example of a `MujocoRos2ControlPluginInterface` plugin living **outside** `mujoco_ros2_control`.
 
 ```bash
 ros2 launch mujoco_ros2_control_examples tactile.launch.py

@@ -2,7 +2,7 @@
     <class
             name="mujoco_ros2_control/ImuSensor"
             type="mujoco_ros2_control_plugins::ImuSensor"
-            base_class_type="mujoco_ros2_control::MujocoRos2ControlSensorInterface">
+            base_class_type="mujoco_ros2_control::MujocoRos2ControlPluginInterface">
         <description>
             Exports a MuJoCo gyro/accelerometer/framequat triple as IMU state
             interfaces, compatible with imu_sensor_broadcaster.
@@ -11,7 +11,7 @@
     <class
             name="mujoco_ros2_control/ForceTorqueSensor"
             type="mujoco_ros2_control_plugins::ForceTorqueSensor"
-            base_class_type="mujoco_ros2_control::MujocoRos2ControlSensorInterface">
+            base_class_type="mujoco_ros2_control::MujocoRos2ControlPluginInterface">
         <description>
             Exports a MuJoCo force/torque sensor pair as wrench state interfaces,
             compatible with force_torque_sensor_broadcaster.
@@ -20,10 +20,20 @@
     <class
             name="mujoco_ros2_control/PoseSensor"
             type="mujoco_ros2_control_plugins::PoseSensor"
-            base_class_type="mujoco_ros2_control::MujocoRos2ControlSensorInterface">
+            base_class_type="mujoco_ros2_control::MujocoRos2ControlPluginInterface">
         <description>
             Exports a MuJoCo framepos/framequat pair as pose state interfaces,
             compatible with pose_broadcaster.
+        </description>
+    </class>
+    <class
+            name="mujoco_ros2_control/PidJointController"
+            type="mujoco_ros2_control_plugins::PidJointController"
+            base_class_type="mujoco_ros2_control::MujocoRos2ControlPluginInterface">
+        <description>
+            Claims a joint's position/velocity/acceleration command interfaces
+            and drives them into qfrc_applied with a software PD/PID loop, for
+            whichever of them has no matching MuJoCo actuator.
         </description>
     </class>
 </library>

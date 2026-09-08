@@ -98,11 +98,18 @@ For reference, see the `urdf` directories in the provided examples ([franka](htt
         <plugin>mujoco_ros2_control/MujocoSystem</plugin>
     </hardware>
 
-    <!-- Joint with position + velocity + acceleration PID control -->
+    <!-- Joint with position + velocity + acceleration PID control.
+         Neither this joint nor MujocoSystem has a matching MuJoCo actuator for
+         any of these, so mujoco_ros2_control/PidJointController claims all
+         three command interfaces and drives qfrc_applied itself; a joint that
+         instead names no plugin and has no actuator now gets a one-shot error
+         at write() time rather than silently falling back to PID. -->
     <joint name="joint1">
         <command_interface name="position"/>
         <command_interface name="velocity"/>
         <command_interface name="acceleration"/>
+
+        <param name="plugin">mujoco_ros2_control/PidJointController</param>
 
         <param name="kp">1000.0</param>
         <param name="ki">0.0</param>
@@ -303,15 +310,17 @@ For example, `<param name="site">imu_in_pelvis</param>` matches all MuJoCo senso
 ### Writing a Sensor Plugin
 
 A sensor plugin implements
-[`mujoco_ros2_control::MujocoRos2ControlSensorInterface`](include/mujoco_ros2_control/mujoco_ros2_control_sensor_interface.hpp)
+[`mujoco_ros2_control::MujocoRos2ControlPluginInterface`](include/mujoco_ros2_control/mujoco_ros2_control_plugin_interface.hpp)
 and is loaded by name through `pluginlib`. Use this to add a sensor type the built-in classifier can't express, or to expose output that doesn't fit ros2_control's scalar `StateInterface` model - a MuJoCo
 `touch_grid`, for instance, yields `nchannel * width * height` values per step, which belongs on a topic rather than several hundred interfaces.
+
+The same interface also backs `<gpio>` plugins (which must always name one - there is no built-in GPIO handling to fall back to) and `<joint>` plugins. A `<joint>` plugin doesn't take over the whole joint: it claims only the specific command interfaces it exports (via `claimed_command_interfaces()`/`claimed_state_interfaces()`, both empty by default), and only those are excluded from MujocoSystem's built-in path -- a different control method on the same joint (a real actuator, mimic wiring, effort passthrough) keeps working unaffected. `registerComponent()` also receives a `JointLimits` (the joint's URDF-derived position/velocity/effort/acceleration limits), unbounded and irrelevant for a `<sensor>`/`<gpio>`. `write(mujoco_data, dt)` and `perform_command_mode_switch(...)` round out the interface, both no-ops by default and irrelevant to a read-only sensor.
 
 Four methods, of which only the first two are required:
 
 | Method | Called | Purpose |
 |---|---|---|
-| `registerSensor(node, mujoco_model, sensor_info, state_interfaces)` | once, while the hardware component initialises | read the `<param>` entries, resolve MuJoCo sensor addresses, append state interfaces. Return `false` to reject the declaration (after logging why); the sensor is skipped and the rest keep loading. |
+| `registerComponent(node, mujoco_model, component_info, state_interfaces, command_interfaces)` | once, while the hardware component initialises | read the `<param>` entries, resolve MuJoCo sensor addresses, append state interfaces (a sensor plugin leaves `command_interfaces` untouched). Return `false` to reject the declaration (after logging why); the sensor is skipped and the rest keep loading. |
 | `read(mujoco_data)` | every `read()` cycle, in the control loop | copy this step's values out of `mjData::sensordata` |
 | `activate()` / `deactivate()` | from the component's `on_activate()` / `on_deactivate()` | start and stop publishing |
 
@@ -319,7 +328,7 @@ Rules for a plugin that behaves in the control loop:
 
 - **Storage must not move.** Every `double` exported as a `StateInterface` is handed out as a pointer, so it must live in the plugin object itself, never a container that can reallocate.
 - **`read()` runs in the control loop.** Keep it allocation-free. Publish only through `realtime_tools::RealtimePublisher`, never a plain publisher, which can block.
-- **The `node` passed to `registerSensor()` is the simulation node**, already spinning, so declaring parameters and creating publishers there is fine. It's deliberately not the hardware component's own node: `get_node()` on the component still returns `nullptr` at that point.
+- **The `node` passed to `registerComponent()` is the simulation node**, already spinning, so declaring parameters and creating publishers there is fine. It's deliberately not the hardware component's own node: `get_node()` on the component still returns `nullptr` at that point.
 - **Nothing may link the plugin library.** `pluginlib` has to `dlopen` it itself, or `class_loader` registers the factories outside its own bookkeeping and reports "no factory exists for it" when the class is requested.
 
 Helpers for reading configuration and resolving MuJoCo sensor addresses are in
@@ -337,7 +346,7 @@ topic_ = declare_param(node, sensor_info, "topic", sensor_info.name + "/touch");
 cutoff_ = declare_double_param(node, sensor_info, "cutoff", 20.0);
 ```
 
-One helper per type - `declare_param()` (string), `declare_bool_param()`, `declare_int_param()`, `declare_double_param()`, and the three `declare_*_array_param()` - each callable once per key, from `registerSensor()`/`configure()` only. Where the key lands in the YAML follows from the node: a `<mujoco_ros2_plugin>` has its own, named after the declaration; a `<sensor>` inside `<ros2_control>` shares the simulation node, so its keys go under `mujoco_ros2_control`.
+One helper per type - `declare_param()` (string), `declare_bool_param()`, `declare_int_param()`, `declare_double_param()`, and the three `declare_*_array_param()` - each callable once per key, from `registerComponent()`/`configure()` only. Where the key lands in the YAML follows from the node: a `<mujoco_ros2_plugin>` has its own, named after the declaration; a `<sensor>`/`<gpio>`/`<joint>` inside `<ros2_control>` shares the simulation node, so its keys go under `mujoco_ros2_control`.
 
 #### Out-of-tree packages
 
@@ -361,7 +370,7 @@ Register the class at the bottom of the `.cpp`:
 #include "pluginlib/class_list_macros.hpp"
 
 PLUGINLIB_EXPORT_CLASS(
-    my_package::MySensor, mujoco_ros2_control::MujocoRos2ControlSensorInterface)
+    my_package::MySensor, mujoco_ros2_control::MujocoRos2ControlPluginInterface)
 ```
 
 Describe it in `my_package_plugins.xml` (`path` is the library name without the `lib` prefix or `.so` suffix):
@@ -370,7 +379,7 @@ Describe it in `my_package_plugins.xml` (`path` is the library name without the 
     <class
             name="my_package/MySensor"
             type="my_package::MySensor"
-            base_class_type="mujoco_ros2_control::MujocoRos2ControlSensorInterface">
+            base_class_type="mujoco_ros2_control::MujocoRos2ControlPluginInterface">
         <description>What this sensor reads and how it reports it.</description>
     </class>
 </library>
@@ -403,7 +412,7 @@ The description file is exported **against `mujoco_ros2_control`**, not the pack
 </sensor>
 ```
 
-A plugin that fails to load, or whose `registerSensor()` returns `false`, is logged as an error and skipped; the simulation comes up without it. Check the node's output for `loaded plugin` lines to confirm what was picked up.
+A plugin that fails to load, or whose `registerComponent()` returns `false`, is logged as an error and skipped; the simulation comes up without it. Check the node's output for `loaded plugin` lines to confirm what was picked up.
 
 ## MuJoCo Engine Plugins
 

@@ -171,7 +171,7 @@ rosidl_get_typesupport_target(cpp_typesupport_target
 # Add system plugin
 add_library(mujoco_system_plugins SHARED
     src/mujoco_system.cpp
-    src/mujoco_ros2_control_sensor_loader.cpp
+    src/mujoco_ros2_control_plugin_loader.cpp
 )
 ament_target_dependencies(mujoco_system_plugins
     hardware_interface
@@ -188,7 +188,7 @@ target_link_libraries(mujoco_system_plugins
 )
 target_compile_definitions(mujoco_system_plugins PRIVATE ${ROS_DISTRO_DEFINE})
 
-# The MujocoRos2ControlSensorInterface implementations shipped with this package, one file
+# The MujocoRos2ControlPluginInterface implementations shipped with this package, one file
 # per plugin under include/ and src/mujoco_ros2_control_plugins.
 # Nothing may link this library: pluginlib has to be the one that dlopens it, or
 # class_loader registers its factories outside its own bookkeeping and then
@@ -197,6 +197,7 @@ add_library(mujoco_ros2_control_plugins SHARED
     src/mujoco_ros2_control_plugins/imu_sensor.cpp
     src/mujoco_ros2_control_plugins/force_torque_sensor.cpp
     src/mujoco_ros2_control_plugins/pose_sensor.cpp
+    src/mujoco_ros2_control_plugins/pid_joint_controller.cpp
 )
 ament_target_dependencies(mujoco_ros2_control_plugins
     hardware_interface
@@ -324,7 +325,7 @@ foreach(_plugin IN LISTS MUJOCO_ENGINE_PLUGIN_TARGETS)
 endforeach()
 
 # Install the public headers. Needed by out-of-tree packages implementing
-# MujocoRos2ControlSensorInterface; without this only the rosidl-generated srv headers
+# MujocoRos2ControlPluginInterface; without this only the rosidl-generated srv headers
 # land in the include prefix that ament_export_include_directories advertises.
 install(DIRECTORY include/ DESTINATION include)
 
@@ -362,7 +363,7 @@ ament_export_libraries(
 )
 
 pluginlib_export_plugin_description_file(mujoco_ros2_control mujoco_system_plugins.xml)
-pluginlib_export_plugin_description_file(mujoco_ros2_control mujoco_ros2_control_sensor_plugins.xml)
+pluginlib_export_plugin_description_file(mujoco_ros2_control mujoco_ros2_control_plugins.xml)
 pluginlib_export_plugin_description_file(mujoco_ros2_control mujoco_ros2_plugins.xml)
 
 # Finalize package

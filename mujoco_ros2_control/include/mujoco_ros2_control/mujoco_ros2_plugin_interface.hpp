@@ -73,11 +73,12 @@ struct MujocoRos2PluginInfo {
 /**
  * @brief Base class for plugins that are not ros2_control components.
  *
- * The counterpart to MujocoRos2ControlSensorInterface. That one binds a
- * `<sensor>` inside a `<ros2_control>` block, exports scalar StateInterfaces,
- * and is read by the hardware component in the control loop. This one is for
- * anything that has no business being in that block -- a sensor whose output
- * does not fit that model, or something that is not a sensor at all:
+ * The counterpart to MujocoRos2ControlPluginInterface. That one binds a
+ * `<sensor>`, `<gpio>` or `<joint>` inside a `<ros2_control>` block, exports
+ * scalar StateInterfaces/CommandInterfaces, and is read/written by the
+ * hardware component in the control loop. This one is for anything that has
+ * no business being in that block -- a sensor whose output does not fit that
+ * model, or something that is not a sensor at all:
  *
  * - It exports nothing to ros2_control, so nothing about it belongs in a
  *   description of the hardware's interfaces, and it does not need a

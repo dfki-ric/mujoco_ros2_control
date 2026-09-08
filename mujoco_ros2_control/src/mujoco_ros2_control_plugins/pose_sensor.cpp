@@ -38,11 +38,15 @@
 
 namespace mujoco_ros2_control_plugins {
 
-bool PoseSensor::registerSensor(
+bool PoseSensor::registerComponent(
         const rclcpp::Node::SharedPtr &node,
         const mjModel *mujoco_model,
         const hardware_interface::ComponentInfo &sensor_info,
-        std::vector<hardware_interface::StateInterface> &state_interfaces) {
+        const mujoco_ros2_control::JointLimits &joint_limits,
+        std::vector<hardware_interface::StateInterface> &state_interfaces,
+        std::vector<hardware_interface::CommandInterface> &command_interfaces) {
+    (void)joint_limits;
+    (void)command_interfaces;
     logger_ = node->get_logger().get_child(name_);
 
     object_name_ = resolve_object_name(sensor_info);
@@ -92,4 +96,4 @@ void PoseSensor::read(const mjData *mujoco_data) {
 }  // namespace mujoco_ros2_control_plugins
 
 PLUGINLIB_EXPORT_CLASS(
-    mujoco_ros2_control_plugins::PoseSensor, mujoco_ros2_control::MujocoRos2ControlSensorInterface)
+    mujoco_ros2_control_plugins::PoseSensor, mujoco_ros2_control::MujocoRos2ControlPluginInterface)

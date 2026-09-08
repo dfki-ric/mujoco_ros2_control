@@ -36,7 +36,7 @@
 #include <string>
 #include <vector>
 
-#include "mujoco_ros2_control/mujoco_ros2_control_sensor_interface.hpp"
+#include "mujoco_ros2_control/mujoco_ros2_control_plugin_interface.hpp"
 
 namespace mujoco_ros2_control_plugins {
 
@@ -44,7 +44,7 @@ namespace mujoco_ros2_control_plugins {
  * @brief Exports a MuJoCo gyro/accelerometer/framequat triple as IMU state interfaces.
  *
  * The plugin equivalent of the IMU branch of the deprecated built-in classifier
- * in MujocoRos2ControlSensorLoader, and interface-compatible with it, so
+ * in MujocoRos2ControlPluginLoader, and interface-compatible with it, so
  * imu_sensor_broadcaster works unchanged. Each of the three MuJoCo sensors is
  * optional: whichever the model
  * declares against the named object is picked up, the rest stay at their
@@ -59,13 +59,15 @@ namespace mujoco_ros2_control_plugins {
  * </sensor>
  * @endcode
  */
-class ImuSensor : public mujoco_ros2_control::MujocoRos2ControlSensorInterface {
+class ImuSensor : public mujoco_ros2_control::MujocoRos2ControlPluginInterface {
 public:
-    bool registerSensor(
+    bool registerComponent(
             const rclcpp::Node::SharedPtr &node,
             const mjModel *mujoco_model,
             const hardware_interface::ComponentInfo &sensor_info,
-            std::vector<hardware_interface::StateInterface> &state_interfaces) override;
+            const mujoco_ros2_control::JointLimits &joint_limits,
+            std::vector<hardware_interface::StateInterface> &state_interfaces,
+            std::vector<hardware_interface::CommandInterface> &command_interfaces) override;
 
     void read(const mjData *mujoco_data) override;
 
