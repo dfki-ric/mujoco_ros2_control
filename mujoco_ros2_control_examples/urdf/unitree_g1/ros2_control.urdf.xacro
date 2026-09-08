@@ -19,6 +19,7 @@
             <command_interface name="position">
               <param name="initial_value">${initial_position}</param>
             </command_interface>
+            <param name="plugin">mujoco_ros2_control/PidJointController</param>
             <param name="kp">${kp}</param>
             <param name="kd">${kd}</param>
           </xacro:unless>
