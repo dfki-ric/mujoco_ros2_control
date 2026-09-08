@@ -610,7 +610,14 @@ class Xacro2Mjcf(Node):
 
                 if source_extension in [".stl", ".obj", ".msh"]:
                     self.get_logger().debug(f'mesh source file: {source_file}, target_file: {target_file}')
-                    if not os.path.exists(target_file):
+                    # lexists, not exists: target_file is itself often a
+                    # dangling symlink (its own target only resolves later,
+                    # via MuJoCo's meshdir compiler option) - exists() follows
+                    # it and reports False, so a mesh referenced more than
+                    # once (e.g. shared by a link's visual and collision)
+                    # would retry os.symlink() on a path that's already there
+                    # and crash with FileExistsError.
+                    if not os.path.lexists(target_file):
                         os.symlink(source_file, target_file)
                     mesh.attrib['filename'] = "file://" + target_file
                 elif source_extension == ".dae":
