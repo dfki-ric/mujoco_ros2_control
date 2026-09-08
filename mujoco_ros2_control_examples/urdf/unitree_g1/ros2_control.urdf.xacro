@@ -87,6 +87,20 @@
       <xacro:g1_joint name="waist_roll_joint"  kp="200"  kd="5" initial_position="0.0"/>
       <xacro:g1_joint name="waist_pitch_joint" kp="200"  kd="5" initial_position="0.0"/>
 
+      <!-- Waist parallel rod mechanism (see unitree_g1_parallel_rod in
+           unitree_g1.urdf.xacro). Unlike the ankle rods, 0.0 needs no
+           forward-kinematics solve here: the pelvis-side target site was
+           placed exactly where the rod lands at motor/swing angle 0 with
+           waist_roll_joint/waist_pitch_joint sitting at their own 0.0
+           initial_position above, so all-zero is already the loop's
+           zero-strain reference configuration. -->
+      <xacro:g1_passive_joint name="left_waist_motor_joint"   initial_position="0.0"/>
+      <xacro:g1_passive_joint name="right_waist_motor_joint"  initial_position="0.0"/>
+      <xacro:g1_passive_joint name="left_waist_swing1_joint"  initial_position="0.0"/>
+      <xacro:g1_passive_joint name="left_waist_swing2_joint"  initial_position="0.0"/>
+      <xacro:g1_passive_joint name="right_waist_swing1_joint" initial_position="0.0"/>
+      <xacro:g1_passive_joint name="right_waist_swing2_joint" initial_position="0.0"/>
+
       <!-- Left arm (kp = base*5.0: 200) -->
       <xacro:g1_joint name="left_shoulder_pitch_joint" kp="200" kd="1" initial_position="0.3"/>
       <xacro:g1_joint name="left_shoulder_roll_joint"  kp="200" kd="1" initial_position="0.25"/>

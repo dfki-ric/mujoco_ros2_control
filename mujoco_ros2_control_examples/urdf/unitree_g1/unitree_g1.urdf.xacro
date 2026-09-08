@@ -28,18 +28,17 @@
   <xacro:include filename="$(find mujoco_ros2_control_examples)/urdf/unitree_g1/ros2_control.urdf.xacro"/>
   <xacro:unitree_g1_ros2_control mujoco="$(arg mujoco)" low_level="$(arg low_level)"/>
 
-  <!-- ==================== Optional parallel ankle mechanism ==================== -->
-  <xacro:macro name="unitree_g1_ankle_rod"
-               params="suffix knee_link revolute_xyz swing_xyz swing_rpy rod_length crank_mid crank_rpy crank_len">
-    <!-- The real motor: a revolute joint on the shank driving a short, fixed
-         crank arm (measured from the real CAD assembly, unitree_ankle.blend/
-         G1 ankle STEP - see swing_xyz below for the tip offset, which is not
-         purely radial) whose tip is where the connecting rod attaches.
-         The crank_link visual/collision cylinder below runs from the joint
-         origin out to that measured tip (crank_mid/crank_rpy/crank_len,
-         precomputed so the cylinder's own Z-axis lands exactly on
-         swing_xyz) - previously this was a fixed 15mm stub along local X
-         that did not represent the true crank geometry. -->
+  <!-- ==================== Optional parallel rod mechanisms (ankle, waist) ==================== -->
+  <xacro:macro name="unitree_g1_parallel_rod"
+               params="suffix parent_link revolute_xyz swing_xyz swing_rpy rod_length crank_mid crank_rpy crank_len">
+    <!-- The real motor: a revolute joint on parent_link driving a short, fixed
+         crank arm (measured from the real CAD assembly - unitree_ankle.blend/
+         G1 ankle STEP for the ankles - see swing_xyz below for the tip offset,
+         which is not purely radial) whose tip is where the connecting rod
+         attaches. The crank_link visual/collision cylinder below runs from
+         the joint origin out to that measured tip (crank_mid/crank_rpy/
+         crank_len, precomputed so the cylinder's own Z-axis lands exactly on
+         swing_xyz). -->
     <link name="${suffix}_crank_link">
       <inertial>
         <mass value="0.05"/>
@@ -56,7 +55,7 @@
       </collision>
     </link>
     <joint name="${suffix}_motor_joint" type="revolute">
-      <parent link="${knee_link}"/>
+      <parent link="${parent_link}"/>
       <child link="${suffix}_crank_link"/>
       <origin xyz="${revolute_xyz}" rpy="0 0 0"/>
       <!-- Axis measured/verified directly in the CAD assembly
@@ -119,7 +118,9 @@
       <inertial>
         <mass value="0.03"/>
         <origin xyz="0 0 ${rod_length/2}" rpy="0 0 0"/>
-        <inertia ixx="1e-6" iyy="1e-6" izz="1e-8" ixy="0" ixz="0" iyz="0"/>
+        <inertia ixx="${0.03*(3*0.001*0.001+rod_length*rod_length)/12}"
+                 iyy="${0.03*(3*0.001*0.001+rod_length*rod_length)/12}"
+                 izz="${0.5*0.03*0.001*0.001}" ixy="0" ixz="0" iyz="0"/>
       </inertial>
       <visual>
         <origin xyz="0 0 ${rod_length/2}" rpy="0 0 0"/>
@@ -138,27 +139,47 @@
   </xacro:macro>
 
   <xacro:if value="$(arg low_level)">
-    <!-- Geometry measured directly from the real CAD assembly (Unitree's
+    <!-- Geometry measured directly from the CAD assembly (Unitree's
          G1 ankle STEP model, unitree_ankle.blend) rather than assumed: the
          swing_xyz tip offset is not purely radial (part of it lies along
          the crank's own rotation axis), so unlike the old 15mm-arm
          placeholder it is given as a full xyz vector, not "arm 0 0". -->
-    <xacro:unitree_g1_ankle_rod suffix="left_rodA" knee_link="left_knee_link"
+    <xacro:unitree_g1_parallel_rod suffix="left_rodA" parent_link="left_knee_link"
         revolute_xyz="0.028017 0.0000816 -0.149261" swing_xyz="0.007631 0.016661 -0.003724"
         swing_rpy="3.09582687 -0.07460496 -2.4608202" rod_length="0.157021"
         crank_mid="0.003815 0.008330 -0.001862" crank_rpy="-1.790698 0.420345 -0.520459" crank_len="0.018700"/>
-    <xacro:unitree_g1_ankle_rod suffix="left_rodB" knee_link="left_knee_link"
+    <xacro:unitree_g1_parallel_rod suffix="left_rodB" parent_link="left_knee_link"
         revolute_xyz="0.029387 0.0001696 -0.084324" swing_xyz="0.014715 -0.016386 -0.00465"
         swing_rpy="3.08875477 -0.0844462 -2.63199475" rod_length="0.221363"
         crank_mid="0.007358 -0.008193 -0.002325" crank_rpy="1.847306 0.712515 0.915153" crank_len="0.022509"/>
-    <xacro:unitree_g1_ankle_rod suffix="right_rodA" knee_link="right_knee_link"
+    <xacro:unitree_g1_parallel_rod suffix="right_rodA" parent_link="right_knee_link"
         revolute_xyz="0.028017 -0.0000816 -0.149261" swing_xyz="0.007631 -0.016661 -0.003724"
         swing_rpy="-3.09582687 -0.07460496 2.4608202" rod_length="0.157021"
         crank_mid="0.003815 -0.008330 -0.001862" crank_rpy="1.790698 0.420345 0.520459" crank_len="0.018700"/>
-    <xacro:unitree_g1_ankle_rod suffix="right_rodB" knee_link="right_knee_link"
+    <xacro:unitree_g1_parallel_rod suffix="right_rodB" parent_link="right_knee_link"
         revolute_xyz="0.029387 -0.0001696 -0.084324" swing_xyz="0.014715 0.016386 -0.00465"
         swing_rpy="-3.08875477 -0.0844462 2.63199475" rod_length="0.221363"
         crank_mid="0.007358 0.008193 -0.002325" crank_rpy="-1.847306 0.712515 -0.915153" crank_len="0.022509"/>
+
+    <!-- Waist parallel mechanism: two torso-mounted motors, each driving a
+         short crank + rod down to the pelvis (mirrors the ankle's A/B rods,
+         just torso<->pelvis instead of shank<->foot). Points extracted from
+         the G1 waist mesh assembly; crank/rod split, crank_mid/crank_rpy/
+         crank_len and swing_rpy computed the same way as the ankle rods
+         above. The pelvis-side target site (below, in the mujoco block) is
+         placed exactly where this rod tip lands at motor/swing angle 0 with
+         waist_roll_joint/waist_pitch_joint at their own 0.0 initial_position
+         (ros2_control.urdf.xacro) - a zero-strain reference pose by
+         construction, not a measured attachment point (none was extracted),
+         so the mechanism starts at rest with no initial constraint violation. -->
+    <xacro:unitree_g1_parallel_rod suffix="left_waist" parent_link="torso_link"
+        revolute_xyz="0.01689 -0.03501 0.04346" swing_xyz="0.01747 0.01703 0.00038"
+        swing_rpy="3.064620 -0.066633 -1.426913" rod_length="0.061126"
+        crank_mid="0.008735 0.008515 0.000190" crank_rpy="-1.548486 0.798027 -0.782176" crank_len="0.024400"/>
+    <xacro:unitree_g1_parallel_rod suffix="right_waist" parent_link="torso_link"
+        revolute_xyz="0.01689 0.03499 0.04346" swing_xyz="0.01747 -0.01703 -0.00038"
+        swing_rpy="-3.066882 -0.067572 1.470446" rod_length="0.060426"
+        crank_mid="0.008735 -0.008515 -0.000190" crank_rpy="1.593106 0.798027 0.814126" crank_len="0.024400"/>
   </xacro:if>
 
   <!-- ROS optical frame for the d435 depth camera (REP-103: x-right, y-down, z-forward) -->
@@ -253,9 +274,11 @@
       </reference>
 
       <!-- Parallel ankle mechanism: one site per rod's far end and one on
-           the foot plate it targets, equality/connect closing that one
+           the foot plate it targets,left_waist_loop equality/connect closing that one
            loop, and jointpos sensors so the crank angle - the real
-           motor-space value for the commanded ankle pose - is observable. -->
+           motor-space value for the commanded ankle pose - is observable.
+           solref left at its established "0.001 0.5" - untouched, working
+           dynamics, not part of the waist-loop dampingratio fix below. -->
       <xacro:if value="$(arg low_level)">
         <reference name="left_rodA_rod_link"><site name="left_rodA_rod_bottom" pos="0 0 0.157021" size="0.003"/></reference>
         <reference name="left_ankle_roll_link"><site name="left_rodA_plate_target" pos="0.022041 0.015061 0.008163" size="0.003"/></reference>
@@ -281,6 +304,38 @@
           <jointpos name="left_rodB_motor_joint_pos" joint="left_rodB_motor_joint"/>
           <jointpos name="right_rodA_motor_joint_pos" joint="right_rodA_motor_joint"/>
           <jointpos name="right_rodB_motor_joint_pos" joint="right_rodB_motor_joint"/>
+        </sensor>
+
+        <!-- Waist parallel mechanism: same scheme as the ankle rods above,
+             just torso-mounted rods closing their loop on the pelvis rather
+             than on an ankle_roll_link foot plate.
+
+             solref dampingratio 3 here (not the ankle loops' 0.5): reproduced
+             offline (mujoco python bindings against this same model, no ROS)
+             that at mode_pr:1, an external force applied to torso_link then
+             released - the "grab it in the viewer, then let go" gesture -
+             blew this loop up to NaN within ~1-2s at dampingratio 0.5, for
+             pushes as small as 10N. 1 already stopped the NaN; 3 (matching
+             this same fix's own earlier, narrower use for a static-load
+             resonance - see hold_start_message_ab.yaml) was confirmed clean
+             up to 400N and is the safer margin. This does not make the robot
+             balance under a push - nothing here is a balance controller, so
+             a big enough push still topples it - it only keeps that topple
+             numerically sane instead of a NaN explosion. -->
+        <reference name="left_waist_rod_link"><site name="left_waist_rod_bottom" pos="0 0 0.061126" size="0.003"/></reference>
+        <reference name="pelvis"><site name="left_waist_plate_target" pos="0.026327 -0.022670 0.027030" size="0.003"/></reference>
+
+        <reference name="right_waist_rod_link"><site name="right_waist_rod_bottom" pos="0 0 0.060426" size="0.003"/></reference>
+        <reference name="pelvis"><site name="right_waist_plate_target" pos="0.026316 0.022460 0.026960" size="0.003"/></reference>
+
+        <equality>
+          <connect name="left_waist_loop" site1="left_waist_rod_bottom" site2="left_waist_plate_target"   solref="0.001 1.0" solimp="0.999 0.99 0.001"/>
+          <connect name="right_waist_loop" site1="right_waist_rod_bottom" site2="right_waist_plate_target"   solref="0.001 1.0" solimp="0.999 0.99 0.001"/>
+        </equality>
+
+        <sensor>
+          <jointpos name="left_waist_motor_joint_pos" joint="left_waist_motor_joint"/>
+          <jointpos name="right_waist_motor_joint_pos" joint="right_waist_motor_joint"/>
         </sensor>
       </xacro:if>
     </mujoco>
@@ -316,7 +371,7 @@
             - left_rodB_motor_joint left_rodA_motor_joint
             - - -
             - right_rodB_motor_joint right_rodA_motor_joint
-            - - -
+            - left_waist_motor_joint right_waist_motor_joint
             - - -
             - - -
             -
