@@ -174,6 +174,22 @@ ROBOTS = {
         },
         # What unitree_g1.launch.py runs the low-level path at.
         "simulation_frequency": 1000.0,
+        # Every other example only checks that the node comes up, so pacing physics
+        # to real time is harmless. This is the one test that also waits out a PD
+        # hold and a commanded reach against wall-clock deadlines
+        # (test_lowcmd_moves_the_joints_and_lowstate_reports_it), so it needs those
+        # simulated seconds to actually show up within that wall-clock budget. At
+        # realtime_factor: 1.0 the sim is throttled to real time but can still fall
+        # behind under CPU contention, and never catches back up -- it is only ever
+        # allowed to run at or slower than real time, never ahead (see
+        # mujoco_ros2_control_plugin.cpp's advance-step gate) -- so a loaded CI
+        # machine starves the PD of simulated time and the test
+        # reports the joints as never reaching their targets even though the
+        # controller itself is fine. Uncapping it here (as close to 0 as the
+        # `gt: 0.0` parameter validation allows) removes the throttle instead of
+        # further padding the wall-clock timeouts, which would only raise the bar
+        # rather than fix the race against machine load.
+        "realtime_factor": 0.001,
         # Nothing in ros2_control commands these joints and the plugin leaves them
         # slack, so the example publishes one LowCmd holding the start pose to keep
         # the robot standing; the test needs the same one. A path under this
@@ -324,7 +340,7 @@ def make_test_description(robot):
             # these tests do. A spec can ask for more: the low-level G1 holds a
             # stiff PD pose, and kp=750 with a 5 ms step is not stable.
             {"simulation_frequency": spec.get("simulation_frequency", 200.0)},
-            {"realtime_factor": 1.0},
+            {"realtime_factor": spec.get("realtime_factor", 1.0)},
             {"robot_model_path": model_file},
             {"show_gui": False},
         ],

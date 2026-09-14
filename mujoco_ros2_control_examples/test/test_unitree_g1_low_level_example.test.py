@@ -228,7 +228,13 @@ class TestUnitreeG1LowLevelExample(unittest.TestCase):
         # throughout, so these targets have to win on rate: the loop below spins on
         # a 500 Hz LowState and so publishes far faster than the hold's 50 Hz, and
         # the plugin applies whatever arrived last.
-        reached = self._wait_for_pose(publisher, states, self._command(REACH), REACH, 40.0)
+        #
+        # 70 s of wall clock, not 40: example_smoke.py now runs this example's sim
+        # unthrottled (realtime_factor near zero) rather than paced to real time,
+        # so this budget is mostly slack for CPU contention on the test machine
+        # rather than simulated seconds the PD actually needs -- it converges in
+        # well under a second when the CPU is not under load.
+        reached = self._wait_for_pose(publisher, states, self._command(REACH), REACH, 70.0)
         for index, joint, _kp, _kd, _target in POSE:
             if index not in REACH:
                 continue

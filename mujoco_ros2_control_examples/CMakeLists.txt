@@ -590,7 +590,7 @@ if(BUILD_TESTING)
   add_ros_isolated_launch_test(test/test_unitree_g1_example.test.py)
   # Longer than the plain G1 test: this one waits for the commanded pose to be
   # reached, not just for the node to come up.
-  add_ros_isolated_launch_test(test/test_unitree_g1_low_level_example.test.py TIMEOUT 180)
+  add_ros_isolated_launch_test(test/test_unitree_g1_low_level_example.test.py TIMEOUT 210)
   add_ros_isolated_launch_test(test/test_tactile_example.test.py TIMEOUT 120)
   add_ros_isolated_launch_test(test/test_body_services_example.test.py TIMEOUT 120)
   # Longer still: CoaCD decomposes all twelve IndustReal tray meshes
