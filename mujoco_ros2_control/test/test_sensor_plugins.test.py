@@ -164,13 +164,21 @@ class TestSensorPlugins(unittest.TestCase):
 
     def test_1_imu_plugin_feeds_broadcaster(self):
         """ImuSensor exports interfaces imu_sensor_broadcaster understands."""
-        msg = self.node.wait_for_message("/pad_imu_broadcaster/imu", Imu, timeout=45.0)
-        self.assertIsNotNone(msg, "no message on /pad_imu_broadcaster/imu")
-        # A resting body reads ~+9.81 m/s^2 along z (proper acceleration).
-        self.assertGreater(
-            msg.linear_acceleration.z, 5.0,
-            "accelerometer does not see gravity; the IMU plugin may be reading the "
-            "wrong sensor address",
+        # A resting body reads ~+9.81 m/s^2 along z (proper acceleration), but the
+        # pad is still falling the ~5 cm to the ground -- and briefly bouncing once
+        # it lands -- when the broadcaster's first few messages go out, so it can
+        # legitimately take a moment before any single message shows a settled
+        # reading. The predicate waits for one that does, rather than judging the
+        # sensor by whichever message happened to be first; a broadcaster that
+        # never settles inside the timeout still fails below.
+        msg = self.node.wait_for_message(
+            "/pad_imu_broadcaster/imu", Imu, timeout=45.0,
+            predicate=lambda m: m.linear_acceleration.z > 5.0,
+        )
+        self.assertIsNotNone(
+            msg,
+            "accelerometer never settled to see gravity on /pad_imu_broadcaster/imu; "
+            "the IMU plugin may be reading the wrong sensor address",
         )
 
     def test_2_force_torque_plugin_feeds_broadcaster(self):
