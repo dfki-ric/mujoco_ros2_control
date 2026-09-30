@@ -227,11 +227,17 @@ def create_nodes(context: LaunchContext):
         for group in ("left_leg", "right_leg", "waist", "left_arm", "right_arm")
     ]
 
+    # mode_pr: 0 (ankle_pitch/roll driven directly), not the _ab/mode_pr: 1
+    # variant: the latter drives the ankle through the parallel-rod A/B motors
+    # and is a known-unstable combination (see hold_start_message_ab.yaml's
+    # header) that topples the robot within a couple of seconds. mode_pr: 0
+    # also matches what the policy itself always commands (see
+    # control_adapter_ros.cpp), so there is no mode switch once it takes over.
     g1_hold_start_message = os.path.join(
         get_package_share_directory("mujoco_ros2_control_examples"),
         "config",
         "unitree_g1",
-        "hold_start_message_ab.yaml",
+        "hold_start_message.yaml",
     )
 
     # `ros2 topic pub` takes the message as a literal argument, not a file path,

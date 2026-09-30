@@ -129,10 +129,22 @@ unitree_g1_low_level:
     rate: 500.0
     command_topic: /lowcmd
     state_topic: /lowstate
-    # Per-joint torque clamp, in the order the joints are declared. Left out
-    # here, which means unclamped: a single value applies to every joint, and
-    # nothing in MuJoCo limits qfrc_applied on its own.
-    # effort_limits: [88.0]
+    # Per-joint torque clamp, in the order the joints are declared (see
+    # kG1_29Dof_JointOrder in unitree_hg_low_level.cpp). Left unclamped before,
+    # nothing in MuJoCo limits qfrc_applied on its own, so a transient tracking
+    # error (contact impact, the cold-start engage spike - see g1_policy.yaml) could
+    # demand torque far past what a real G1 motor produces, which is enough on its
+    # own to blow qacc to NaN even with an otherwise sane commanded position. These
+    # are the real per-joint <limit effort=...> values from the downloaded
+    # unitree_g1.urdf (hip 88/139/88, knee 139, ankle 35 per leg; waist 88/35/35;
+    # arm 25 x5 + wrist 5 x2 per side).
+    effort_limits: [
+      88.0, 139.0, 88.0, 139.0, 35.0, 35.0,
+      88.0, 139.0, 88.0, 139.0, 35.0, 35.0,
+      88.0, 35.0, 35.0,
+      25.0, 25.0, 25.0, 25.0, 25.0, 5.0, 5.0,
+      25.0, 25.0, 25.0, 25.0, 25.0, 5.0, 5.0,
+    ]
 
     # Gamepad -> LowState::wireless_remote. Indices are into sensor_msgs/Joy,
     # and -1 (the default) packs a channel as zero, so this is only needed for a
