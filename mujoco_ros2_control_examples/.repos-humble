@@ -3,3 +3,7 @@ repositories:
     type: git
     url: https://github.com/unitreerobotics/unitree_ros2.git
     version: master
+  robot_control_msgs:
+    type: git
+    url: https://github.com/dfki-ric-underactuated-lab/robot_control_msgs.git
+    version: main
