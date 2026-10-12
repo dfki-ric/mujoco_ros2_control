@@ -1,0 +1,10 @@
+<library path="ulab_low_level_plugin">
+  <class
+    name="ulab_mujoco_plugin/UlabLowLevelPlugin"
+    type="ulab_mujoco_plugin::UlabLowLevelPlugin"
+    base_class_type="mujoco_ros2_control_plugins::MuJoCoROS2ControlPluginBase">
+    <description>
+      Low-level MuJoCo joint torque control using robot_control_msgs.
+    </description>
+  </class>
+</library>

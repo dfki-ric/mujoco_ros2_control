@@ -1,0 +1,239 @@
+{
+  "nodes": {
+    "flake-utils": {
+      "inputs": {
+        "systems": "systems"
+      },
+      "locked": {
+        "lastModified": 1731533236,
+        "narHash": "sha256-l0KFg5HjrsfsO/JpG+r7fRrqm12kzFHyUHqHCVpMMbI=",
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "rev": "11707dc2f618dd54ca8739b309ec4fc024de578b",
+        "type": "github"
+      },
+      "original": {
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "type": "github"
+      }
+    },
+    "flake-utils_2": {
+      "inputs": {
+        "systems": "systems_2"
+      },
+      "locked": {
+        "lastModified": 1731533236,
+        "narHash": "sha256-l0KFg5HjrsfsO/JpG+r7fRrqm12kzFHyUHqHCVpMMbI=",
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "rev": "11707dc2f618dd54ca8739b309ec4fc024de578b",
+        "type": "github"
+      },
+      "original": {
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "type": "github"
+      }
+    },
+    "franka-description-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1772462358,
+        "narHash": "sha256-+5IqH80KWvUb7aoHh9n0CIod5zh3q3pRQaWi62Ed8aY=",
+        "owner": "frankarobotics",
+        "repo": "franka_description",
+        "rev": "72baf5bf4e88eaec27f0eb61be1b20a001abf2ab",
+        "type": "github"
+      },
+      "original": {
+        "owner": "frankarobotics",
+        "ref": "jazzy",
+        "repo": "franka_description",
+        "type": "github"
+      }
+    },
+    "nix-ros-overlay": {
+      "inputs": {
+        "flake-utils": "flake-utils",
+        "nixpkgs": "nixpkgs",
+        "rosdistro": "rosdistro"
+      },
+      "locked": {
+        "lastModified": 1789758058,
+        "narHash": "sha256-c+AUIcYBXX/5oU2+xpVyg/UjsTTS/CJXIprnWKdy1mE=",
+        "owner": "lopsided98",
+        "repo": "nix-ros-overlay",
+        "rev": "814d97b0b7236c0834fc079effa55acabb269926",
+        "type": "github"
+      },
+      "original": {
+        "owner": "lopsided98",
+        "ref": "master",
+        "repo": "nix-ros-overlay",
+        "type": "github"
+      }
+    },
+    "nixgl": {
+      "inputs": {
+        "flake-utils": "flake-utils_2",
+        "nixpkgs": "nixpkgs_2"
+      },
+      "locked": {
+        "lastModified": 1762090880,
+        "narHash": "sha256-fbRQzIGPkjZa83MowjbD2ALaJf9y6KMDdJBQMKFeY/8=",
+        "owner": "nix-community",
+        "repo": "nixGL",
+        "rev": "b6105297e6f0cd041670c3e8628394d4ee247ed5",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-community",
+        "repo": "nixGL",
+        "type": "github"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1785828668,
+        "narHash": "sha256-8fsyqeO+mJqvIzeO4xIpgJe/f7MTbbVTEC6RT6WSXNs=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "e72e4f299401a3689d4b3d5fc6496b11db7064eb",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "nixpkgs_2": {
+      "locked": {
+        "lastModified": 1746378225,
+        "narHash": "sha256-OeRSuL8PUjIfL3Q0fTbNJD/fmv1R+K2JAOqWJd3Oceg=",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "93e8cdce7afc64297cfec447c311470788131cd9",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "nixpkgs_3": {
+      "locked": {
+        "lastModified": 1791426274,
+        "narHash": "sha256-MWhktfFtFE8Jl7bf9Pkp7TR5MSdYCjCswSo0Gkb4ywc=",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "7c8764b7c7b09b34f632464276218ef9090eaa11",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nixos",
+        "ref": "nixos-26.05",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "robot-control-msgs-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1781767297,
+        "narHash": "sha256-eALt0JzDmf/7grdgG28YLgWvRAyUe6QoYrfreTqZH4c=",
+        "owner": "dfki-ric-underactuated-lab",
+        "repo": "robot_control_msgs",
+        "rev": "3a1ce5436097eca262e20a2662b29d0189cd0912",
+        "type": "github"
+      },
+      "original": {
+        "owner": "dfki-ric-underactuated-lab",
+        "repo": "robot_control_msgs",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "franka-description-src": "franka-description-src",
+        "nix-ros-overlay": "nix-ros-overlay",
+        "nixgl": "nixgl",
+        "nixpkgs": "nixpkgs_3",
+        "robot-control-msgs-src": "robot-control-msgs-src",
+        "rospkgs": [
+          "nix-ros-overlay",
+          "nixpkgs"
+        ],
+        "unitree-ros2-src": "unitree-ros2-src"
+      }
+    },
+    "rosdistro": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1789112009,
+        "narHash": "sha256-RzYgfUnQ6ABdcqnz8ziHY8e9j5E0MwyhYiyDSU3KrHU=",
+        "owner": "ros",
+        "repo": "rosdistro",
+        "rev": "984f1f74889ad6145b7808e876e64037e7681c31",
+        "type": "github"
+      },
+      "original": {
+        "owner": "ros",
+        "repo": "rosdistro",
+        "type": "github"
+      }
+    },
+    "systems": {
+      "locked": {
+        "lastModified": 1681028828,
+        "narHash": "sha256-Vy1rq5AaRuLzOxct8nz4T6wlgyUR7zLU309k9mBC768=",
+        "owner": "nix-systems",
+        "repo": "default",
+        "rev": "da67096a3b9bf56a91d16901293e51ba5b49a27e",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-systems",
+        "repo": "default",
+        "type": "github"
+      }
+    },
+    "systems_2": {
+      "locked": {
+        "lastModified": 1681028828,
+        "narHash": "sha256-Vy1rq5AaRuLzOxct8nz4T6wlgyUR7zLU309k9mBC768=",
+        "owner": "nix-systems",
+        "repo": "default",
+        "rev": "da67096a3b9bf56a91d16901293e51ba5b49a27e",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-systems",
+        "repo": "default",
+        "type": "github"
+      }
+    },
+    "unitree-ros2-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1755272409,
+        "narHash": "sha256-ePyWwU7ZwW6ppELNP1R/asNKaEiSIYZoEVsSJKlT1WA=",
+        "owner": "unitreerobotics",
+        "repo": "unitree_ros2",
+        "rev": "66ae09858245ac3d2231c0cc209e36a88f8d7d03",
+        "type": "github"
+      },
+      "original": {
+        "owner": "unitreerobotics",
+        "ref": "66ae098",
+        "repo": "unitree_ros2",
+        "type": "github"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}

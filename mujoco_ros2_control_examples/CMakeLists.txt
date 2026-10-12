@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.10)
 project(mujoco_ros2_control_examples)
 
 find_package(ament_cmake REQUIRED)
@@ -165,6 +165,48 @@ else()
     message(STATUS
         "unitree_hg not found: skipping the UnitreeHgLowLevel plugin.")
 endif()
+
+
+##################
+# ULAB Low level #
+##################
+find_package(robot_control_msgs QUIET)
+if(unitree_hg_FOUND)
+    add_library(${PROJECT_NAME}_ulab_plugins SHARED
+        src/ulab_low_level.cpp
+    )
+
+    target_include_directories(${PROJECT_NAME}_ulab_plugins PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>
+    )
+
+    ament_target_dependencies(${PROJECT_NAME}_ulab_plugins
+      rclcpp
+      hardware_interface
+      pluginlib
+      realtime_tools
+      mujoco_ros2_control
+      robot_control_msgs
+    )
+
+    target_link_libraries(${PROJECT_NAME}_ulab_plugins
+        mujoco::mujoco
+    )
+
+    install(TARGETS ${PROJECT_NAME}_ulab_plugins
+        ARCHIVE DESTINATION lib
+        LIBRARY DESTINATION lib
+        RUNTIME DESTINATION bin
+    )
+
+    pluginlib_export_plugin_description_file(
+        mujoco_ros2_control ${PROJECT_NAME}_ulab_plugins.xml)
+else()
+    message(STATUS
+        "robot_control_msgs not found: skipping the UlabLowLevel plugin.")
+endif()
+
 
 ###########
 # INSTALL #

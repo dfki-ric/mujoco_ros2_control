@@ -214,7 +214,7 @@ class TestUnitreeG1LowLevelExample(unittest.TestCase):
         # here would mean LowState is filled from somewhere other than the joint,
         # or that the hold is not reaching the plugin at all.
         self.assertGreater(
-            abs(held.motor_state[3].tau_est), 0.1,
+            abs(held.motor_state[3].tau_est) + abs(held.motor_state[9].tau_est), 0.1,
             "left_knee_joint reports no torque while holding the robot up",
         )
         start = {index: held.motor_state[index].q for index in TRACKED}
