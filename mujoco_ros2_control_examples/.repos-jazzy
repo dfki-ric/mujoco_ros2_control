@@ -7,5 +7,7 @@ repositories:
     type: git
     url: https://github.com/frankarobotics/franka_description.git
     version: jazzy
-https://github.com/dfki-ric-underactuated-lab/robot_control_msgs.git:
+  robot_control_msgs:
+    type: git
+    url: https://github.com/dfki-ric-underactuated-lab/robot_control_msgs.git
     version: main
