@@ -1,0 +1,82 @@
+<?xml version="1.0"?>
+<!-- URDF for Franka Emika Panda -->
+<robot xmlns:xacro="http://wiki.ros.org/xacro" name="$(arg name)">
+
+  <!-- MuJoCo Config -->
+  <!-- Mujoco compiler options -->
+  <xacro:arg name="mujoco_model_path" default="/tmp/mujoco" />
+  <xacro:arg name="autolimits" default="true" />
+  <xacro:arg name="balanceinertia" default="true" />
+  <!-- Mujoco options -->
+  <xacro:arg name="integrator" default="implicitfast" />
+  <xacro:arg name="gravity" default="0 0 -9.81" />
+  <xacro:arg name="impratio" default="1" />
+  <xacro:arg name="integrator" default="implicitfast" />
+  <xacro:arg name="cone" default="elliptic" />
+  <xacro:arg name="solver" default="Newton" />
+  <xacro:arg name="noslip_iterations" default="3" />
+  <xacro:arg name="multiccd" default="disable" />
+
+  <!-- Franka config -->
+  <xacro:arg name="parent" default="world" />
+  <xacro:arg name="base_xyz" default="0 0 0" />
+  <xacro:arg name="base_rpy" default="0 0 0" />
+  <!-- ROS2 Control-->
+  <xacro:arg name="use_fake_hardware" default="false" />
+  <xacro:arg name="fake_sensor_commands" default="false" />
+  <xacro:arg name="mujoco" default="true" />
+  <xacro:arg name="mujoco_effort" default="true" />
+  <!-- Accepted so the launch file can pass it uniformly, but nothing here
+         reads it: the GUI window is a simulator setting, and camera rendering no
+         longer depends on it. Cameras render offscreen through EGL, which needs
+         neither a window nor a display, so a headless run still produces images. -->
+  <xacro:arg name="headless" default="false" />
+
+
+
+  <!-- Import franka urdf file -->
+  <link name="world" />
+  <joint name="world_to_base" type="fixed">
+    <parent link="world" />
+    <child link="link_0" />
+    <origin rpy="$(arg base_rpy)" xyz="$(arg base_xyz)" />
+  </joint>
+  <xacro:include filename="$(find mujoco_ros2_control_examples)/urdf/yaro_1105/yaro_1105.urdf" />
+
+  <!-- Import franka ros2_control -->
+  <xacro:include filename="$(find mujoco_ros2_control_examples)/urdf/yaro_1105/ros2_control.urdf.xacro" />
+  <xacro:yaro_1105_ros2_control
+    use_fake_hardware="$(arg use_fake_hardware)"
+    fake_sensor_commands="$(arg fake_sensor_commands)"
+    mujoco="$(arg mujoco)"
+    mujoco_effort="$(arg mujoco_effort)"
+    />
+
+  <!-- Configure mujoco -->
+  <xacro:if value="$(arg mujoco)">
+    <mujoco>
+      <compiler meshdir="$(arg mujoco_model_path)/meshes" 
+        discardvisual="false" 
+        autolimits="$(arg autolimits)" 
+        balanceinertia="$(arg balanceinertia)"
+        />
+      <option integrator="$(arg integrator)" 
+        gravity="$(arg gravity)" 
+        impratio="$(arg impratio)" 
+        cone="$(arg cone)" 
+        solver="$(arg solver)" 
+        noslip_iterations="$(arg noslip_iterations)">
+        <flag multiccd="$(arg multiccd)" 
+          />
+      </option>
+
+      <reference name="link_6">
+        <site name="link_6" pos="-0.00000042 0.00053249 0.08050000" quat="1 0 0 0" />
+      </reference>
+      <sensor>
+        <force name="link_6_force" site="link_6" />
+        <torque name="link_6_torque" site="link_6" />
+      </sensor>
+    </mujoco>
+  </xacro:if>
+</robot>

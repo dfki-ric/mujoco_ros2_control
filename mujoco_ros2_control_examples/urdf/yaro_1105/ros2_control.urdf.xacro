@@ -1,0 +1,61 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:macro name="yaro_1105_ros2_control" 
+    params="mujoco
+     mujoco_effort
+     use_fake_hardware
+     fake_sensor_commands">
+    <ros2_control name="YaRoHardwareInterface" type="system">
+      <hardware>
+        <xacro:if value="${use_fake_hardware}">
+          <plugin>fake_components/GenericSystem</plugin>
+          <param name="fake_sensor_commands">${fake_sensor_commands}</param>
+          <param name="state_following_offset">0.0</param>
+        </xacro:if>
+        <xacro:if value="${mujoco}">
+          <plugin>mujoco_ros2_control/MujocoSystem</plugin>
+        </xacro:if>
+      </hardware>
+
+      <xacro:macro name="configure_joint" params="joint_name initial_position">
+        <joint name="${joint_name}">
+          <xacro:if value="${mujoco == 0 or mujoco_effort == 1}">
+            <command_interface name="effort"/>
+          </xacro:if>
+          <command_interface name="velocity"/>
+          <command_interface name="position"/>
+          <state_interface name="position">
+            <param name="initial_value">${initial_position}</param>
+          </state_interface>
+          <state_interface name="velocity"/>
+          <param name="initial_value">0.0</param>
+          <state_interface name="effort"/>
+        </joint>
+      </xacro:macro>
+
+      <xacro:configure_joint joint_name="joint_1" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="joint_2" initial_position="0.44"/>
+      <xacro:configure_joint joint_name="joint_3" initial_position="-2.4"/>
+      <xacro:configure_joint joint_name="joint_4" initial_position="0.0"/>
+      <xacro:configure_joint joint_name="joint_5" initial_position="0.318"/>
+      <xacro:configure_joint joint_name="joint_6" initial_position="1.57"/>
+
+      <!-- Force/Torque sensor at the end-effector -->
+      <xacro:if value="${mujoco}">
+        <sensor name="ft_sensor">
+          <param name="plugin">mujoco_ros2_control/ForceTorqueSensor</param>
+          <param name="site">link_6</param>
+          <state_interface name="force.x"/>
+          <state_interface name="force.y"/>
+          <state_interface name="force.z"/>
+          <state_interface name="torque.x"/>
+          <state_interface name="torque.y"/>
+          <state_interface name="torque.z"/>
+        </sensor>
+      </xacro:if>
+
+    </ros2_control>
+
+  </xacro:macro>
+</robot>

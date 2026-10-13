@@ -32,6 +32,9 @@ option(DOWNLOAD_UNITREE_H1_ASSETS
 option(DOWNLOAD_UNITREE_G1_ASSETS
   "Download and patch the Unitree G1 URDF and meshes at configure time" ON)
 
+option(DOWNLOAD_YARO_1105_ASSETS
+  "Download and patch the YaRo 1105 URDF and meshes at configure time" ON)
+
 # The IndustReal peg meshes are the upstream IsaacGymEnvs simulator assets and
 # are not redistributed here either. Turn this off for offline builds; the Franka
 # example then needs load_industreal_board:=false, or a task_board_config whose
@@ -462,6 +465,79 @@ if(DOWNLOAD_UNITREE_G1_ASSETS)
           DESTINATION share/${PROJECT_NAME}/meshes/unitree_g1
           FILES_MATCHING PATTERN "*.STL")
 endif()
+
+
+if(DOWNLOAD_YARO_1105_ASSETS)
+  set(ORIGINAL_URDF_NAME "robot.urdf")
+  set(PATCHED_URDF_NAME "yaro_1105.urdf")
+  set(ORIGINAL_URDF_PATH "${CMAKE_CURRENT_BINARY_DIR}/${ORIGINAL_URDF_NAME}")
+  set(PATCHED_URDF_PATH "${CMAKE_CURRENT_BINARY_DIR}/${PATCHED_URDF_NAME}")
+  set(URDF_URL "https://raw.githubusercontent.com/Yardstick-Robotics/yaro_1105_description/main/urdf/${ORIGINAL_URDF_NAME}")
+
+  file(DOWNLOAD ${URDF_URL} ${ORIGINAL_URDF_PATH}
+       SHOW_PROGRESS
+       STATUS DOWNLOAD_STATUS
+       TLS_VERIFY ON)
+
+  list(GET DOWNLOAD_STATUS 0 STATUS_CODE)
+  if(NOT STATUS_CODE EQUAL 0)
+    message(FATAL_ERROR "Failed to download URDF file")
+  endif()
+
+  file(COPY ${ORIGINAL_URDF_PATH} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+  file(RENAME "${CMAKE_CURRENT_BINARY_DIR}/${ORIGINAL_URDF_NAME}" "${PATCHED_URDF_PATH}")
+
+  execute_process(
+      COMMAND sed -i -e "s#filename=\"../meshes/stl/#filename=\"file://$(find mujoco_ros2_control_examples)/meshes/yaro_1105/#g"
+                     ${PATCHED_URDF_PATH}
+      RESULT_VARIABLE PATCH_RESULT
+  )
+  if(NOT PATCH_RESULT EQUAL 0)
+    message(FATAL_ERROR "Failed to patch YaRo 1105 URDF file")
+  endif()
+
+  ##############
+  # GET MESHES #
+  ##############
+  set(MESH_BASE_URL "https://raw.githubusercontent.com/Yardstick-Robotics/yaro_1105_description/main/meshes/stl")
+  set(MESH_DEST_DIR "${CMAKE_CURRENT_BINARY_DIR}/yaro_1105_meshes")
+
+  file(MAKE_DIRECTORY ${MESH_DEST_DIR})
+
+  set(MESH_FILES
+    link_0_yaro_1105.stl
+    link_1_yaro_1105.stl
+    link_2_yaro_1105.stl
+    link_3_yaro_1105.stl
+    link_4_yaro_1105.stl
+    link_5_yaro_1105.stl
+    link_6_yaro_1105.stl
+  )
+
+  # Loop and download each file
+  foreach(MESH_FILE ${MESH_FILES})
+      set(REMOTE_FILE "${MESH_BASE_URL}/${MESH_FILE}")
+      set(LOCAL_FILE "${MESH_DEST_DIR}/${MESH_FILE}")
+      file(DOWNLOAD ${REMOTE_FILE} ${LOCAL_FILE}
+           STATUS DOWNLOAD_STATUS
+           TLS_VERIFY ON)
+      list(GET DOWNLOAD_STATUS 0 DL_STATUS)
+      if(NOT DL_STATUS EQUAL 0)
+          message(FATAL_ERROR "Failed to download ${MESH_FILE}")
+      endif()
+  endforeach()
+
+  install(FILES ${PATCHED_URDF_PATH}
+          DESTINATION share/${PROJECT_NAME}/urdf/yaro_1105
+  )
+
+  install(DIRECTORY ${MESH_DEST_DIR}/
+          DESTINATION share/${PROJECT_NAME}/meshes/yaro_1105
+          FILES_MATCHING PATTERN "*.stl")
+endif()
+
+
+
 ###############################
 # INDUSTREAL PEGS: GET MESHES #
 ###############################
