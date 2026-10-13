@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.14)
 project(mujoco_ros2_control_examples)
 
 find_package(ament_cmake REQUIRED)
@@ -171,7 +171,7 @@ endif()
 # ULAB Low level #
 ##################
 find_package(robot_control_msgs QUIET)
-if(unitree_hg_FOUND)
+if(robot_control_msgs_FOUND)
     add_library(${PROJECT_NAME}_ulab_plugins SHARED
         src/ulab_low_level.cpp
     )
