@@ -27,10 +27,9 @@ def _pending_peg_tray_decompositions(examples_share):
     pending = []
     for shape in ("round", "rectangular"):
         for size in (8, 12, 16):
-            for kind in ("pick", "insert"):
-                mesh = os.path.join(pegs_dir, f"industreal_tray_{kind}_{shape}_peg_{size}mm.obj")
-                if os.path.isfile(mesh) and not os.path.isdir(os.path.splitext(mesh)[0]):
-                    pending.append(mesh)
+            mesh = os.path.join(pegs_dir, f"industreal_tray_insert_{shape}_peg_{size}mm.obj")
+            if os.path.isfile(mesh) and not os.path.isdir(os.path.splitext(mesh)[0]):
+                pending.append(mesh)
     return pending
 
 
@@ -128,7 +127,7 @@ def create_nodes(context: LaunchContext):
         decompose = Node(
             package="mujoco_ros2_control",
             executable="coacd_node.py",
-            parameters=[{"meshes": pending_trays}],
+            parameters=[{"meshes": pending_trays, "threshold": 0.02}],
             output="screen",
         )
         first_action = decompose
