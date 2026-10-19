@@ -114,7 +114,7 @@
   <xacro:if value="${cfg.board.enabled}">
     <link name="industreal_breadboard_link">
       <xacro:inertial
-        mass="12.0"
+        mass="2.0"
         shape="box"
         x="${cfg.board.size[0]}"
         y="${cfg.board.size[1]}"
@@ -144,7 +144,7 @@
   </xacro:if>
 
   <xacro:macro name="peg_assembly"
-               params="name shape size fixtures_enabled object_enabled pick_xyz insert_xyz peg_xyz">
+               params="name shape size mass fixtures_enabled object_enabled pick_xyz insert_xyz peg_xyz">
     <xacro:if value="${fixtures_enabled}">
       <xacro:mesh_link
         name="${name}_pick_tray_link"
@@ -218,7 +218,7 @@
   </xacro:macro>
 
   <xacro:peg_assembly
-    name="round_peg_8mm" shape="round" size="8"
+    name="round_peg_8mm" shape="round" size="8" mass="0.02011"
     fixtures_enabled="${cfg.components.round_peg_8mm.enabled}"
     object_enabled="${cfg.components.round_peg_8mm.get('object_enabled', cfg.components.round_peg_8mm.enabled)}"
     pick_xyz="${cfg.components.round_peg_8mm.pick_xyz}"
@@ -226,7 +226,7 @@
     peg_xyz="${cfg.components.round_peg_8mm.peg_xyz}"/>
 
   <xacro:peg_assembly
-    name="round_peg_12mm" shape="round" size="12"
+    name="round_peg_12mm" shape="round" size="12" mass="0.04524"
     fixtures_enabled="${cfg.components.round_peg_12mm.enabled}"
     object_enabled="${cfg.components.round_peg_12mm.get('object_enabled', cfg.components.round_peg_12mm.enabled)}"
     pick_xyz="${cfg.components.round_peg_12mm.pick_xyz}"
@@ -234,7 +234,7 @@
     peg_xyz="${cfg.components.round_peg_12mm.peg_xyz}"/>
 
   <xacro:peg_assembly
-    name="round_peg_16mm" shape="round" size="16"
+    name="round_peg_16mm" shape="round" size="16" mass="0.08042"
     fixtures_enabled="${cfg.components.round_peg_16mm.enabled}"
     object_enabled="${cfg.components.round_peg_16mm.get('object_enabled', cfg.components.round_peg_16mm.enabled)}"
     pick_xyz="${cfg.components.round_peg_16mm.pick_xyz}"
@@ -242,7 +242,7 @@
     peg_xyz="${cfg.components.round_peg_16mm.peg_xyz}"/>
 
   <xacro:peg_assembly
-    name="rectangular_peg_8mm" shape="rectangular" size="8"
+    name="rectangular_peg_8mm" shape="rectangular" size="8" mass="0.02240"
     fixtures_enabled="${cfg.components.rectangular_peg_8mm.enabled}"
     object_enabled="${cfg.components.rectangular_peg_8mm.get('object_enabled', cfg.components.rectangular_peg_8mm.enabled)}"
     pick_xyz="${cfg.components.rectangular_peg_8mm.pick_xyz}"
@@ -250,7 +250,7 @@
     peg_xyz="${cfg.components.rectangular_peg_8mm.peg_xyz}"/>
 
   <xacro:peg_assembly
-    name="rectangular_peg_12mm" shape="rectangular" size="12"
+    name="rectangular_peg_12mm" shape="rectangular" size="12" mass="0.03840"
     fixtures_enabled="${cfg.components.rectangular_peg_12mm.enabled}"
     object_enabled="${cfg.components.rectangular_peg_12mm.get('object_enabled', cfg.components.rectangular_peg_12mm.enabled)}"
     pick_xyz="${cfg.components.rectangular_peg_12mm.pick_xyz}"
@@ -258,7 +258,7 @@
     peg_xyz="${cfg.components.rectangular_peg_12mm.peg_xyz}"/>
 
   <xacro:peg_assembly
-    name="rectangular_peg_16mm" shape="rectangular" size="16"
+    name="rectangular_peg_16mm" shape="rectangular" size="16" mass="0.0.06400"
     fixtures_enabled="${cfg.components.rectangular_peg_16mm.enabled}"
     object_enabled="${cfg.components.rectangular_peg_16mm.get('object_enabled', cfg.components.rectangular_peg_16mm.enabled)}"
     pick_xyz="${cfg.components.rectangular_peg_16mm.pick_xyz}"
@@ -290,7 +290,7 @@
       name="gears_large_link"
       mesh="industreal/gears/gears_large.stl"
       color="0.92 0.92 0.88 1"
-      mass="0.04"
+      mass="0.01"
       inertia_shape="cylinder"
       diameter="${cfg.components.gears.large_inertia_diameter}"
       length="${cfg.components.gears.large_inertia_length}"
@@ -300,7 +300,7 @@
       name="gears_medium_link"
       mesh="industreal/gears/gears_medium.stl"
       color="0.92 0.92 0.88 1"
-      mass="0.03"
+      mass="0.01"
       inertia_shape="cylinder"
       diameter="${cfg.components.gears.medium_inertia_diameter}"
       length="${cfg.components.gears.medium_inertia_length}"/>
@@ -309,7 +309,7 @@
       name="gears_small_link"
       mesh="industreal/gears/gears_small.stl"
       color="0.92 0.92 0.88 1"
-      mass="0.02"
+      mass="0.01"
       inertia_shape="cylinder"
       diameter="${cfg.components.gears.small_inertia_diameter}"
       length="${cfg.components.gears.small_inertia_length}"/>
@@ -335,8 +335,17 @@
 
   <mujoco>
     <default>
+      <geom friction="0.5" solimp="0.9 0.95 0.001" solref="0.02 1.0"/>
+    </default>
+    <!--default class="gear">
       <geom friction="0.5" solimp="0.95 0.99 0.001" solref="0.02 1.5"/>
     </default>
+    <default class="tray">
+      <geom friction="0.5" solimp="0.95 0.99 0.001" solref="0.02 1.5"/>
+    </default>
+    <default class="peg">
+      <geom friction="0.5" solimp="0.95 0.99 0.001" solref="0.02 1.5"/>
+    </default-->
 
     <xacro:if value="${cfg.components.gears.get('objects_enabled', cfg.components.gears.enabled)}">
       <sensor>
