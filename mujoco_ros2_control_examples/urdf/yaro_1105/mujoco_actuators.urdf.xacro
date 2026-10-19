@@ -1,0 +1,77 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://wiki.ros.org/xacro">
+
+  <!-- Position + velocity actuator pair for a single UR joint.
+       kp/forcerange follow the joint's torque capability; the velocity
+       actuator adds damping for a stable position hold.
+
+       The gains arrive as products, so a whole number would otherwise be written
+       "3000.0"; `tidy` prints it as "3000". Cosmetic - MuJoCo reads either - but
+       it keeps the emitted actuators identical to the hand-written ones. -->
+  <xacro:macro name="yaro_position_actuator" params="joint effort lower upper kp kv">
+    <xacro:property name="tidy" value="${lambda v: int(v) if float(v).is_integer() else v}"/>
+    <position
+      name="pos_${joint}"
+      joint="${joint}"
+      ctrlrange="${lower} ${upper}"
+      forcerange="${-effort} ${effort}"
+      kp="${tidy(kp)}"/>
+    <velocity
+      name="vel_${joint}"
+      joint="${joint}"
+      forcerange="${-effort} ${effort}"
+      kv="${tidy(kv)}"/>
+  </xacro:macro>
+
+  <!-- max_effort per joint, in yaro_description joint order
+       (shoulder_pan, shoulder_lift, elbow, wrist_1, wrist_2, wrist_3), copied
+       from yaro_description/config/<yaro_type>/joint_limits.yaml. That file cannot
+       be read here: it uses yaro_description's own !degrees YAML tag, which the
+       plain loader behind xacro's load_yaml cannot construct.
+
+       These must be per type. Hard-coding one row - which used to be the case,
+       with the ur5e values - gives a ur3e 2.8x the shoulder torque it has and
+       caps a ur10e at 45% of its own, and both errors are silent. -->
+  <xacro:property name="yaro_max_effort" value="${dict(
+      yaro_1105     = [ 194,  194,  102,  34,  34,  34])}"/>
+
+  <!-- The gains were tuned on the ur5e, so they are carried to other sizes by
+       scaling with each joint's torque: an arm twice as strong gets twice the
+       stiffness and damping, which keeps the ur5e behaviour bit-for-bit and
+       gives every other type the same hold quality rather than one tuned for a
+       different arm. Reference row: 150 Nm -> kp 3000, kv 200 for the shoulder
+       and elbow; 28 Nm -> kp 500, kv 50 for the wrists. -->
+  <xacro:property name="yaro_arm_kp_per_nm" value="${3000.0 / 150.0}"/>
+  <xacro:property name="yaro_arm_kv_per_nm" value="${200.0 / 150.0}"/>
+  <xacro:property name="yaro_wrist_kp_per_nm" value="${500.0 / 28.0}"/>
+  <xacro:property name="yaro_wrist_kv_per_nm" value="${50.0 / 28.0}"/>
+
+  <!-- MuJoCo actuators for the six UR revolute joints. Position limits mirror
+       yaro_description: the elbow is restricted to +-pi, the rest to +-2*pi. -->
+  <xacro:macro name="create_mujoco_actuators" params="tf_prefix yaro_type:=yaro_1105">
+    <!-- An unlisted type falls back to the ur5e row rather than failing the
+         build; check it against joint_limits.yaml before relying on it. -->
+    <xacro:property name="effort"
+                    value="${yaro_max_effort.get(yaro_type, yaro_max_effort['yaro_1105'])}"/>
+    <actuator>
+      <xacro:yaro_position_actuator joint="${tf_prefix}joint_1"
+        effort="${effort[0]}" lower="${-2*pi}" upper="${2*pi}"
+        kp="${effort[0] * yaro_arm_kp_per_nm}" kv="${effort[0] * yaro_arm_kv_per_nm}"/>
+      <xacro:yaro_position_actuator joint="${tf_prefix}joint_2"
+        effort="${effort[1]}" lower="${-2*pi}" upper="${2*pi}"
+        kp="${effort[1] * yaro_arm_kp_per_nm}" kv="${effort[1] * yaro_arm_kv_per_nm}"/>
+      <xacro:yaro_position_actuator joint="${tf_prefix}joint_3"
+        effort="${effort[2]}" lower="${-pi}" upper="${pi}"
+        kp="${effort[2] * yaro_arm_kp_per_nm}" kv="${effort[2] * yaro_arm_kv_per_nm}"/>
+      <xacro:yaro_position_actuator joint="${tf_prefix}joint_4"
+        effort="${effort[3]}" lower="${-2*pi}" upper="${2*pi}"
+        kp="${effort[3] * yaro_wrist_kp_per_nm}" kv="${effort[3] * yaro_wrist_kv_per_nm}"/>
+      <xacro:yaro_position_actuator joint="${tf_prefix}joint_5"
+        effort="${effort[4]}" lower="${-2*pi}" upper="${2*pi}"
+        kp="${effort[4] * yaro_wrist_kp_per_nm}" kv="${effort[4] * yaro_wrist_kv_per_nm}"/>
+      <xacro:yaro_position_actuator joint="${tf_prefix}joint_6"
+        effort="${effort[5]}" lower="${-2*pi}" upper="${2*pi}"
+        kp="${effort[5] * yaro_wrist_kp_per_nm}" kv="${effort[5] * yaro_wrist_kv_per_nm}"/>
+    </actuator>
+  </xacro:macro>
+</robot>

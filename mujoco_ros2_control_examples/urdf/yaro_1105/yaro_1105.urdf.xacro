@@ -25,7 +25,7 @@
   <xacro:arg name="use_fake_hardware" default="false" />
   <xacro:arg name="fake_sensor_commands" default="false" />
   <xacro:arg name="mujoco" default="true" />
-  <xacro:arg name="mujoco_effort" default="true" />
+  <xacro:arg name="mujoco_effort" default="false" />
   <!-- Accepted so the launch file can pass it uniformly, but nothing here
          reads it: the GUI window is a simulator setting, and camera rendering no
          longer depends on it. Cameras render offscreen through EGL, which needs
@@ -54,7 +54,10 @@
 
   <!-- Configure mujoco -->
   <xacro:if value="$(arg mujoco)">
+    <xacro:include filename="$(find mujoco_ros2_control_examples)/urdf/yaro_1105/mujoco_actuators.urdf.xacro" />
     <mujoco>
+
+      <xacro:create_mujoco_actuators tf_prefix="" yaro_type="yaro_1105"/>
       <compiler meshdir="$(arg mujoco_model_path)/meshes" 
         discardvisual="false" 
         autolimits="$(arg autolimits)" 
@@ -71,11 +74,11 @@
       </option>
 
       <reference name="link_6">
-        <site name="link_6" pos="-0.00000042 0.00053249 0.08050000" quat="1 0 0 0" />
+        <site name="tcp_ft_site" pos="-0.00000042 0.00053249 0.08050000" />
       </reference>
       <sensor>
-        <force name="link_6_force" site="link_6" />
-        <torque name="link_6_torque" site="link_6" />
+        <force name="tcp_ft_force" site="tcp_ft_site" />
+        <torque name="tcp_ft_torque" site="tcp_ft_site" />
       </sensor>
     </mujoco>
   </xacro:if>
