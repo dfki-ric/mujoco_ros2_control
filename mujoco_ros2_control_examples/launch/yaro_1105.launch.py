@@ -27,9 +27,10 @@ def _pending_peg_tray_decompositions(examples_share):
     pending = []
     for shape in ("round", "rectangular"):
         for size in (8, 12, 16):
-            mesh = os.path.join(pegs_dir, f"industreal_tray_insert_{shape}_peg_{size}mm.obj")
-            if os.path.isfile(mesh) and not os.path.isdir(os.path.splitext(mesh)[0]):
-                pending.append(mesh)
+            for kind in ("pick", "insert"):
+                mesh = os.path.join(pegs_dir, f"industreal_tray_{kind}_{shape}_peg_{size}mm.obj")
+                if os.path.isfile(mesh) and not os.path.isdir(os.path.splitext(mesh)[0]):
+                    pending.append(mesh)
     return pending
 
 
@@ -45,11 +46,12 @@ def create_nodes(context: LaunchContext):
     headless = value("headless")
     headless_bool = headless.lower() == "true"
 
-    yaro_1105_xacro = os.path.join(examples_share, "urdf", "yaro_1105", "yaro_1105.urdf.xacro")
+    yaro_version = value("yaro_version")
+    yaro_xacro = os.path.join(examples_share, "urdf", "yaro", "yaro.urdf.xacro")
     robot_xml = xacro.process_file(
-        yaro_1105_xacro,
+        yaro_xacro,
         mappings={
-            "name": "yaro_1105",
+            "name": yaro_version,
             "mujoco": "true",
             "headless": headless,
             "base_xyz": value("robot_base_xyz"),
@@ -84,7 +86,7 @@ def create_nodes(context: LaunchContext):
         }],
     )
 
-    controllers = os.path.join(examples_share, "config", "yaro_1105", "controllers.yaml")
+    controllers = os.path.join(examples_share, "config", "yaro", "controllers.yaml")
     simulator = Node(
         package="mujoco_ros2_control",
         executable="mujoco_ros2_control",
@@ -144,6 +146,7 @@ def generate_launch_description():
     examples_share = get_package_share_directory("mujoco_ros2_control_examples")
     return LaunchDescription([
         DeclareLaunchArgument("headless", default_value="false"),
+        DeclareLaunchArgument("yaro_version", default_value="yaro_1105"),
         DeclareLaunchArgument("robot_base_xyz", default_value="-0.308 0 0.875"),
         DeclareLaunchArgument("load_imrk_table", default_value="true"),
         DeclareLaunchArgument("load_industreal_board", default_value="true"),

@@ -31,6 +31,8 @@
          longer depends on it. Cameras render offscreen through EGL, which needs
          neither a window nor a display, so a headless run still produces images. -->
   <xacro:arg name="headless" default="false" />
+  <!-- One of 1115 1105 0808 1310 1608 -->
+  <xacro:arg name="yaro_type" default="$(arg name)" />
 
 
 
@@ -41,11 +43,11 @@
     <child link="link_0" />
     <origin rpy="$(arg base_rpy)" xyz="$(arg base_xyz)" />
   </joint>
-  <xacro:include filename="$(find mujoco_ros2_control_examples)/urdf/yaro_1105/yaro_1105.urdf" />
+  <xacro:include filename="$(find mujoco_ros2_control_examples)/urdf/yaro/$(arg yaro_type).urdf" />
 
   <!-- Import franka ros2_control -->
-  <xacro:include filename="$(find mujoco_ros2_control_examples)/urdf/yaro_1105/ros2_control.urdf.xacro" />
-  <xacro:yaro_1105_ros2_control
+  <xacro:include filename="$(find mujoco_ros2_control_examples)/urdf/yaro/ros2_control.urdf.xacro" />
+  <xacro:yaro_ros2_control
     use_fake_hardware="$(arg use_fake_hardware)"
     fake_sensor_commands="$(arg fake_sensor_commands)"
     mujoco="$(arg mujoco)"
@@ -54,10 +56,10 @@
 
   <!-- Configure mujoco -->
   <xacro:if value="$(arg mujoco)">
-    <xacro:include filename="$(find mujoco_ros2_control_examples)/urdf/yaro_1105/mujoco_actuators.urdf.xacro" />
+    <xacro:include filename="$(find mujoco_ros2_control_examples)/urdf/yaro/mujoco_actuators.urdf.xacro" />
     <mujoco>
 
-      <xacro:create_mujoco_actuators tf_prefix="" yaro_type="yaro_1105"/>
+      <xacro:create_mujoco_actuators tf_prefix="" yaro_type="$(arg yaro_type)"/>
       <compiler meshdir="$(arg mujoco_model_path)/meshes" 
         discardvisual="false" 
         autolimits="$(arg autolimits)" 

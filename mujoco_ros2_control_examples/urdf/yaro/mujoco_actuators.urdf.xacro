@@ -33,7 +33,12 @@
        with the ur5e values - gives a ur3e 2.8x the shoulder torque it has and
        caps a ur10e at 45% of its own, and both errors are silent. -->
   <xacro:property name="yaro_max_effort" value="${dict(
-      yaro_1105     = [ 194,  194,  102,  34,  34,  34])}"/>
+    yaro_1115     = [ 411,  411,  102, 102,  66,  66],
+    yaro_1105     = [ 194,  194,  102,  34,  34,  34],
+    yaro_0808     = [ 194,  194,  102,  34,  34,  34],
+    yaro_1310     = [ 411,  411,  102, 102,  66,  66],
+    yaro_1608     = [ 411,  411,  194, 102,  34,  34])}"/>
+
 
   <!-- The gains were tuned on the ur5e, so they are carried to other sizes by
        scaling with each joint's torque: an arm twice as strong gets twice the

@@ -17,3 +17,4 @@ build/
 paper/jats/
 MUJOCO_LOG.txt
 .pytest_cache/
+/MUJOCO_LOG.TXT

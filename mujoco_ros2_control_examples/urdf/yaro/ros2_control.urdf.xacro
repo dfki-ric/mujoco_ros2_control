@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
-  <xacro:macro name="yaro_1105_ros2_control" 
+  <xacro:macro name="yaro_ros2_control" 
     params="mujoco
      mujoco_effort
      use_fake_hardware
